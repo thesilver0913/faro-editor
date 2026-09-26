@@ -74,6 +74,8 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## スキーマ補足(仕様書からの追加決定)
 
+- **紐付けは画面ごと**:`Bindings/<画面ID>.xml` の `<Bind>` はその画面にだけ適用される。Node の ID は画面内で一意(画面をまたいだ重複は可)。どの画面にも対応しない Bindings ファイルは警告。画面の名前変更・削除で対応する Bindings ファイルも移動・削除される
+
 - サイジングは軸ごと: `widthSizing` / `heightSizing`(`Fill`/`Hug`/`Fixed`)。`sizing` は両軸共通の省略形、未指定は `Hug`。`Fixed` は `width` / `height` 属性で値を指定
 - `UI/` の各XMLはルートが `<UIGraph>` か `<ComponentDef>` のどちらか1つ
 - インスタンスはマスターのスナップショット(`<Node>`)を内部に保持し、エディターの「Sync components」を押すまで更新されない

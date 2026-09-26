@@ -9,7 +9,8 @@ namespace Faro.Editor;
 /// <summary>A bindable public member found in Source/. <c>Target</c> is the "Ns.Class.Member" string used by &lt;Bind&gt;.</summary>
 public sealed record RegistryMember(string Target, bool IsMethod, string Signature);
 
-public sealed record BindingIssue(string NodeId, string Target, string Message, IReadOnlyList<string> Suggestions);
+/// <summary>A broken binding on <paramref name="Screen"/> (node ids are unique per screen only).</summary>
+public sealed record BindingIssue(string NodeId, string Target, string Message, IReadOnlyList<string> Suggestions, string Screen = "");
 
 public static class Registry
 {
@@ -95,42 +96,52 @@ public static class BindingCheck
     /// <summary>Finds broken bindings (red badges, spec §6) with up to 3 near-name suggestions each.</summary>
     public static List<BindingIssue> Check(FaroProject project, List<RegistryMember> registry)
     {
-        var nodes = ScreenNodes(project).ToList();
-        var nodeIds = nodes.Select(n => (string?)n.Attribute("id")).ToHashSet();
         var issues = new List<BindingIssue>();
+        foreach (var (screenId, screen) in project.Screens)
+            foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
+                issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
 
-        foreach (var n in nodes.Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
-            issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys)));
-
-        foreach (var bind in project.Binds)
+        foreach (var file in project.BindingFiles)
         {
-            var nodeId = (string?)bind.Attribute("nodeId") ?? "";
-            var target = (string?)bind.Attribute("target") ?? "";
-            if (!nodeIds.Contains(nodeId))
-                issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist.", []));
-            else if (target.Length == 0)
-                issues.Add(new(nodeId, target, "No target chosen yet.", []));
-            else if (target.StartsWith("Navigate:"))
+            var screenId = FaroProject.ScreenOf(file);
+            if (!project.Screens.TryGetValue(screenId, out var screen))
             {
-                var screen = FaroApp.NavigateScreenId(target, project.Screens.Keys);
-                if (!project.Screens.ContainsKey(screen))
-                    issues.Add(new(nodeId, target, $"Screen '{screen}' does not exist.", Nearest(screen, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList()));
+                issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen (there is no screen '{screenId}').", Nearest(screenId, project.Screens.Keys), screenId));
+                continue;
             }
-            else
+            var nodeIds = NodesOf(screen).Select(n => (string?)n.Attribute("id")).ToHashSet();
+            foreach (var bind in file.Root!.Elements("Bind"))
             {
-                var isEvent = bind.Attribute("event") is not null;
-                if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
-                    issues.Add(new(nodeId, target, $"{(isEvent ? "Method" : "Property")} '{target}' not found in Source/.",
-                        Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target))));
+                var nodeId = (string?)bind.Attribute("nodeId") ?? "";
+                var target = (string?)bind.Attribute("target") ?? "";
+                if (!nodeIds.Contains(nodeId))
+                    issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
+                else if (target.Length == 0)
+                    issues.Add(new(nodeId, target, "No target chosen yet.", [], screenId));
+                else if (target.StartsWith("Navigate:"))
+                {
+                    var to = FaroApp.NavigateScreenId(target, project.Screens.Keys);
+                    if (!project.Screens.ContainsKey(to))
+                        issues.Add(new(nodeId, target, $"Screen '{to}' does not exist.", Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId));
+                }
+                else
+                {
+                    var isEvent = bind.Attribute("event") is not null;
+                    if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
+                        issues.Add(new(nodeId, target, $"{(isEvent ? "Method" : "Property")} '{target}' not found in Source/.",
+                            Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId));
+                }
             }
         }
         return issues;
     }
 
+    /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>
+    public static IEnumerable<XElement> NodesOf(XDocument screen) =>
+        screen.Descendants("Node").Where(n => !n.Ancestors("Node").Any(a => (string?)a.Attribute("type") == "Instance"));
+
     /// <summary>Nodes authored in screens, excluding the master snapshots stored inside instances.</summary>
-    public static IEnumerable<XElement> ScreenNodes(FaroProject project) =>
-        project.Screens.Values.SelectMany(d => d.Descendants("Node"))
-            .Where(n => !n.Ancestors("Node").Any(a => (string?)a.Attribute("type") == "Instance"));
+    public static IEnumerable<XElement> ScreenNodes(FaroProject project) => project.Screens.Values.SelectMany(NodesOf);
 
     static List<string> Nearest(string name, IEnumerable<string> candidates) =>
         [.. candidates.OrderBy(c => Distance(name, c)).Take(3)];
@@ -350,13 +361,15 @@ public static class CanvasEdit
         screen.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == id
             && !n.Ancestors("Node").Any(a => (string?)a.Attribute("type") == "Instance"));
 
-    static HashSet<string?> AllIds(FaroProject project) =>
-        [.. BindingCheck.ScreenNodes(project).Select(n => (string?)n.Attribute("id"))];
+    static string ScreenId(XDocument screen) => (string)screen.Root!.Attribute("id")!;
 
-    public static string NewId(FaroProject project, string type)
+    static HashSet<string?> IdsOf(XDocument screen) => [.. BindingCheck.NodesOf(screen).Select(n => (string?)n.Attribute("id"))];
+
+    /// <summary>A node id not used on this screen (ids are unique per screen, spec §5).</summary>
+    public static string NewId(XDocument screen, string type)
     {
         var stem = type.Split('.')[^1].ToLowerInvariant() switch { "textinput" => "input", var s => s };
-        var ids = AllIds(project);
+        var ids = IdsOf(screen);
         return Enumerable.Range(1, int.MaxValue).Select(i => $"{stem}{i}").First(id => !ids.Contains(id));
     }
 
@@ -388,7 +401,7 @@ public static class CanvasEdit
     /// <summary>Adds a node into the selected container, else after the selected node, else at the end of the root.</summary>
     public static XElement Add(FaroProject project, XDocument screen, string? selectedId, string type, string? component = null)
     {
-        var id = NewId(project, component is null ? type : component.Split('.')[^1]);
+        var id = NewId(screen, component is null ? type : component.Split('.')[^1]);
         var node = new XElement("Node", new XAttribute("id", id), new XAttribute("type", component is null ? type : "Instance"));
         if (component is not null)
         {
@@ -410,7 +423,7 @@ public static class CanvasEdit
     {
         var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
         var gone = nodes.SelectMany(n => n.DescendantsAndSelf("Node")).Select(n => (string?)n.Attribute("id")).ToHashSet();
-        var binds = project.Binds.Where(b => gone.Contains((string?)b.Attribute("nodeId"))).ToList();
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => gone.Contains((string?)b.Attribute("nodeId"))).ToList();
         var changed = binds.Select(b => b.Document!).Distinct().Append(screen).ToList();
         nodes.ForEach(n => n.Remove());
         binds.ForEach(b => b.Remove());
@@ -449,25 +462,20 @@ public static class CanvasEdit
         newId = newId.Trim();
         if (newId.Length == 0 || newId.Contains('/') || newId.Any(char.IsWhiteSpace)) return ("An ID can't be empty or contain '/' or spaces.", []);
         if (newId == oldId) return (null, []);
-        if (AllIds(project).Contains(newId)) return ($"'{newId}' is already used.", []);
+        if (IdsOf(screen).Contains(newId)) return ($"'{newId}' is already used on this screen.", []);
         if (Find(screen, oldId) is not { } node) return ($"'{oldId}' not found.", []);
         node.SetAttributeValue("id", newId);
-        var binds = project.Binds.Where(b => (string?)b.Attribute("nodeId") == oldId).ToList();
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") == oldId).ToList();
         binds.ForEach(b => b.SetAttributeValue("nodeId", newId));
         return (null, [screen, .. binds.Select(b => b.Document!).Distinct()]);
     }
 
-    /// <summary>
-    /// The Bindings file new binds for a screen go to: the file already holding binds of that screen's nodes,
-    /// else Bindings/&lt;screenId&gt;.xml, created (empty) when missing.
-    /// </summary>
+    /// <summary>The screen's own Bindings/&lt;screenId&gt;.xml, created (empty) when missing.</summary>
     // ponytail: the created file stays behind (empty) if the adding step is undone; harmless
     public static XDocument BindingsFileFor(FaroProject project, string screenId)
     {
-        var ids = project.Screens[screenId].Descendants("Node").Select(n => (string?)n.Attribute("id")).ToHashSet();
-        if (project.BindingFiles.FirstOrDefault(d => d.Root!.Elements("Bind").Any(b => ids.Contains((string?)b.Attribute("nodeId")))) is { } used) return used;
+        if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == screenId) is { } existing) return existing;
         var path = Path.Combine(project.Root, "Bindings", screenId + ".xml");
-        if (project.BindingFiles.FirstOrDefault(d => new Uri(d.BaseUri).LocalPath == path) is { } named) return named;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "<Bindings>\n</Bindings>\n");
         var doc = XDocument.Load(path, LoadOptions.SetBaseUri);
@@ -519,6 +527,11 @@ public static partial class ProjectFiles
             binds.ForEach(b => b.SetAttributeValue("target", $"Navigate:Screen.{newId}"));
             if (binds.Count > 0) changes[PathOf(file)] = Text(file);
         }
+        if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == oldId) is { } own) // the screen's bindings move with it
+        {
+            changes[PathOf(own)] = null;
+            changes[Path.Combine(project.Root, "Bindings", newId + ".xml")] = Text(own);
+        }
         var program = Path.Combine(project.Root, "Program.cs");
         if (File.Exists(program) && File.ReadAllText(program) is var code && code.Contains($"\"{oldId}\""))
             changes[program] = code.Replace($"\"{oldId}\"", $"\"{newId}\"");
@@ -539,17 +552,12 @@ public static partial class ProjectFiles
         return changes;
     }
 
-    /// <summary>Deletes a screen (with the bindings of its nodes) or a component.</summary>
+    /// <summary>Deletes a screen (with its bindings file) or a component.</summary>
     public static Dictionary<string, string?> Delete(FaroProject project, XDocument doc)
     {
         var changes = new Dictionary<string, string?> { [PathOf(doc)] = null };
-        var ids = doc.Root!.Name == "UIGraph" ? doc.Descendants("Node").Select(n => (string?)n.Attribute("id")).ToHashSet() : [];
-        foreach (var file in project.BindingFiles)
-        {
-            var binds = file.Root!.Elements("Bind").Where(b => ids.Contains((string?)b.Attribute("nodeId"))).ToList();
-            binds.ForEach(b => b.Remove());
-            if (binds.Count > 0) changes[PathOf(file)] = Text(file);
-        }
+        if (doc.Root!.Name == "UIGraph" && project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == (string?)doc.Root.Attribute("id")) is { } own)
+            changes[PathOf(own)] = null;
         return changes;
     }
 

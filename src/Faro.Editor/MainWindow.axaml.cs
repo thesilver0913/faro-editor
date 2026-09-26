@@ -123,7 +123,7 @@ public partial class MainWindow : Window
 
     void SelectAll(object? sender, RoutedEventArgs e) => CanvasView.Select(CanvasView.ScreenNodeIds);
     void SelectNone(object? sender, RoutedEventArgs e) => CanvasView.Select([]);
-    void SelectBroken(object? sender, RoutedEventArgs e) => CanvasView.Select(Workspace.Issues.Select(i => i.NodeId).Intersect(CanvasView.ScreenNodeIds));
+    void SelectBroken(object? sender, RoutedEventArgs e) => CanvasView.Select(Workspace.Issues.Where(i => i.Screen == CanvasView.CurrentScreen).Select(i => i.NodeId).Intersect(CanvasView.ScreenNodeIds));
 
     async void SelectById(object? sender, RoutedEventArgs e)
     {

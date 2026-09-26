@@ -74,7 +74,7 @@ public static class FaroApp
         window.Title = screenId;
 
         var errors = new List<string>();
-        foreach (var bind in project.Binds)
+        foreach (var bind in project.BindsFor(screenId))
         {
             if (!byId.TryGetValue((string?)bind.Attribute("nodeId") ?? "", out var control)) continue;
             try { Apply(bind, control); }

@@ -27,7 +27,18 @@ project.Binds.First(b => (string?)b.Attribute("nodeId") == "btnDetail").SetAttri
 var issues = BindingCheck.Check(project, registry);
 Check(issues.Count == 2, "two broken bindings found");
 project.Binds.First().SetAttributeValue("nodeId", "price");
-Check(BindingCheck.Check(project, registry).Any(i => i.Message == "Node 'price' does not exist."), "snapshot-internal ids are not screen nodes");
+Check(BindingCheck.Check(project, registry).Any(i => i.Message.StartsWith("Node 'price' does not exist")), "snapshot-internal ids are not screen nodes");
+
+// Bindings are per screen (Bindings/<ScreenId>.xml): the same node id on another screen is not affected.
+project = FaroProject.Load(root);
+Check(project.BindsFor("MainScreen").Any(b => (string?)b.Attribute("nodeId") == "btn1") && !project.BindsFor("Detail").Any(b => (string?)b.Attribute("nodeId") == "btn1"), "binds belong to their screen's file");
+project.Screens["MainScreen"].Root!.Element("Node")!.SetAttributeValue("id", "back"); // "back" is a Detail node id
+Check(BindingCheck.Check(project, registry).All(i => i.Screen != "MainScreen" || i.NodeId != "back"), "same id on another screen doesn't pick up its bindings");
+project = FaroProject.Load(root);
+File.WriteAllText(Path.Combine(root, "Bindings/Nowhere.xml"), "<Bindings />");
+Check(BindingCheck.Check(FaroProject.Load(root), registry).Any(i => i.Screen == "Nowhere" && i.Message.Contains("doesn't belong to any screen")), "orphan bindings file reported");
+File.Delete(Path.Combine(root, "Bindings/Nowhere.xml"));
+Check(CanvasEdit.NewId(project.Screens["Detail"], "Control.Button") == "button1" && CanvasEdit.Rename(project, project.Screens["Detail"], "back", "title").Error is null, "ids are unique per screen, not per project");
 Check(issues[0].Suggestions[0] == "MyApp.Services.OrderService.Submit", "method suggestion");
 Check(issues[1].Suggestions[0] == "Navigate:Screen.Detail", "screen suggestion");
 Check(BindingCheck.Distance("kitten", "sitting") == 3, "levenshtein");
@@ -102,6 +113,7 @@ Check(UiHistory.Undo() is null && !FaroProject.Load(root).Screens.ContainsKey("S
 File.WriteAllText(Path.Combine(root, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"Detail\");\n");
 UiHistory.CommitFiles("Rename screen", ProjectFiles.RenameScreen(FaroProject.Load(root), "Detail", "Info"));
 project = FaroProject.Load(root);
+Check(project.BindsFor("Info").Any(b => (string?)b.Attribute("nodeId") == "back") && !File.Exists(Path.Combine(root, "Bindings/Detail.xml")), "screen rename moves its bindings file");
 Check(project.Screens.ContainsKey("Info") && !File.Exists(Path.Combine(root, "UI/Detail.xml")) && project.Binds.Any(b => (string?)b.Attribute("target") == "Navigate:Screen.Info")
     && File.ReadAllText(Path.Combine(root, "Program.cs")).Contains("\"Info\""), "screen rename follows file, Navigate targets and start screen");
 Check(UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail"), "screen rename undoable");
@@ -110,7 +122,7 @@ project = FaroProject.Load(root);
 Check(project.Components.ContainsKey("Comp.MainButton") && project.Screens["MainScreen"].Descendants("Node").Count(n => (string?)n.Attribute("component") == "Comp.MainButton") == 2, "component rename follows instances");
 UiHistory.CommitFiles("Delete screen", ProjectFiles.Delete(project, project.Screens["Detail"]));
 project = FaroProject.Load(root);
-Check(!project.Screens.ContainsKey("Detail") && !project.Binds.Any(b => (string?)b.Attribute("nodeId") is "count" or "back"), "screen delete removes its bindings");
+Check(!project.Screens.ContainsKey("Detail") && !File.Exists(Path.Combine(root, "Bindings/Detail.xml")), "screen delete removes its bindings file");
 Check(UiHistory.Undo() is null && UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail") && FaroProject.Load(root).Components.ContainsKey("Comp.PrimaryButton"), "deletes and renames undo in order");
 var classText = ProjectFiles.ClassFile(Path.Combine(root, "Source"), "Services/Payments", "Invoice");
 Check(classText.Contains("namespace MyApp.Services.Payments;") && classText.Contains("public class Invoice : FaroObject") && VibeCoding.SyntaxErrors(classText).Count == 0, "new class file uses the project namespace");

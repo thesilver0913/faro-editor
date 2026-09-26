@@ -14,7 +14,14 @@ public sealed class FaroProject
     public Dictionary<string, XDocument> Components { get; } = [];
     public List<XDocument> BindingFiles { get; } = [];
 
+    /// <summary>Every bind in the project (for project-wide follow-ups such as class renames).</summary>
     public IEnumerable<XElement> Binds => BindingFiles.SelectMany(d => d.Root!.Elements("Bind"));
+
+    /// <summary>Bindings/&lt;ScreenId&gt;.xml belongs to that screen: its binds apply only there.</summary>
+    public static string ScreenOf(XDocument bindingFile) => Path.GetFileNameWithoutExtension(new Uri(bindingFile.BaseUri).LocalPath);
+
+    public IEnumerable<XElement> BindsFor(string screenId) =>
+        BindingFiles.Where(d => ScreenOf(d) == screenId).SelectMany(d => d.Root!.Elements("Bind"));
 
     public static FaroProject Load(string root)
     {
