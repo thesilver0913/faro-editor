@@ -32,6 +32,22 @@ public sealed class CodeView : UserControl
     static string lspState = "Language server: starting…";
     static int version, restarts;
     static event Action? StateChanged;
+    static string? shownPath;
+
+    /// <summary>Raised when the code history's state may have changed (edits, saves, file switch).</summary>
+    public static event Action? HistoryChanged
+    {
+        add => StateChanged += value;
+        remove => StateChanged -= value;
+    }
+
+    /// <summary>Code history (spec §10) is per file: the undo stack of the file shown in the editor,
+    /// holding manual edits and approved AI changes alike.</summary>
+    public static string? HistoryFile => shownPath is null ? null : Path.GetFileName(shownPath);
+    public static bool CanUndo => shownPath is not null && Buffer(shownPath).UndoStack.CanUndo;
+    public static bool CanRedo => shownPath is not null && Buffer(shownPath).UndoStack.CanRedo;
+    public static void Undo() { if (CanUndo) Buffer(shownPath!).UndoStack.Undo(); }
+    public static void Redo() { if (CanRedo) Buffer(shownPath!).UndoStack.Redo(); }
 
     readonly ComboBox files = new() { MinWidth = 260 };
     readonly Button save = new() { Content = "Save" };
@@ -135,6 +151,7 @@ public sealed class CodeView : UserControl
         if (Current is not { } path || !File.Exists(path)) { editor.IsEnabled = false; return; }
         var doc = Buffer(path);
         if (editor.Document != doc) editor.Document = doc;
+        if (shownPath != path) { shownPath = path; StateChanged?.Invoke(); }
         editor.IsEnabled = true;
         Redraw();
     }

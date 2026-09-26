@@ -117,7 +117,7 @@ public sealed class CanvasView : UserControl
 
     public static void SyncComponents()
     {
-        if (Workspace.Project is { } p) ComponentSync.Sync(p).ForEach(FaroProject.Save);
+        if (Workspace.Project is { } p) UiHistory.Commit("Sync components", ComponentSync.Sync(p));
     }
 
     void DrawSelection()

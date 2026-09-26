@@ -255,3 +255,64 @@ public static partial class VibeCoding
         return diff;
     }
 }
+
+/// <summary>
+/// UI graph edit history (spec §10). Faro-made changes to UI/ and Bindings/ are committed here as one
+/// step each, with every touched file's content before and after. Undo/redo refuses to run when a file
+/// was changed outside Faro since, instead of overwriting that change.
+/// </summary>
+public static class UiHistory
+{
+    sealed record Step(string Label, Dictionary<string, string?> Before, Dictionary<string, string?> After);
+
+    static readonly List<Step> undo = [], redo = [];
+    public static event Action? Changed;
+
+    public static string? UndoLabel => undo.LastOrDefault()?.Label;
+    public static string? RedoLabel => redo.LastOrDefault()?.Label;
+
+    /// <summary>Saves the documents as one undoable step (no step if nothing changed on disk).</summary>
+    public static void Commit(string label, IEnumerable<XDocument> docs)
+    {
+        var paths = docs.ToDictionary(d => new Uri(d.BaseUri).LocalPath);
+        var before = paths.Keys.ToDictionary(p => p, Read);
+        foreach (var doc in paths.Values) FaroProject.Save(doc);
+        var after = paths.Keys.ToDictionary(p => p, Read);
+        if (paths.Keys.All(p => before[p] == after[p])) return;
+        undo.Add(new(label, before, after));
+        redo.Clear();
+        Changed?.Invoke();
+    }
+
+    /// <summary>Returns an error message when the step can't be applied, else null.</summary>
+    public static string? Undo() => Move(undo, redo, s => (s.After, s.Before));
+    public static string? Redo() => Move(redo, undo, s => (s.Before, s.After));
+
+    public static void Clear()
+    {
+        undo.Clear();
+        redo.Clear();
+        Changed?.Invoke();
+    }
+
+    static string? Move(List<Step> from, List<Step> to, Func<Step, (Dictionary<string, string?> Expected, Dictionary<string, string?> Target)> direction)
+    {
+        if (from.Count == 0) return null;
+        var step = from[^1];
+        var (expected, target) = direction(step);
+        if (expected.FirstOrDefault(p => Read(p.Key) != p.Value) is { Key: not null } changed)
+        {
+            from.Clear(); // history no longer matches the files
+            Changed?.Invoke();
+            return $"{Path.GetFileName(changed.Key)} was changed outside Faro, so \"{step.Label}\" can't be undone or redone.";
+        }
+        foreach (var (path, text) in target)
+            if (text is null) File.Delete(path); else File.WriteAllText(path, text);
+        from.RemoveAt(from.Count - 1);
+        to.Add(step);
+        Changed?.Invoke();
+        return null;
+    }
+
+    static string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
+}
