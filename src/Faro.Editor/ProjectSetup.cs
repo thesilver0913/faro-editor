@@ -61,15 +61,10 @@ public static partial class ProjectSetup
         name ??= new string(Path.GetFileName(Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar)).Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray()) is { Length: > 0 } n && !char.IsDigit(n[0]) ? n : "FaroApp";
         foreach (var folder in new[] { "UI", "Source", "Bindings", "Assets" }) Directory.CreateDirectory(Path.Combine(dir, folder));
 
-        var packages = Path.Combine(appDir ?? AppDir, "runtime");
-        var package = Directory.EnumerateFiles(packages, "Faro.Runtime.*.nupkg").Order().LastOrDefault()
-            ?? throw new InvalidOperationException($"The Faro.Runtime package is missing from {packages}.");
-        var version = Path.GetFileNameWithoutExtension(package)["Faro.Runtime.".Length..];
-        Directory.CreateDirectory(Path.Combine(dir, ".faro", "packages"));
-        var vendored = Path.Combine(dir, ".faro", "packages", Path.GetFileName(package));
-        if (!File.Exists(vendored)) File.Copy(package, vendored);
+        var (package, version) = BundledRuntime(appDir);
+        Vendor(dir, package);
 
-        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = "CSharp", ["runtime"] = version }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = "CSharp", ["runtime"] = version.ToString() }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         WriteNew(Path.Combine(dir, "nuget.config"), """
             <?xml version="1.0" encoding="utf-8"?>
             <configuration>
@@ -100,6 +95,53 @@ public static partial class ProjectSetup
                 """);
         WriteNew(Path.Combine(dir, "Program.cs"), $"Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"{startScreen}\");\n");
         WriteNew(Path.Combine(dir, ".gitignore"), "bin/\nobj/\n");
+    }
+
+    /// <summary>The newest Faro.Runtime package shipped with the editor (compared as versions, so 0.1.10 &gt; 0.1.9).</summary>
+    public static (string Package, Version Version) BundledRuntime(string? appDir = null)
+    {
+        var packages = Path.Combine(appDir ?? AppDir, "runtime");
+        return Directory.EnumerateFiles(packages, "Faro.Runtime.*.nupkg")
+            .Select(p => (Package: p, Version: Version.TryParse(Path.GetFileNameWithoutExtension(p)["Faro.Runtime.".Length..], out var v) ? v : null))
+            .Where(p => p.Version is not null).OrderBy(p => p.Version).Select(p => (p.Package, p.Version!)).LastOrDefault() is { Package: not null } latest
+            ? latest
+            : throw new InvalidOperationException($"The Faro.Runtime package is missing from {packages}.");
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(<PackageReference\s+Include=""Faro\.Runtime""\s+Version="")([^""]+)("")")]
+    private static partial System.Text.RegularExpressions.Regex RuntimeReference();
+
+    /// <summary>The Faro.Runtime version the project's .csproj references; null if it doesn't use the package (e.g. the in-repo sample).</summary>
+    public static Version? ProjectRuntime(string dir) =>
+        Directory.EnumerateFiles(dir, "*.csproj").Select(f => RuntimeReference().Match(File.ReadAllText(f)))
+            .FirstOrDefault(m => m.Success) is { } m && Version.TryParse(m.Groups[2].Value, out var v) ? v : null;
+
+    /// <summary>Runtime update check on open: the editor ships a newer runtime than the project uses.</summary>
+    public static bool RuntimeUpdateAvailable(string dir, string? appDir = null) =>
+        ProjectRuntime(dir) is { } used && used < BundledRuntime(appDir).Version;
+
+    /// <summary>Moves the project to the bundled runtime: vendors the package, bumps the .csproj reference and faro.json.</summary>
+    public static void UpdateRuntime(string dir, string? appDir = null)
+    {
+        var (package, version) = BundledRuntime(appDir);
+        foreach (var old in Directory.EnumerateFiles(Path.Combine(dir, ".faro", "packages"), "Faro.Runtime.*.nupkg").Where(p => p != Path.Combine(dir, ".faro", "packages", Path.GetFileName(package))))
+            File.Delete(old);
+        Vendor(dir, package);
+        foreach (var csproj in Directory.EnumerateFiles(dir, "*.csproj"))
+            File.WriteAllText(csproj, RuntimeReference().Replace(File.ReadAllText(csproj), $"${{1}}{version}${{3}}"));
+        var json = Path.Combine(dir, ProjectFile);
+        if (File.Exists(json) && JsonNode.Parse(File.ReadAllText(json)) is JsonObject meta)
+        {
+            meta["runtime"] = version.ToString();
+            File.WriteAllText(json, meta.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        }
+    }
+
+    static void Vendor(string dir, string package)
+    {
+        var vendored = Path.Combine(dir, ".faro", "packages", Path.GetFileName(package));
+        Directory.CreateDirectory(Path.GetDirectoryName(vendored)!);
+        if (!File.Exists(vendored)) File.Copy(package, vendored);
     }
 
     static void WriteNew(string path, string text)

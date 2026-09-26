@@ -145,6 +145,19 @@ File.WriteAllText(Path.Combine(existing, "Mine.csproj"), "<Project />");
 ProjectSetup.Initialize(existing);
 Check(ProjectSetup.IsFaroProject(existing) && File.ReadAllText(Path.Combine(existing, "Program.cs")) == "// mine" && Directory.EnumerateFiles(existing, "*.csproj").Count() == 1
     && new[] { "UI", "Source", "Bindings", "Assets" }.All(f => Directory.Exists(Path.Combine(existing, f))), "initializing a folder adds what's missing and keeps existing files");
+// Runtime update check: an older project gets the newer bundled package (versions compared numerically).
+var fakeApp = Path.Combine(projects, "app");
+Directory.CreateDirectory(Path.Combine(fakeApp, "runtime"));
+var realPackage = ProjectSetup.BundledRuntime().Package;
+File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.9.nupkg"));
+var old = ProjectSetup.Create(projects, "OldApp", "Empty", fakeApp);
+Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 9) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "project runtime read from its csproj");
+File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.10.nupkg"));
+Check(ProjectSetup.BundledRuntime(fakeApp).Version == new Version(0, 1, 10) && ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "0.1.10 is newer than 0.1.9");
+ProjectSetup.UpdateRuntime(old, fakeApp);
+Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 10) && File.ReadAllText(Path.Combine(old, "faro.json")).Contains("\"0.1.10\"")
+    && Directory.EnumerateFiles(Path.Combine(old, ".faro/packages")).Select(Path.GetFileName).SequenceEqual(["Faro.Runtime.0.1.10.nupkg"]) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "runtime update vendors the package and bumps csproj and faro.json");
+Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");
 Directory.Delete(projects, true);
 
 // Rename on save (spec §6): member and class renames are detected and followed by bindings.

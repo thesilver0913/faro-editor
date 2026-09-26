@@ -33,8 +33,19 @@ public partial class App : Application
         splash.Show();
         previous?.Close(); // after the splash is up, so closing the last window doesn't end the app
         await Task.Run(() => Workspace.Open(dir, splash.Report));
-        // A new or copied project has no restored packages yet: the language server needs them to resolve Faro.Runtime.
-        if (!File.Exists(Path.Combine(dir, "obj", "project.assets.json")) && Directory.EnumerateFiles(dir, "*.csproj").Any())
+        var updated = false;
+        try
+        {
+            if (ProjectSetup.RuntimeUpdateAvailable(dir) && await Dialogs.Confirm(splash, "Faro.Runtime update",
+                $"This project uses Faro.Runtime {ProjectSetup.ProjectRuntime(dir)}. This Faro ships {ProjectSetup.BundledRuntime().Version}. Update the project to it?", "Update"))
+            {
+                ProjectSetup.UpdateRuntime(dir);
+                updated = true;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException) { } // keep the project's runtime
+        // A new, copied or just-updated project needs a restore: the language server resolves Faro.Runtime from it.
+        if ((updated || !File.Exists(Path.Combine(dir, "obj", "project.assets.json"))) && Directory.EnumerateFiles(dir, "*.csproj").Any())
         {
             splash.Report("Restoring packages…", 70);
             try
