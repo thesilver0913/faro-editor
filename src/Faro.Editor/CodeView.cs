@@ -110,6 +110,7 @@ public sealed class CodeView : UserControl
         Workspace.Changed += Refresh;
         StateChanged += Redraw;
         FaroSettings.ThemeChanged += ApplyTheme;
+        OpenRequested += Show;
         ApplyTheme();
         Refresh();
     }
@@ -119,6 +120,7 @@ public sealed class CodeView : UserControl
         Workspace.Changed -= Refresh;
         StateChanged -= Redraw;
         FaroSettings.ThemeChanged -= ApplyTheme;
+        OpenRequested -= Show;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -144,6 +146,12 @@ public sealed class CodeView : UserControl
             : [];
         files.SelectedItem = selected ?? (files.ItemsSource as List<string>)?.FirstOrDefault();
         Show();
+    }
+
+    void Show(string path)
+    {
+        Refresh(); // a new file may not be listed yet
+        files.SelectedItem = Path.GetRelativePath(Workspace.Root, path);
     }
 
     void Show()
@@ -194,6 +202,22 @@ public sealed class CodeView : UserControl
         };
         DidOpen(path, doc);
         return doc;
+    }
+
+    static event Action<string>? OpenRequested;
+
+    /// <summary>Shows a Source/ file in the code editor (from the explorer).</summary>
+    public static void Open(string path) => OpenRequested?.Invoke(path);
+
+    /// <summary>Drops the buffer of a file that was renamed or deleted (it has no unsaved edits by then).</summary>
+    public static void Forget(string path)
+    {
+        foreach (var key in buffers.Keys.Where(k => k == path || k.StartsWith(path + Path.DirectorySeparatorChar)).ToList())
+        {
+            buffers.Remove(key);
+            saved.Remove(key);
+        }
+        StateChanged?.Invoke();
     }
 
     public static bool AnyDirty => buffers.Values.Any(d => !d.UndoStack.IsOriginalFile);

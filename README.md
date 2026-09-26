@@ -44,11 +44,18 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## キャンバス編集とインスペクター
 
-- 既定レイアウトは「キャンバス｜インスペクター｜コード/チャット」の 4 パネル
+- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜チャット(並べて常時表示)、右端にインスペクター
+- **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with vibe coding」
 - Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
+
+## エクスプローラー
+
+- `UI/` `Source/` `Bindings/` `Assets/` をツリー表示(外部でのファイル追加・削除も反映)。クリックで開く:画面 → キャンバス、`.cs` → コードエディタ。画像はホバーでプレビュー
+- 右クリック:UI/ に新しい画面・コンポーネント、Source/ に新しい C# クラス(プロジェクトの名前空間、`FaroObject` 継承)・フォルダ、Assets/ にフォルダ
+- 名前変更・削除:画面の ID 変更は Navigate 先と Program.cs の開始画面も追従、コンポーネントの ID 変更は全インスタンスが追従。画面を削除するとその Node の紐付けも削除。これらは UI グラフ履歴に入り Ctrl+Z で戻せる。C# ファイル・Assets・フォルダの名前変更/削除は通常のファイル操作(削除は確認あり・元に戻せない、未保存のコードがあれば中止)
 
 ## メニューと環境設定
 
@@ -58,7 +65,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Canvas／Inspector／Code／Vibe Coding の各パネルを前面に／全画面(F11)
+- **Window**:Explorer／Canvas／Inspector／Code／Vibe Coding の各パネルを前面に／全画面(F11)
 - **Help**:Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)

@@ -86,6 +86,35 @@ Check(CanvasEdit.Find(main, "sendButton") is null && !project.Binds.Any(b => (st
 Check(CanvasEdit.Delete(project, main, ["root"]).Count == 0, "root can't be deleted");
 Check(CanvasEdit.BindingsFileFor(project, "Detail").BaseUri.EndsWith("Detail.xml"), "new binds go to the screen's bindings file");
 
+// Drag and drop (MoveTo): reorder, move into another container, refuse invalid drops.
+project = FaroProject.Load(root);
+main = project.Screens["MainScreen"];
+Check(CanvasEdit.MoveTo(main, "btnDetail", "actions", 0) && CanvasEdit.Find(main, "actions")!.Elements("Node").First().Attribute("id")!.Value == "btnDetail", "drag reorders within a container");
+Check(CanvasEdit.MoveTo(main, "title", "actions", 99) && CanvasEdit.Find(main, "title")!.Parent == CanvasEdit.Find(main, "actions") && CanvasEdit.Find(main, "title")!.ElementsAfterSelf().Any() is false, "drag moves into another container (clamped to the end)");
+Check(!CanvasEdit.MoveTo(main, "actions", "actions", 0) && !CanvasEdit.MoveTo(main, "root", "actions", 0) && !CanvasEdit.MoveTo(main, "txt1", "greeting", 0), "invalid drops refused (into itself, root, non-container)");
+
+// Explorer file operations: new / rename (with follow) / delete, each one undoable step.
+project = FaroProject.Load(root);
+UiHistory.CommitFiles("New screen", ProjectFiles.NewScreen(project, "Settings"));
+Check(FaroProject.Load(root).Screens.ContainsKey("Settings"), "new screen file");
+Check(Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "Settings")) && Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "../evil")), "new screen rejects duplicates and path-like ids");
+Check(UiHistory.Undo() is null && !FaroProject.Load(root).Screens.ContainsKey("Settings") && !File.Exists(Path.Combine(root, "UI/Settings.xml")), "undo removes the created file");
+File.WriteAllText(Path.Combine(root, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"Detail\");\n");
+UiHistory.CommitFiles("Rename screen", ProjectFiles.RenameScreen(FaroProject.Load(root), "Detail", "Info"));
+project = FaroProject.Load(root);
+Check(project.Screens.ContainsKey("Info") && !File.Exists(Path.Combine(root, "UI/Detail.xml")) && project.Binds.Any(b => (string?)b.Attribute("target") == "Navigate:Screen.Info")
+    && File.ReadAllText(Path.Combine(root, "Program.cs")).Contains("\"Info\""), "screen rename follows file, Navigate targets and start screen");
+Check(UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail"), "screen rename undoable");
+UiHistory.CommitFiles("Rename component", ProjectFiles.RenameComponent(FaroProject.Load(root), "Comp.PrimaryButton", "Comp.MainButton"));
+project = FaroProject.Load(root);
+Check(project.Components.ContainsKey("Comp.MainButton") && project.Screens["MainScreen"].Descendants("Node").Count(n => (string?)n.Attribute("component") == "Comp.MainButton") == 2, "component rename follows instances");
+UiHistory.CommitFiles("Delete screen", ProjectFiles.Delete(project, project.Screens["Detail"]));
+project = FaroProject.Load(root);
+Check(!project.Screens.ContainsKey("Detail") && !project.Binds.Any(b => (string?)b.Attribute("nodeId") is "count" or "back"), "screen delete removes its bindings");
+Check(UiHistory.Undo() is null && UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail") && FaroProject.Load(root).Components.ContainsKey("Comp.PrimaryButton"), "deletes and renames undo in order");
+var classText = ProjectFiles.ClassFile(Path.Combine(root, "Source"), "Services/Payments", "Invoice");
+Check(classText.Contains("namespace MyApp.Services.Payments;") && classText.Contains("public class Invoice : FaroObject") && VibeCoding.SyntaxErrors(classText).Count == 0, "new class file uses the project namespace");
+
 // Rename on save (spec §6): member and class renames are detected and followed by bindings.
 var code = File.ReadAllText(Path.Combine(root, "Source/Services/OrderService.cs"));
 var renamed = code.Replace("void Submit()", "void Send()");

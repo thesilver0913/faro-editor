@@ -10,7 +10,8 @@ public static class Dialogs
     public static async Task<bool> Confirm(Window owner, string title, string message, string ok = "OK") =>
         await Show(owner, title, message, null, ok) is not null;
 
-    public static Task<string?> Prompt(Window owner, string title, string message) => Show(owner, title, message, new TextBox(), "OK");
+    public static Task<string?> Prompt(Window owner, string title, string message, string initial = "") =>
+        Show(owner, title, message, new TextBox { Text = initial, SelectionStart = 0, SelectionEnd = initial.Length }, "OK");
 
     public static Task Info(Window owner, string title, Control content) => Show(owner, title, null, content, null);
 
