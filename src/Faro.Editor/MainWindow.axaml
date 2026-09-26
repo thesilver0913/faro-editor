@@ -4,12 +4,8 @@
         x:Class="Faro.Editor.MainWindow"
         Title="Faro" Icon="/Assets/faro-icon.png" Width="1400" Height="860">
   <DockPanel>
-  <!-- Top-left undo/redo arrows (spec §10); they act on the history of the pane used last. -->
+  <!-- Undo/redo (spec §10) act on the history of the pane used last, named on the right. -->
   <DockPanel DockPanel.Dock="Top">
-  <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="2" Margin="6,2">
-    <Button x:Name="UndoButton" Content="↶" Click="Undo" Padding="8,2" FontSize="16" />
-    <Button x:Name="RedoButton" Content="↷" Click="Redo" Padding="8,2" FontSize="16" />
-  </StackPanel>
   <TextBlock x:Name="HistoryLabel" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0" Opacity="0.6" />
   <Menu>
     <MenuItem Header="_File">
@@ -24,6 +20,8 @@
       <MenuItem x:Name="UndoItem" Header="_Undo" Click="Undo" InputGesture="Ctrl+Z" />
       <MenuItem x:Name="RedoItem" Header="_Redo" Click="Redo" InputGesture="Ctrl+Y" />
       <Separator />
+      <MenuItem Header="_Delete" Click="Delete" InputGesture="Delete" />
+      <Separator />
       <MenuItem Header="_Sync Components" Click="SyncComponents" />
       <Separator />
       <MenuItem Header="_Preferences…" Click="Preferences" InputGesture="Ctrl+OemComma" HotKey="Ctrl+OemComma" />
@@ -37,6 +35,7 @@
     </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
+      <MenuItem Header="_Inspector" Click="ShowInspector" />
       <MenuItem Header="C_ode" Click="ShowCode" />
       <MenuItem Header="_Vibe Coding" Click="ShowChat" />
       <Separator />
@@ -47,16 +46,22 @@
     </MenuItem>
   </Menu>
   </DockPanel>
-  <!-- Default layout (spec §14): canvas left, code editor top-right, chat bottom-right. -->
+  <!-- Default layout (spec §14): canvas left, inspector next to it, code editor top-right, chat bottom-right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
     </DockControl.Factory>
     <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
       <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
-        <ToolDock Id="CanvasPane" Proportion="0.55" Alignment="Left">
+        <ToolDock Id="CanvasPane" Proportion="0.42" Alignment="Left">
           <Tool Id="Canvas" Title="Canvas" CanClose="False">
             <local:CanvasView />
+          </Tool>
+        </ToolDock>
+        <ProportionalDockSplitter />
+        <ToolDock Id="InspectorPane" Proportion="0.2">
+          <Tool Id="Inspector" Title="Inspector" CanClose="False">
+            <local:InspectorView />
           </Tool>
         </ToolDock>
         <ProportionalDockSplitter />

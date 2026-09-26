@@ -26,9 +26,9 @@ public partial class MainWindow : Window
         // Follow the pane the user last clicked or focused: canvas → UI graph history, code/chat → code history.
         void Track(object? source)
         {
-            var pane = (source as Visual)?.GetSelfAndVisualAncestors().FirstOrDefault(v => v is CanvasView or CodeView or ChatView);
+            var pane = (source as Visual)?.GetSelfAndVisualAncestors().FirstOrDefault(v => v is CanvasView or InspectorView or CodeView or ChatView);
             if (pane is null) return;
-            codeHistory = pane is not CanvasView;
+            codeHistory = pane is CodeView or ChatView;
             UpdateHistory();
         }
         AddHandler(PointerPressedEvent, (_, e) => Track(e.Source), RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -54,19 +54,18 @@ public partial class MainWindow : Window
     void UpdateHistory()
     {
         var (canUndo, canRedo) = codeHistory ? (CodeView.CanUndo, CodeView.CanRedo) : (UiHistory.UndoLabel is not null, UiHistory.RedoLabel is not null);
-        UndoButton.IsEnabled = UndoItem.IsEnabled = canUndo;
-        RedoButton.IsEnabled = RedoItem.IsEnabled = canRedo;
+        UndoItem.IsEnabled = canUndo;
+        RedoItem.IsEnabled = canRedo;
+        UndoItem.Header = codeHistory || UiHistory.UndoLabel is null ? "_Undo" : $"_Undo {UiHistory.UndoLabel}";
+        RedoItem.Header = codeHistory || UiHistory.RedoLabel is null ? "_Redo" : $"_Redo {UiHistory.RedoLabel}";
         HistoryLabel.Text = codeHistory ? $"History: Code — {CodeView.HistoryFile ?? "no file"}" : "History: UI graph";
-        var undoTip = codeHistory ? $"Undo in {CodeView.HistoryFile} (Ctrl+Z)" : $"Undo {UiHistory.UndoLabel} (Ctrl+Z)";
-        var redoTip = codeHistory ? $"Redo in {CodeView.HistoryFile} (Ctrl+Y)" : $"Redo {UiHistory.RedoLabel} (Ctrl+Y)";
-        ToolTip.SetTip(UndoButton, undoTip);
-        ToolTip.SetTip(RedoButton, redoTip);
     }
 
     async void Undo(object? sender, RoutedEventArgs e)
     {
         if (codeHistory) CodeView.Undo();
         else if (UiHistory.Undo() is { } error) await Dialogs.Info(this, "Undo", new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        else Workspace.Reload();
         UpdateHistory();
     }
 
@@ -74,6 +73,7 @@ public partial class MainWindow : Window
     {
         if (codeHistory) CodeView.Redo();
         else if (UiHistory.Redo() is { } error) await Dialogs.Info(this, "Redo", new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        else Workspace.Reload();
         UpdateHistory();
     }
 
@@ -81,7 +81,11 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+        if (e.Handled) return;
+        // Canvas editing keys, when the canvas is the pane in use (text boxes handle their own Delete/arrows first).
+        if (!codeHistory && e.KeyModifiers == KeyModifiers.None && e.Key == Key.Delete) { CanvasView.DeleteSelection(); e.Handled = true; return; }
+        if (!codeHistory && e.KeyModifiers == KeyModifiers.Alt && e.Key is Key.Up or Key.Down) { CanvasView.MoveSelection(e.Key == Key.Up ? -1 : 1); e.Handled = true; return; }
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
         if (e.Key == Key.Z && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) Undo(this, e);
         else if (e.Key == Key.Y || e.Key == Key.Z) Redo(this, e);
         else return;
@@ -111,6 +115,7 @@ public partial class MainWindow : Window
 
     // Edit
 
+    void Delete(object? sender, RoutedEventArgs e) => CanvasView.DeleteSelection();
     void SyncComponents(object? sender, RoutedEventArgs e) => CanvasView.SyncComponents();
     void Preferences(object? sender, RoutedEventArgs e) => new PreferencesWindow().ShowDialog(this);
 
@@ -130,6 +135,7 @@ public partial class MainWindow : Window
     // Window
 
     void ShowCanvas(object? sender, RoutedEventArgs e) => Activate("Canvas");
+    void ShowInspector(object? sender, RoutedEventArgs e) => Activate("Inspector");
     void ShowCode(object? sender, RoutedEventArgs e) => Activate("Code");
     void ShowChat(object? sender, RoutedEventArgs e) => Activate("Chat");
     void ToggleFullScreen(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
