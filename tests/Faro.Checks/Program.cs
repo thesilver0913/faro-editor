@@ -127,6 +127,26 @@ Check(UiHistory.Undo() is null && UiHistory.Undo() is null && FaroProject.Load(r
 var classText = ProjectFiles.ClassFile(Path.Combine(root, "Source"), "Services/Payments", "Invoice");
 Check(classText.Contains("namespace MyApp.Services.Payments;") && classText.Contains("public class Invoice : FaroObject") && VibeCoding.SyntaxErrors(classText).Count == 0, "new class file uses the project namespace");
 
+// Project setup (welcome screen): templates, vendored runtime package, initialize without overwriting.
+var projects = Directory.CreateTempSubdirectory("faro-projects").FullName;
+var empty = ProjectSetup.Create(projects, "EmptyApp", "Empty");
+Check(ProjectSetup.IsFaroProject(empty) && FaroProject.Load(empty).Screens.ContainsKey("MainScreen")
+    && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("PackageReference Include=\"Faro.Runtime\"")
+    && Directory.EnumerateFiles(Path.Combine(empty, ".faro/packages"), "Faro.Runtime.*.nupkg").Any()
+    && File.ReadAllText(Path.Combine(empty, "Program.cs")).Contains("\"MainScreen\""), "empty project: faro.json, start screen, csproj, vendored runtime");
+var sampleProject = ProjectSetup.Create(projects, "SampleApp", "Sample");
+Check(BindingCheck.Check(FaroProject.Load(sampleProject), Registry.Scan(Path.Combine(sampleProject, "Source"))).Count == 0 && FaroProject.Load(sampleProject).Screens.Count == 2, "sample project copies a working template");
+Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))
+    && Throws<ArgumentException>(() => ProjectSetup.Create("relative/dir", "Ok", "Empty")) && Path.IsPathRooted(ProjectSetup.DefaultLocation), "project name and location validated");
+var existing = Path.Combine(projects, "existing-folder");
+Directory.CreateDirectory(existing);
+File.WriteAllText(Path.Combine(existing, "Program.cs"), "// mine");
+File.WriteAllText(Path.Combine(existing, "Mine.csproj"), "<Project />");
+ProjectSetup.Initialize(existing);
+Check(ProjectSetup.IsFaroProject(existing) && File.ReadAllText(Path.Combine(existing, "Program.cs")) == "// mine" && Directory.EnumerateFiles(existing, "*.csproj").Count() == 1
+    && new[] { "UI", "Source", "Bindings", "Assets" }.All(f => Directory.Exists(Path.Combine(existing, f))), "initializing a folder adds what's missing and keeps existing files");
+Directory.Delete(projects, true);
+
 // Rename on save (spec §6): member and class renames are detected and followed by bindings.
 var code = File.ReadAllText(Path.Combine(root, "Source/Services/OrderService.cs"));
 var renamed = code.Replace("void Submit()", "void Send()");

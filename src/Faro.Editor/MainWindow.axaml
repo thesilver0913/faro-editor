@@ -9,7 +9,8 @@
   <TextBlock x:Name="HistoryLabel" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0" Opacity="0.6" />
   <Menu>
     <MenuItem Header="_File">
-      <MenuItem Header="_Open Project…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
+      <MenuItem Header="_Open Folder…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
+      <MenuItem Header="_Close Project" Click="CloseProject" />
       <MenuItem Header="Save _All" Click="SaveAll" InputGesture="Ctrl+Shift+S" HotKey="Ctrl+Shift+S" />
       <Separator />
       <MenuItem Header="_Run" Click="Run" InputGesture="F5" HotKey="F5" />

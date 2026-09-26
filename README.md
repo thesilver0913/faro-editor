@@ -21,9 +21,18 @@
 
 ```sh
 dotnet run --project tests/Faro.Checks                      # セルフチェック
-dotnet run --project src/Faro.Editor -- samples/HelloFaro   # エディターでプロジェクトを開く
+dotnet run --project src/Faro.Editor                        # ウェルカム画面から開く・新規作成
+dotnet run --project src/Faro.Editor -- samples/HelloFaro   # フォルダを指定して直接開く
 cd samples/HelloFaro && dotnet watch run                    # アプリをホットリロード付きで実行(エディターのRunボタンと同じ)
 ```
+
+## プロジェクトの作成と配布
+
+- 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(既定の場所は `ドキュメント/Faro/<名前>`、変更可、テンプレートは Empty か Sample、言語は C# 固定)。File メニューの「Open Folder…」「Close Project」も同じ流れ
+- Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
+- **Faro.Runtime はプロジェクト内に同梱**:エディターのビルド時に `Faro.Runtime.<版>.nupkg` を作り、新規プロジェクトの `.faro/packages/` にコピーして `nuget.config` から参照する。フォルダごと別の場所・PC に移してもビルドできる(Avalonia 本体は nuget.org から取得)。`.faro/` はプロジェクトと一緒にバージョン管理する
+- 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
+- `samples/HelloFaro` はこのリポジトリ内での開発用で、Runtime をプロジェクト参照している
 
 ## コードエディタ
 
