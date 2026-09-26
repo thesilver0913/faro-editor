@@ -46,6 +46,23 @@ ComponentSync.Sync(project).ForEach(FaroProject.Save);
 Check(ComponentSync.OutOfDate(FaroProject.Load(root)).Count == 0, "re-sync applies master edit");
 Check(FaroProject.Load(root).Screens["MainScreen"].Descendants("Override").Any(), "overrides survive sync");
 
+// UI graph history (spec §10): a Faro-made change is one step; undo/redo restore files; external edits are never overwritten.
+project = FaroProject.Load(root);
+var masterNode = project.Components["Comp.PrimaryButton"].Root!.Element("Node")!;
+masterNode.SetAttributeValue("height", "40");
+FaroProject.Save(project.Components["Comp.PrimaryButton"]);
+project = FaroProject.Load(root);
+var screenFile = Path.Combine(root, "UI/MainScreen.xml");
+var beforeSync = File.ReadAllText(screenFile);
+UiHistory.Commit("Sync components", ComponentSync.Sync(project));
+var afterSync = File.ReadAllText(screenFile);
+Check(afterSync != beforeSync && UiHistory.UndoLabel == "Sync components", "sync recorded as one UI step");
+Check(UiHistory.Undo() is null && File.ReadAllText(screenFile) == beforeSync && UiHistory.RedoLabel == "Sync components", "UI undo restores the files");
+Check(UiHistory.Redo() is null && File.ReadAllText(screenFile) == afterSync, "UI redo reapplies the step");
+File.AppendAllText(screenFile, "<!-- edited elsewhere -->");
+Check(UiHistory.Undo() is { } refused && refused.Contains("changed outside Faro") && File.ReadAllText(screenFile).Contains("edited elsewhere") && UiHistory.UndoLabel is null, "UI undo never overwrites an external edit");
+File.WriteAllText(screenFile, afterSync);
+
 // Rename on save (spec §6): member and class renames are detected and followed by bindings.
 var code = File.ReadAllText(Path.Combine(root, "Source/Services/OrderService.cs"));
 var renamed = code.Replace("void Submit()", "void Send()");

@@ -10,6 +10,10 @@
     <sty:FluentAvaloniaTheme PreferUserAccentColor="False" CustomAccentColor="#1473E6" />
     <dock:DockFluentTheme />
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <!-- Thin light-gray separators between the docked panels. -->
+    <Style Selector="ProportionalStackPanelSplitter">
+      <Setter Property="Background" Value="#5C5C5C" />
+    </Style>
     <!-- Under FluentAvalonia the completion popup has no background of its own. -->
     <Style Selector="cc|CompletionListBox">
       <Setter Property="Background" Value="#2B2B2B" />

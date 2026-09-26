@@ -4,7 +4,14 @@
         x:Class="Faro.Editor.MainWindow"
         Title="Faro" Icon="/Assets/faro-icon.png" Width="1400" Height="860">
   <DockPanel>
-  <Menu DockPanel.Dock="Top">
+  <!-- Top-left undo/redo arrows (spec §10); they act on the history of the pane used last. -->
+  <DockPanel DockPanel.Dock="Top">
+  <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="2" Margin="6,2">
+    <Button x:Name="UndoButton" Content="↶" Click="Undo" Padding="8,2" FontSize="16" />
+    <Button x:Name="RedoButton" Content="↷" Click="Redo" Padding="8,2" FontSize="16" />
+  </StackPanel>
+  <TextBlock x:Name="HistoryLabel" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0" Opacity="0.6" />
+  <Menu>
     <MenuItem Header="_File">
       <MenuItem Header="_Open Project…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
       <MenuItem Header="Save _All" Click="SaveAll" InputGesture="Ctrl+Shift+S" HotKey="Ctrl+Shift+S" />
@@ -14,6 +21,9 @@
       <MenuItem Header="E_xit" Click="Exit" />
     </MenuItem>
     <MenuItem Header="_Edit">
+      <MenuItem x:Name="UndoItem" Header="_Undo" Click="Undo" InputGesture="Ctrl+Z" />
+      <MenuItem x:Name="RedoItem" Header="_Redo" Click="Redo" InputGesture="Ctrl+Y" />
+      <Separator />
       <MenuItem Header="_Sync Components" Click="SyncComponents" />
       <Separator />
       <MenuItem Header="_Preferences…" Click="Preferences" InputGesture="Ctrl+OemComma" HotKey="Ctrl+OemComma" />
@@ -36,6 +46,7 @@
       <MenuItem Header="_About Faro" Click="About" />
     </MenuItem>
   </Menu>
+  </DockPanel>
   <!-- Default layout (spec §14): canvas left, code editor top-right, chat bottom-right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
