@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Faro.Editor"
+        x:Class="Faro.Editor.MainWindow"
+        Title="Faro" Icon="/Assets/faro-icon.png" Width="1400" Height="860">
+  <!-- Default layout (spec §14): canvas left, code editor top-right, chat bottom-right. -->
+  <DockControl InitializeLayout="True" InitializeFactory="True">
+    <DockControl.Factory>
+      <Factory />
+    </DockControl.Factory>
+    <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
+      <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
+        <ToolDock Id="CanvasPane" Proportion="0.55" Alignment="Left">
+          <Tool Id="Canvas" Title="Canvas" CanClose="False">
+            <local:CanvasView />
+          </Tool>
+        </ToolDock>
+        <ProportionalDockSplitter />
+        <ProportionalDock Id="RightPane" Orientation="Vertical">
+          <ToolDock Id="CodePane" Alignment="Top">
+            <Tool Id="Code" Title="Code" CanClose="False">
+              <TextBlock Margin="16" Opacity="0.6" Text="Code editor (AvaloniaEdit + C# LSP) — next step" />
+            </Tool>
+          </ToolDock>
+          <ProportionalDockSplitter />
+          <ToolDock Id="ChatPane" Alignment="Bottom">
+            <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
+              <TextBlock Margin="16" Opacity="0.6" Text="Chat (provider-agnostic LLM) — next step" />
+            </Tool>
+          </ToolDock>
+        </ProportionalDock>
+      </ProportionalDock>
+    </RootDock>
+  </DockControl>
+</Window>

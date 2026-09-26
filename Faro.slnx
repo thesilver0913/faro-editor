@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/HelloFaro/HelloFaro.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Faro.Editor/Faro.Editor.csproj" />
+    <Project Path="src/Faro.Runtime/Faro.Runtime.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Faro.Checks/Faro.Checks.csproj" />
+  </Folder>
+</Solution>
