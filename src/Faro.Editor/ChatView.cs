@@ -17,7 +17,7 @@ public sealed class ChatView : UserControl
 {
     sealed record Proposal(string Path, string Relative, string Code);
 
-    static readonly ChatSettings settings = ChatSettings.Load();
+    static FaroSettings settings => FaroSettings.Current;
     static readonly List<ChatTurn> history = [];
     static readonly List<Proposal> pending = [];
     static string? error;

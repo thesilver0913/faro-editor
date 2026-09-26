@@ -30,7 +30,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - AvaloniaEdit + C#言語サーバー [csharp-ls](https://github.com/razzmatazz/csharp-language-server) をLSP(stdio)で接続。補完(`.` または Ctrl+Space)とエラーの波線表示
 - csharp-ls は初回起動時に `ApplicationData/Faro/tools` へ固定バージョンで自動インストール(`dotnet tool install`)。クラッシュ時は3回まで自動再起動
 - **保存(Ctrl+S)時のリネーム追従**:最後に保存した内容と比べ、クラス1つ／同じクラス内の同種メンバー1つが消えて1つ増えた場合をリネームとみなし、`Bindings/` の `target` を書き換える。判定できない変更は追従せず、赤バッジで知らせる
-- 配色は標準の C# `.xshd`(明るい背景)。TextMate テーマ対応は今後
+- 配色は標準の C# `.xshd`(明るい背景)か TextMate テーマ(環境設定で選択)
 
 ## バイブコーディング(チャット)
 
@@ -41,6 +41,18 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 承認した変更はコードエディタのバッファ経由で保存 → 手動編集と同じ Undo 履歴に入り(Ctrl+Z で戻せる)、リネーム追従も効く
 - 新規クラスの生存期間(ScreenScoped/Singleton/Transient)と永続化をチャット欄で選択。生成クラスは `FaroObject` を継承し、変更通知を埋め込む
 - キャンバスの赤バッジ(メンバーが存在しない紐付け)をクリックすると、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
+
+## メニューと環境設定
+
+- **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／すべて保存(Ctrl+Shift+S)／実行(F5)／終了。未保存のコードがあれば確認してから閉じる
+- **Edit**:コンポーネント同期／環境設定(Ctrl+,)
+- **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
+- **Window**:Canvas／Code／Vibe Coding の各パネルを前面に／全画面(F11)
+- **Help**:Faro について
+- **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
+  - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)
+  - テーマ:アプリ(System/Dark/Light)＋ユーザーの AXAML ResourceDictionary ファイル／コードエディタ(標準 `.xshd`、TextMate 内蔵テーマ、`.tmTheme` または VS Code の JSON テーマファイル)
+  - プラグイン:今後対応(仕様§12 のとおりプロトタイプ範囲外)
 
 ## スキーマ補足(仕様書からの追加決定)
 

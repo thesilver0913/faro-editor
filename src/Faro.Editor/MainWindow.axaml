@@ -3,8 +3,41 @@
         xmlns:local="using:Faro.Editor"
         x:Class="Faro.Editor.MainWindow"
         Title="Faro" Icon="/Assets/faro-icon.png" Width="1400" Height="860">
+  <DockPanel>
+  <Menu DockPanel.Dock="Top">
+    <MenuItem Header="_File">
+      <MenuItem Header="_Open Project…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
+      <MenuItem Header="Save _All" Click="SaveAll" InputGesture="Ctrl+Shift+S" HotKey="Ctrl+Shift+S" />
+      <Separator />
+      <MenuItem Header="_Run" Click="Run" InputGesture="F5" HotKey="F5" />
+      <Separator />
+      <MenuItem Header="E_xit" Click="Exit" />
+    </MenuItem>
+    <MenuItem Header="_Edit">
+      <MenuItem Header="_Sync Components" Click="SyncComponents" />
+      <Separator />
+      <MenuItem Header="_Preferences…" Click="Preferences" InputGesture="Ctrl+OemComma" HotKey="Ctrl+OemComma" />
+    </MenuItem>
+    <MenuItem Header="_Select">
+      <MenuItem Header="_All Nodes" Click="SelectAll" />
+      <MenuItem Header="_None" Click="SelectNone" InputGesture="Ctrl+Shift+A" HotKey="Ctrl+Shift+A" />
+      <Separator />
+      <MenuItem Header="Node by _ID…" Click="SelectById" />
+      <MenuItem Header="Nodes with _Broken Bindings" Click="SelectBroken" />
+    </MenuItem>
+    <MenuItem Header="_Window">
+      <MenuItem Header="_Canvas" Click="ShowCanvas" />
+      <MenuItem Header="C_ode" Click="ShowCode" />
+      <MenuItem Header="_Vibe Coding" Click="ShowChat" />
+      <Separator />
+      <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
+    </MenuItem>
+    <MenuItem Header="_Help">
+      <MenuItem Header="_About Faro" Click="About" />
+    </MenuItem>
+  </Menu>
   <!-- Default layout (spec §14): canvas left, code editor top-right, chat bottom-right. -->
-  <DockControl InitializeLayout="True" InitializeFactory="True">
+  <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
     </DockControl.Factory>
@@ -32,4 +65,5 @@
       </ProportionalDock>
     </RootDock>
   </DockControl>
+  </DockPanel>
 </Window>

@@ -38,6 +38,10 @@ public static class Workspace
         watcher.Renamed += (s, e) => onChange(s, e);
     }
 
+    /// <summary>Runs the project with hot reload (spec §9).</summary>
+    public static void Run() =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"]) { WorkingDirectory = Root });
+
     public static void Reload(Action<string, double>? report = null)
     {
         try

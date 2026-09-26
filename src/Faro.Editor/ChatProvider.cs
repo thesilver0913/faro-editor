@@ -17,33 +17,6 @@ public interface IChatProvider
     IAsyncEnumerable<string> Stream(string system, IReadOnlyList<ChatTurn> history, CancellationToken ct);
 }
 
-/// <summary>Non-secret chat settings, stored in Faro's app-wide settings file (keys are never written).</summary>
-public sealed class ChatSettings
-{
-    public string Provider { get; set; } = "Claude";
-    public string ClaudeModel { get; set; } = "claude-opus-5";
-    public string OpenAiBaseUrl { get; set; } = "https://api.openai.com/v1";
-    public string OpenAiModel { get; set; } = "";
-
-    static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
-
-    public static ChatSettings Load()
-    {
-        try { return JsonSerializer.Deserialize<ChatSettings>(File.ReadAllText(FilePath)) ?? new(); }
-        catch (Exception e) when (e is IOException or JsonException) { return new(); }
-    }
-
-    public void Save()
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this));
-    }
-
-    public IChatProvider CreateProvider() => Provider == "Claude"
-        ? new ClaudeProvider(ClaudeModel)
-        : new OpenAiCompatibleProvider(OpenAiBaseUrl, OpenAiModel);
-}
-
 /// <summary>Claude via the official Anthropic SDK (reads ANTHROPIC_API_KEY), streamed.</summary>
 public sealed class ClaudeProvider(string model) : IChatProvider
 {

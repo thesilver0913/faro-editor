@@ -9,6 +9,8 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | FluentAvalonia | 3.1.0 | Copyright (c) 2025 amwx | https://github.com/amwx/FluentAvalonia | エディター本体のUIテーマ |
 | Dock | 12.1.0.6 | Copyright (c) Wiesław Šoltés | https://github.com/wieslawsoltes/Dock | エディター内パネルのドッキング |
 | AvaloniaEdit | 12.0.0 | Copyright (c) 2017 Eli Arbel | https://github.com/AvaloniaUI/AvaloniaEdit | コードエディタ画面 |
+| AvaloniaEdit.TextMate | 12.0.0 | Copyright 2017-2026 © The AvaloniaUI Project | https://github.com/AvaloniaUI/AvaloniaEdit | コードエディタの TextMate 配色 |
+| TextMateSharp / TextMateSharp.Grammars | 2.0.3 | Copyright (c) 2021 Daniel Peñalba | https://github.com/danipen/TextMateSharp | TextMate 文法・テーマの読み込み(同梱の文法・テーマは VS Code 由来、MIT) |
 | Anthropic C# SDK | 12.50.0 | Copyright 2023 Anthropic, PBC. | https://github.com/anthropics/anthropic-sdk-csharp | バイブコーディング(Claude プロバイダ) |
 | Roslyn (Microsoft.CodeAnalysis.CSharp) | 5.9.0 | Copyright (c) .NET Foundation and Contributors | https://github.com/dotnet/roslyn | Source/ の解析(レジストリ抽出) |
 
