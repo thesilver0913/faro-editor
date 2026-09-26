@@ -42,15 +42,23 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 新規クラスの生存期間(ScreenScoped/Singleton/Transient)と永続化をチャット欄で選択。生成クラスは `FaroObject` を継承し、変更通知を埋め込む
 - キャンバスの赤バッジ(メンバーが存在しない紐付け)をクリックすると、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
 
+## キャンバス編集とインスペクター
+
+- 既定レイアウトは「キャンバス｜インスペクター｜コード/チャット」の 4 パネル
+- キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
+- インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable
+- 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with vibe coding」
+- Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
+
 ## メニューと環境設定
 
 - **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／すべて保存(Ctrl+Shift+S)／実行(F5)／終了。未保存のコードがあれば確認してから閉じる
-- **Edit**:元に戻す(Ctrl+Z)／やり直し(Ctrl+Y・Ctrl+Shift+Z)／コンポーネント同期／環境設定(Ctrl+,)
-- **Undo/Redo(仕様§10)**:画面左上の ↶ ↷ とショートカット。最後に操作したペインで対象が切り替わる(右上に表示)
-  - キャンバス → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(現状はコンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
+- **Edit**:元に戻す(Ctrl+Z)／やり直し(Ctrl+Y・Ctrl+Shift+Z)／削除(Del)／コンポーネント同期／環境設定(Ctrl+,)
+- **Undo/Redo(仕様§10)**:Ctrl+Z / Ctrl+Y と Edit メニュー。最後に操作したペインで対象が切り替わる(右上に表示)
+  - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Canvas／Code／Vibe Coding の各パネルを前面に／全画面(F11)
+- **Window**:Canvas／Inspector／Code／Vibe Coding の各パネルを前面に／全画面(F11)
 - **Help**:Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)

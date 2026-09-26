@@ -108,6 +108,8 @@ public static class BindingCheck
             var target = (string?)bind.Attribute("target") ?? "";
             if (!nodeIds.Contains(nodeId))
                 issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist.", []));
+            else if (target.Length == 0)
+                issues.Add(new(nodeId, target, "No target chosen yet.", []));
             else if (target.StartsWith("Navigate:"))
             {
                 var screen = FaroApp.NavigateScreenId(target, project.Screens.Keys);
@@ -315,4 +317,131 @@ public static class UiHistory
     }
 
     static string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
+}
+
+/// <summary>
+/// Canvas editing operations on the UI graph (spec §5). They mutate the loaded documents and return
+/// the documents to commit, so each operation becomes one UI history step (spec §10).
+/// </summary>
+public static class CanvasEdit
+{
+    public static readonly string[] AddableTypes =
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image"];
+
+    public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
+
+    /// <summary>A node authored in the screen (not inside an instance's master snapshot).</summary>
+    public static XElement? Find(XDocument screen, string id) =>
+        screen.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == id
+            && !n.Ancestors("Node").Any(a => (string?)a.Attribute("type") == "Instance"));
+
+    static HashSet<string?> AllIds(FaroProject project) =>
+        [.. BindingCheck.ScreenNodes(project).Select(n => (string?)n.Attribute("id"))];
+
+    public static string NewId(FaroProject project, string type)
+    {
+        var stem = type.Split('.')[^1].ToLowerInvariant() switch { "textinput" => "input", var s => s };
+        var ids = AllIds(project);
+        return Enumerable.Range(1, int.MaxValue).Select(i => $"{stem}{i}").First(id => !ids.Contains(id));
+    }
+
+    /// <summary>Prop value; on an instance this is its Override (falling back to the master snapshot).</summary>
+    public static string? GetProp(XElement node, string name) =>
+        (string?)node.Elements("Override").FirstOrDefault(o => (string?)o.Attribute("prop") == name)?.Attribute("value")
+        ?? UiBuilder.Prop(node.Element("Node") is { } snapshot && (string?)node.Attribute("type") == "Instance" ? snapshot : node, name);
+
+    /// <summary>Sets or (with null/empty) removes a Prop — as an Override on instances (spec §5).</summary>
+    public static void SetProp(XElement node, string name, string? value)
+    {
+        var instance = (string?)node.Attribute("type") == "Instance";
+        var (element, key) = instance ? ("Override", "prop") : ("Prop", "name");
+        var existing = node.Elements(element).FirstOrDefault(e => (string?)e.Attribute(key) == name);
+        if (string.IsNullOrEmpty(value)) { existing?.Remove(); return; }
+        if (existing is not null) existing.SetAttributeValue("value", value);
+        else
+        {
+            var prop = new XElement(element, new XAttribute(key, name), new XAttribute("value", value));
+            // Props/Overrides go before child nodes, like the hand-written files.
+            if (node.Element("Node") is { } firstChild) firstChild.AddBeforeSelf(prop); else node.Add(prop);
+        }
+    }
+
+    /// <summary>Sets or (with null/empty) removes a layout attribute such as widthSizing or gap.</summary>
+    public static void SetAttribute(XElement node, string name, string? value) =>
+        node.SetAttributeValue(name, string.IsNullOrEmpty(value) ? null : value);
+
+    /// <summary>Adds a node into the selected container, else after the selected node, else at the end of the root.</summary>
+    public static XElement Add(FaroProject project, XDocument screen, string? selectedId, string type, string? component = null)
+    {
+        var id = NewId(project, component is null ? type : component.Split('.')[^1]);
+        var node = new XElement("Node", new XAttribute("id", id), new XAttribute("type", component is null ? type : "Instance"));
+        if (component is not null)
+        {
+            node.SetAttributeValue("component", component);
+            node.Add(new XElement(project.Components[component].Root!.Element("Node")!)); // initial snapshot of the master
+        }
+        else if (type.StartsWith("Container.")) { node.SetAttributeValue("gap", "8"); node.SetAttributeValue("padding", "8"); }
+        else if (type is "Control.Button" or "Control.Text") node.Add(new XElement("Prop", new XAttribute("name", "Text"), new XAttribute("value", type == "Control.Button" ? "Button" : "Text")));
+
+        var selected = selectedId is null ? null : Find(screen, selectedId);
+        if (selected is not null && IsContainer(selected)) selected.Add(node);
+        else if (selected?.Parent is XElement { Name.LocalName: "Node" }) selected.AddAfterSelf(node);
+        else screen.Root!.Element("Node")!.Add(node);
+        return node;
+    }
+
+    /// <summary>Deletes nodes (never the screen root) and the bindings that pointed at them.</summary>
+    public static List<XDocument> Delete(FaroProject project, XDocument screen, IEnumerable<string> ids)
+    {
+        var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
+        var gone = nodes.SelectMany(n => n.DescendantsAndSelf("Node")).Select(n => (string?)n.Attribute("id")).ToHashSet();
+        var binds = project.Binds.Where(b => gone.Contains((string?)b.Attribute("nodeId"))).ToList();
+        var changed = binds.Select(b => b.Document!).Distinct().Append(screen).ToList();
+        nodes.ForEach(n => n.Remove());
+        binds.ForEach(b => b.Remove());
+        return nodes.Count > 0 ? changed : [];
+    }
+
+    /// <summary>Moves a node one place up (-1) or down (+1) among its siblings. False when it can't move.</summary>
+    public static bool Move(XDocument screen, string id, int delta)
+    {
+        if (Find(screen, id) is not { Parent: XElement { Name.LocalName: "Node" } } node) return false;
+        var sibling = delta < 0 ? node.ElementsBeforeSelf("Node").LastOrDefault() : node.ElementsAfterSelf("Node").FirstOrDefault();
+        if (sibling is null) return false;
+        node.Remove();
+        if (delta < 0) sibling.AddBeforeSelf(node); else sibling.AddAfterSelf(node);
+        return true;
+    }
+
+    /// <summary>Renames a node and follows its bindings (spec §6). Returns an error message, or null and the docs to commit.</summary>
+    public static (string? Error, List<XDocument> Changed) Rename(FaroProject project, XDocument screen, string oldId, string newId)
+    {
+        newId = newId.Trim();
+        if (newId.Length == 0 || newId.Contains('/') || newId.Any(char.IsWhiteSpace)) return ("An ID can't be empty or contain '/' or spaces.", []);
+        if (newId == oldId) return (null, []);
+        if (AllIds(project).Contains(newId)) return ($"'{newId}' is already used.", []);
+        if (Find(screen, oldId) is not { } node) return ($"'{oldId}' not found.", []);
+        node.SetAttributeValue("id", newId);
+        var binds = project.Binds.Where(b => (string?)b.Attribute("nodeId") == oldId).ToList();
+        binds.ForEach(b => b.SetAttributeValue("nodeId", newId));
+        return (null, [screen, .. binds.Select(b => b.Document!).Distinct()]);
+    }
+
+    /// <summary>
+    /// The Bindings file new binds for a screen go to: the file already holding binds of that screen's nodes,
+    /// else Bindings/&lt;screenId&gt;.xml, created (empty) when missing.
+    /// </summary>
+    // ponytail: the created file stays behind (empty) if the adding step is undone; harmless
+    public static XDocument BindingsFileFor(FaroProject project, string screenId)
+    {
+        var ids = project.Screens[screenId].Descendants("Node").Select(n => (string?)n.Attribute("id")).ToHashSet();
+        if (project.BindingFiles.FirstOrDefault(d => d.Root!.Elements("Bind").Any(b => ids.Contains((string?)b.Attribute("nodeId")))) is { } used) return used;
+        var path = Path.Combine(project.Root, "Bindings", screenId + ".xml");
+        if (project.BindingFiles.FirstOrDefault(d => new Uri(d.BaseUri).LocalPath == path) is { } named) return named;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "<Bindings>\n</Bindings>\n");
+        var doc = XDocument.Load(path, LoadOptions.SetBaseUri);
+        project.BindingFiles.Add(doc);
+        return doc;
+    }
 }

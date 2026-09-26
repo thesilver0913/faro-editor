@@ -63,6 +63,29 @@ File.AppendAllText(screenFile, "<!-- edited elsewhere -->");
 Check(UiHistory.Undo() is { } refused && refused.Contains("changed outside Faro") && File.ReadAllText(screenFile).Contains("edited elsewhere") && UiHistory.UndoLabel is null, "UI undo never overwrites an external edit");
 File.WriteAllText(screenFile, afterSync);
 
+// Canvas editing (spec §5): add / props / overrides / rename with binding follow / move / delete with binds.
+project = FaroProject.Load(root);
+var main = project.Screens["MainScreen"];
+var added = CanvasEdit.Add(project, main, "actions", "Control.Button");
+Check((string?)added.Attribute("id") == "button1" && added.Parent == CanvasEdit.Find(main, "actions") && CanvasEdit.GetProp(added, "Text") == "Button", "add into selected container with a unique id");
+var afterText = CanvasEdit.Add(project, main, "title", "Control.Text");
+Check(afterText.ElementsBeforeSelf("Node").LastOrDefault() == CanvasEdit.Find(main, "title"), "add after a selected non-container");
+var instance = CanvasEdit.Add(project, main, null, "", "Comp.PrimaryButton");
+Check((string?)instance.Attribute("type") == "Instance" && instance.Element("Node") is not null && ComponentSync.OutOfDate(project).All(n => n != instance), "component instance added with its snapshot");
+CanvasEdit.SetProp(instance, "Text", "OK");
+Check(instance.Elements("Override").Single().Attribute("value")!.Value == "OK" && CanvasEdit.GetProp(instance, "Text") == "OK", "instance props edit as Override");
+CanvasEdit.SetProp(added, "Text", null);
+Check(CanvasEdit.GetProp(added, "Text") is null, "empty prop value removes it");
+var (renameError, renamed2) = CanvasEdit.Rename(project, main, "btn1", "sendButton");
+Check(renameError is null && project.Binds.Any(b => (string?)b.Attribute("nodeId") == "sendButton") && renamed2.Count == 2, "node rename follows bindings");
+Check(CanvasEdit.Rename(project, main, "sendButton", "txt1").Error is not null && CanvasEdit.Rename(project, main, "sendButton", "a b").Error is not null, "rename rejects duplicates and spaces");
+Check(CanvasEdit.Move(main, "sendButton", +1) && CanvasEdit.Find(main, "sendButton")!.ElementsBeforeSelf("Node").Last().Attribute("id")!.Value == "btnDetail", "move down");
+Check(!CanvasEdit.Move(main, "root", -1), "root can't move");
+var deleted = CanvasEdit.Delete(project, main, ["actions"]);
+Check(CanvasEdit.Find(main, "sendButton") is null && !project.Binds.Any(b => (string?)b.Attribute("nodeId") is "sendButton" or "btnDetail") && deleted.Count == 2, "delete removes the subtree and its bindings");
+Check(CanvasEdit.Delete(project, main, ["root"]).Count == 0, "root can't be deleted");
+Check(CanvasEdit.BindingsFileFor(project, "Detail").BaseUri.EndsWith("Detail.xml"), "new binds go to the screen's bindings file");
+
 // Rename on save (spec §6): member and class renames are detected and followed by bindings.
 var code = File.ReadAllText(Path.Combine(root, "Source/Services/OrderService.cs"));
 var renamed = code.Replace("void Submit()", "void Send()");

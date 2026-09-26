@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using System.Xml.Linq;
 using Faro.Runtime;
 
 namespace Faro.Editor;
@@ -21,8 +22,35 @@ public sealed class CanvasView : UserControl
     readonly Button sync = new();
     readonly TextBlock status = new() { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
     readonly Canvas overlay = new() { IsHitTestVisible = false };
-    Dictionary<string, Control> byId = [];
+    static Dictionary<string, Control> byId = [];
     Dictionary<Control, string> idOf = [];
+
+    /// <summary>The screen shown on the canvas.</summary>
+    public static string? CurrentScreen { get; private set; }
+
+    /// <summary>The control built for a node of the shown screen (for binding candidates in the inspector).</summary>
+    public static Control? ControlOf(string id) => byId.GetValueOrDefault(id);
+
+    /// <summary>Runs a canvas edit on the shown screen and commits the changed documents as one UI history step.</summary>
+    public static void Edit(string label, Func<FaroProject, XDocument, IEnumerable<XDocument>> change)
+    {
+        if (Workspace.Project is not { } project || CurrentScreen is null || !project.Screens.TryGetValue(CurrentScreen, out var screen)) return;
+        UiHistory.Commit(label, change(project, screen).ToList());
+        Workspace.Reload(); // show it now rather than when the file watcher fires
+    }
+
+    public static void AddNode(string type, string? component = null) => Edit($"Add {(component ?? type).Split('.')[^1]}", (project, screen) =>
+    {
+        var node = CanvasEdit.Add(project, screen, Selection.Count == 1 ? Selection.First() : null, type, component);
+        Selection.Clear();
+        Selection.Add((string)node.Attribute("id")!);
+        return [screen];
+    });
+
+    public static void DeleteSelection() => Edit("Delete", (project, screen) => CanvasEdit.Delete(project, screen, Selection.ToList()));
+
+    public static void MoveSelection(int delta) => Edit(delta < 0 ? "Move up" : "Move down", (_, screen) =>
+        Selection.Count == 1 && CanvasEdit.Move(screen, Selection.First(), delta) ? [screen] : []);
 
     /// <summary>Selected node ids on the current screen (the Select menu drives this too).</summary>
     public static HashSet<string> Selection { get; } = [];
@@ -41,20 +69,55 @@ public sealed class CanvasView : UserControl
 
     public CanvasView()
     {
+        Focusable = true;
         var run = new Button { Content = "Run" };
         run.Click += (_, _) => Workspace.Run();
         sync.Click += (_, _) => SyncComponents();
-        screens.SelectionChanged += (_, _) => { Selection.Clear(); Render(); };
+        screens.SelectionChanged += (_, _) =>
+        {
+            // Refreshing the list after a reload also lands here: keep the selection unless the screen really changed.
+            if (screens.SelectedItem is not string screen) return;
+            if (screen != CurrentScreen) { CurrentScreen = screen; Selection.Clear(); }
+            Render();
+            SelectionChanged?.Invoke();
+        };
+
+        var add = new Button { Content = "+ Add" };
+        add.Click += (_, _) =>
+        {
+            var menu = new MenuFlyout();
+            foreach (var type in CanvasEdit.AddableTypes)
+            {
+                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? " (container)" : "") };
+                item.Click += (_, _) => AddNode(type);
+                menu.Items.Add(item);
+            }
+            menu.Items.Add(new Separator());
+            foreach (var component in Workspace.Project?.Components.Keys.Order() ?? Enumerable.Empty<string>())
+            {
+                var item = new MenuItem { Header = component };
+                item.Click += (_, _) => AddNode("Instance", component);
+                menu.Items.Add(item);
+            }
+            menu.ShowAt(add);
+        };
+        var delete = new Button { Content = "Delete", [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
+        delete.Click += (_, _) => DeleteSelection();
+        var up = new Button { Content = "↑", [ToolTip.TipProperty] = "Move up (Alt+Up)" };
+        up.Click += (_, _) => MoveSelection(-1);
+        var down = new Button { Content = "↓", [ToolTip.TipProperty] = "Move down (Alt+Down)" };
+        down.Click += (_, _) => MoveSelection(+1);
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
             var id = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Control>().Select(c => idOf.GetValueOrDefault(c)).FirstOrDefault(i => i is not null);
             if (!e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) Select(id is null ? [] : [id]);
             else if (id is not null) Select(Selection.Contains(id) ? Selection.Except([id]).ToList() : [.. Selection, id]);
+            Focus(); // keyboard (Delete, Alt+arrows, Ctrl+Z) now goes to the canvas, not a text box elsewhere
             e.Handled = true;
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(8), Children = { screens, sync, run, status } };
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
     }
@@ -143,10 +206,10 @@ public sealed class CanvasView : UserControl
     /// The chat request for a binding whose target member is missing, with the context the canvas knows:
     /// node, event or bound property and its type (spec §8 round trip). Null for other kinds of issue.
     /// </summary>
-    static string? VibeRequest(BindingIssue issue, Control control)
+    public static string? VibeRequest(BindingIssue issue, Control control)
     {
         var bind = Workspace.Project?.Binds.FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
-        if (bind is null || issue.Target.StartsWith("Navigate:")) return null;
+        if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:")) return null;
         var type = Workspace.Project!.Screens.Values.SelectMany(d => d.Descendants("Node")).FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
         var node = $"node `{issue.NodeId}` ({type})";
         if ((string?)bind.Attribute("event") is { } eventName)
