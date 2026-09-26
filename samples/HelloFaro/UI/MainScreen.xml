@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UIGraph id="MainScreen" version="1">
+  <Node id="root" type="Container.Stack" direction="Vertical" gap="8" padding="16">
+    <Node id="title" type="Control.Text" sizing="Hug">
+      <Prop name="Text" value="Faro サンプル" />
+    </Node>
+    <Node id="txt1" type="Control.TextInput" widthSizing="Fill">
+      <Prop name="Placeholder" value="名前を入力" />
+    </Node>
+    <Node id="greeting" type="Control.Text" sizing="Hug" />
+    <Node id="actions" type="Container.Stack" direction="Horizontal" gap="8" sizing="Hug">
+      <Node id="btn1" type="Instance" component="Comp.PrimaryButton" sizing="Hug">
+        <Override prop="Text" value="送信" />
+        <Node id="root" type="Control.Button">
+          <Prop name="Text" value="Button" />
+        </Node>
+      </Node>
+      <Node id="btnDetail" type="Instance" component="Comp.PrimaryButton" sizing="Hug">
+        <Override prop="Text" value="詳細へ" />
+        <Node id="root" type="Control.Button">
+          <Prop name="Text" value="Button" />
+        </Node>
+      </Node>
+    </Node>
+    <Node id="orderList" type="Instance" component="Comp.OrderRow" widthSizing="Fill" repeatable="true">
+      <Node id="root" type="Container.Stack" direction="Horizontal" gap="8">
+        <Node id="name" type="Control.Text" widthSizing="Fill">
+          <Prop name="Text" value="商品名" />
+        </Node>
+        <Node id="price" type="Control.Text" sizing="Hug">
+          <Prop name="Text" value="¥0" />
+        </Node>
+      </Node>
+    </Node>
+  </Node>
+</UIGraph>

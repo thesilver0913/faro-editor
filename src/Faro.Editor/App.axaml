@@ -1,0 +1,24 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sty="using:FluentAvalonia.Styling"
+             xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
+             xmlns:cc="using:AvaloniaEdit.CodeCompletion"
+             x:Class="Faro.Editor.App"
+             RequestedThemeVariant="Dark">
+  <!-- Fluent base with an Adobe Spectrum-like accent (spec §13). -->
+  <Application.Styles>
+    <sty:FluentAvaloniaTheme PreferUserAccentColor="False" CustomAccentColor="#1473E6" />
+    <dock:DockFluentTheme />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <!-- Under FluentAvalonia the completion popup has no background of its own. -->
+    <Style Selector="cc|CompletionListBox">
+      <Setter Property="Background" Value="#2B2B2B" />
+    </Style>
+  </Application.Styles>
+  <!-- AvaloniaEdit's Fluent theme expects these Avalonia FluentTheme keys, which FluentAvalonia doesn't define. -->
+  <Application.Resources>
+    <SolidColorBrush x:Key="ToolTipBackground" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToolTipForeground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#555555" />
+  </Application.Resources>
+</Application>
