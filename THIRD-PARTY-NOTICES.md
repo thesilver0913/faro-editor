@@ -8,7 +8,14 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | Avalonia | 12.1.3 | Copyright (c) AvaloniaUI OÜ | https://github.com/AvaloniaUI/Avalonia | 出力アプリ(ランタイム)とエディター本体のUIフレームワーク |
 | FluentAvalonia | 3.1.0 | Copyright (c) 2025 amwx | https://github.com/amwx/FluentAvalonia | エディター本体のUIテーマ |
 | Dock | 12.1.0.6 | Copyright (c) Wiesław Šoltés | https://github.com/wieslawsoltes/Dock | エディター内パネルのドッキング |
+| AvaloniaEdit | 12.0.0 | Copyright (c) 2017 Eli Arbel | https://github.com/AvaloniaUI/AvaloniaEdit | コードエディタ画面 |
 | Roslyn (Microsoft.CodeAnalysis.CSharp) | 5.9.0 | Copyright (c) .NET Foundation and Contributors | https://github.com/dotnet/roslyn | Source/ の解析(レジストリ抽出) |
+
+## 実行時にダウンロードするツール(配布物には含まれません)
+
+| 名前 | バージョン | 著作権表示 | リポジトリ | 用途 |
+|---|---|---|---|---|
+| csharp-ls | 0.28.0 | Copyright (c) 2020-2021 Saulius Menkevičius | https://github.com/razzmatazz/csharp-language-server | C#言語サーバー(LSP)。初回利用時に `dotnet tool install` で Faro の環境設定フォルダへ導入 |
 
 ## 開発ツール(配布物には含まれません)
 

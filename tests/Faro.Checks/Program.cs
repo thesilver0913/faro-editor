@@ -46,6 +46,16 @@ ComponentSync.Sync(project).ForEach(FaroProject.Save);
 Check(ComponentSync.OutOfDate(FaroProject.Load(root)).Count == 0, "re-sync applies master edit");
 Check(FaroProject.Load(root).Screens["MainScreen"].Descendants("Override").Any(), "overrides survive sync");
 
+// Rename on save (spec §6): member and class renames are detected and followed by bindings.
+var code = File.ReadAllText(Path.Combine(root, "Source/Services/OrderService.cs"));
+var renamed = code.Replace("void Submit()", "void Send()");
+Check(Registry.Renames(code, renamed) is [("MyApp.Services.OrderService.Submit", "MyApp.Services.OrderService.Send")], "member rename detected");
+Check(Registry.Renames(code, renamed.Replace("class OrderService", "class Orders")) is [("MyApp.Services.OrderService", "MyApp.Services.Orders"), ("MyApp.Services.Orders.Submit", "MyApp.Services.Orders.Send")], "class + member rename detected");
+Check(Registry.Renames(code, code.Replace("public void Submit() => SubmitCount++;", "public void A() { }\n    public void B() { }")).Count == 0, "ambiguous change is not a rename");
+project = FaroProject.Load(root);
+Check(Registry.FollowRenames(project, [("MyApp.Services.OrderService", "MyApp.Services.Orders")]).Count == 2, "class rename rewrites both binding files");
+Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 2, "targets follow class rename");
+
 // Runtime binder resolves the same target strings via reflection on the built assembly.
 var asm = typeof(MyApp.Services.OrderService).Assembly;
 Check(FaroApp.Resolve(asm, "MyApp.Services.OrderService.Submit") is MethodInfo, "runtime resolves method");

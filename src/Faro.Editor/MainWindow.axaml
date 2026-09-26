@@ -19,7 +19,7 @@
         <ProportionalDock Id="RightPane" Orientation="Vertical">
           <ToolDock Id="CodePane" Alignment="Top">
             <Tool Id="Code" Title="Code" CanClose="False">
-              <TextBlock Margin="16" Opacity="0.6" Text="Code editor (AvaloniaEdit + C# LSP) — next step" />
+              <local:CodeView />
             </Tool>
           </ToolDock>
           <ProportionalDockSplitter />

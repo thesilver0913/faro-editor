@@ -20,21 +20,72 @@ public static class Registry
     // ponytail: full re-parse of Source/ on every change; incremental parsing when projects get big (spec §11.5)
     public static List<RegistryMember> Scan(string sourceDir) =>
         !Directory.Exists(sourceDir) ? [] :
-        [.. from file in Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories)
-            from cls in CSharpSyntaxTree.ParseText(File.ReadAllText(file)).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
-            where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
-            let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
-            let fullName = ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text
-            from member in cls.Members
-            where IsPublic(member.Modifiers)
-            let entry = member switch
-            {
-                MethodDeclarationSyntax m => new RegistryMember($"{fullName}.{m.Identifier}", true, $"{m.ReturnType} {m.Identifier}{m.ParameterList}"),
-                PropertyDeclarationSyntax p => new RegistryMember($"{fullName}.{p.Identifier}", false, $"{p.Type} {p.Identifier}"),
-                _ => null,
-            }
-            where entry is not null
-            select entry];
+        [.. Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).SelectMany(f => Parse(File.ReadAllText(f)))];
+
+    public static IEnumerable<RegistryMember> Parse(string code) =>
+        from cls in CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+        where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
+        let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
+        let fullName = ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text
+        from member in cls.Members
+        where IsPublic(member.Modifiers)
+        let entry = member switch
+        {
+            MethodDeclarationSyntax m => new RegistryMember($"{fullName}.{m.Identifier}", true, $"{m.ReturnType} {m.Identifier}{m.ParameterList}"),
+            PropertyDeclarationSyntax p => new RegistryMember($"{fullName}.{p.Identifier}", false, $"{p.Type} {p.Identifier}"),
+            _ => null,
+        }
+        where entry is not null
+        select entry;
+
+    /// <summary>
+    /// Renames between the last-saved and the new content of one file (spec §6, run on save only).
+    /// A rename = exactly one class, or exactly one same-kind member within a class, disappearing
+    /// while one appears. Anything more ambiguous is left alone (the binding shows a red badge instead).
+    /// Class renames come first so member targets can be rewritten after them.
+    /// </summary>
+    public static List<(string From, string To)> Renames(string savedCode, string newCode)
+    {
+        var before = Parse(savedCode).ToList();
+        var after = Parse(newCode).ToList();
+        var renames = new List<(string, string)>();
+
+        var goneClasses = before.Select(ClassOf).Except(after.Select(ClassOf)).ToList();
+        var newClasses = after.Select(ClassOf).Except(before.Select(ClassOf)).ToList();
+        if (goneClasses.Count == 1 && newClasses.Count == 1)
+        {
+            renames.Add((goneClasses[0], newClasses[0]));
+            before = [.. before.Select(m => ClassOf(m) == goneClasses[0] ? m with { Target = newClasses[0] + m.Target[goneClasses[0].Length..] } : m)];
+        }
+
+        foreach (var group in before.ExceptBy(after.Select(m => m.Target), m => m.Target).GroupBy(m => (ClassOf(m), m.IsMethod)))
+        {
+            var added = after.ExceptBy(before.Select(m => m.Target), m => m.Target).Where(m => (ClassOf(m), m.IsMethod) == group.Key).ToList();
+            if (group.Count() == 1 && added.Count == 1) renames.Add((group.First().Target, added[0].Target));
+        }
+        return renames;
+    }
+
+    /// <summary>Applies a rename to a bind target ("Ns.Old" also rewrites "Ns.Old.Member").</summary>
+    public static string Rename(string target, string from, string to) =>
+        target == from || target.StartsWith(from + ".") ? to + target[from.Length..] : target;
+
+    /// <summary>Rewrites bind targets for the given renames and returns the binding files to save.</summary>
+    public static List<XDocument> FollowRenames(FaroProject project, List<(string From, string To)> renames)
+    {
+        var changed = new List<XDocument>();
+        foreach (var bind in project.Binds)
+        {
+            var target = (string?)bind.Attribute("target") ?? "";
+            var renamed = renames.Aggregate(target, (t, r) => Rename(t, r.From, r.To));
+            if (renamed == target) continue;
+            bind.SetAttributeValue("target", renamed);
+            changed.Add(bind.Document!);
+        }
+        return [.. changed.Distinct()];
+    }
+
+    static string ClassOf(RegistryMember m) => m.Target[..m.Target.LastIndexOf('.')];
 
     static bool IsPublic(SyntaxTokenList modifiers) => modifiers.Any(SyntaxKind.PublicKeyword);
 }
