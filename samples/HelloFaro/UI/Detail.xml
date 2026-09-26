@@ -1,8 +1,0 @@
-<UIGraph id="Detail" version="1">
-  <Node id="root" type="Container.Stack" direction="Vertical" gap="8" padding="16">
-    <Node id="count" type="Control.Text" sizing="Hug" />
-    <Node id="back" type="Control.Button" sizing="Hug">
-      <Prop name="Text" value="戻る" />
-    </Node>
-  </Node>
-</UIGraph>

@@ -1,6 +1,0 @@
-<Bindings>
-  <Bind nodeId="btn1" event="OnClick" target="MyApp.Services.OrderService.Submit" />
-  <Bind nodeId="txt1" prop="Text" target="MyApp.Models.UserProfile.Name" mode="TwoWay" />
-  <Bind nodeId="greeting" prop="Text" target="MyApp.Models.UserProfile.Greeting" mode="OneWay" />
-  <Bind nodeId="btnDetail" event="OnClick" target="Navigate:Screen.Detail" />
-</Bindings>
