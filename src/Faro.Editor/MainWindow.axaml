@@ -34,6 +34,7 @@
       <MenuItem Header="Nodes with _Broken Bindings" Click="SelectBroken" />
     </MenuItem>
     <MenuItem Header="_Window">
+      <MenuItem Header="_Explorer" Click="ShowExplorer" />
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
       <MenuItem Header="_Inspector" Click="ShowInspector" />
       <MenuItem Header="C_ode" Click="ShowCode" />
@@ -46,38 +47,46 @@
     </MenuItem>
   </Menu>
   </DockPanel>
-  <!-- Default layout (spec §14): canvas left, inspector next to it, code editor top-right, chat bottom-right. -->
+  <!-- Default layout (spec §14 + explorer/inspector): explorer left, canvas top-center, code | chat bottom-center, inspector right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
     </DockControl.Factory>
     <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
       <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
-        <ToolDock Id="CanvasPane" Proportion="0.42" Alignment="Left">
-          <Tool Id="Canvas" Title="Canvas" CanClose="False">
-            <local:CanvasView />
+        <ToolDock Id="ExplorerPane" Proportion="0.15" Alignment="Left">
+          <Tool Id="Explorer" Title="Explorer" CanClose="False">
+            <local:ExplorerView />
           </Tool>
         </ToolDock>
         <ProportionalDockSplitter />
-        <ToolDock Id="InspectorPane" Proportion="0.2">
+        <ProportionalDock Id="CenterPane" Proportion="0.63" Orientation="Vertical">
+          <ToolDock Id="CanvasPane" Proportion="0.6">
+            <Tool Id="Canvas" Title="Canvas" CanClose="False">
+              <local:CanvasView />
+            </Tool>
+          </ToolDock>
+          <ProportionalDockSplitter />
+          <ProportionalDock Id="BottomPane" Orientation="Horizontal">
+            <ToolDock Id="CodePane">
+              <Tool Id="Code" Title="Code" CanClose="False">
+                <local:CodeView />
+              </Tool>
+            </ToolDock>
+            <ProportionalDockSplitter />
+            <ToolDock Id="ChatPane">
+              <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
+                <local:ChatView />
+              </Tool>
+            </ToolDock>
+          </ProportionalDock>
+        </ProportionalDock>
+        <ProportionalDockSplitter />
+        <ToolDock Id="InspectorPane" Proportion="0.22" Alignment="Right">
           <Tool Id="Inspector" Title="Inspector" CanClose="False">
             <local:InspectorView />
           </Tool>
         </ToolDock>
-        <ProportionalDockSplitter />
-        <ProportionalDock Id="RightPane" Orientation="Vertical">
-          <ToolDock Id="CodePane" Alignment="Top">
-            <Tool Id="Code" Title="Code" CanClose="False">
-              <local:CodeView />
-            </Tool>
-          </ToolDock>
-          <ProportionalDockSplitter />
-          <ToolDock Id="ChatPane" Alignment="Bottom">
-            <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
-              <local:ChatView />
-            </Tool>
-          </ToolDock>
-        </ProportionalDock>
       </ProportionalDock>
     </RootDock>
   </DockControl>

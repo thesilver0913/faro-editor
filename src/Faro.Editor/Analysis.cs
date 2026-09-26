@@ -286,6 +286,20 @@ public static class UiHistory
         Changed?.Invoke();
     }
 
+    /// <summary>Writes (or, with null, deletes) whole files as one undoable step — for creating, renaming and deleting UI files.</summary>
+    public static void CommitFiles(string label, IReadOnlyDictionary<string, string?> changes)
+    {
+        var before = changes.Keys.ToDictionary(p => p, Read);
+        foreach (var (path, text) in changes)
+            if (text is null) File.Delete(path);
+            else { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, text); }
+        var after = changes.Keys.ToDictionary(p => p, Read);
+        if (changes.Keys.All(p => before[p] == after[p])) return;
+        undo.Add(new(label, before, after));
+        redo.Clear();
+        Changed?.Invoke();
+    }
+
     /// <summary>Returns an error message when the step can't be applied, else null.</summary>
     public static string? Undo() => Move(undo, redo, s => (s.After, s.Before));
     public static string? Redo() => Move(redo, undo, s => (s.Before, s.After));
@@ -309,7 +323,8 @@ public static class UiHistory
             return $"{Path.GetFileName(changed.Key)} was changed outside Faro, so \"{step.Label}\" can't be undone or redone.";
         }
         foreach (var (path, text) in target)
-            if (text is null) File.Delete(path); else File.WriteAllText(path, text);
+            if (text is null) File.Delete(path);
+            else { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, text); }
         from.RemoveAt(from.Count - 1);
         to.Add(step);
         Changed?.Invoke();
@@ -413,6 +428,21 @@ public static class CanvasEdit
         return true;
     }
 
+    /// <summary>
+    /// Drag and drop: moves a node into <paramref name="parentId"/> at child position <paramref name="index"/>
+    /// (counted without the moved node). False when the drop is invalid (root, non-container, or into itself).
+    /// </summary>
+    public static bool MoveTo(XDocument screen, string id, string parentId, int index)
+    {
+        if (Find(screen, id) is not { Parent: XElement { Name.LocalName: "Node" } } node || Find(screen, parentId) is not { } parent
+            || !IsContainer(parent) || parent.AncestorsAndSelf().Contains(node)) return false;
+        var siblings = parent.Elements("Node").Where(n => n != node).ToList();
+        node.Remove();
+        index = Math.Clamp(index, 0, siblings.Count);
+        if (index < siblings.Count) siblings[index].AddBeforeSelf(node); else parent.Add(node);
+        return true;
+    }
+
     /// <summary>Renames a node and follows its bindings (spec §6). Returns an error message, or null and the docs to commit.</summary>
     public static (string? Error, List<XDocument> Changed) Rename(FaroProject project, XDocument screen, string oldId, string newId)
     {
@@ -443,5 +473,112 @@ public static class CanvasEdit
         var doc = XDocument.Load(path, LoadOptions.SetBaseUri);
         project.BindingFiles.Add(doc);
         return doc;
+    }
+}
+
+/// <summary>
+/// Explorer operations on screen / component files (UI/*.xml). Each returns the file changes
+/// (path → new content, null = delete) to commit as one UI history step, or throws with a user-facing message.
+/// </summary>
+public static partial class ProjectFiles
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_.]*$")]
+    private static partial System.Text.RegularExpressions.Regex IdPattern();
+
+    /// <summary>User input becomes a file name: letters, digits, '_' and '.', starting with a letter or '_'.</summary>
+    static void ValidateNewId(FaroProject project, string id)
+    {
+        if (!IdPattern().IsMatch(id)) throw new ArgumentException($"'{id}' is not a valid ID (letters, digits, '_' and '.', starting with a letter).");
+        if (project.Screens.ContainsKey(id) || project.Components.ContainsKey(id) || File.Exists(Path.Combine(project.Root, "UI", id + ".xml")))
+            throw new ArgumentException($"'{id}' is already used.");
+    }
+
+    public static Dictionary<string, string?> NewScreen(FaroProject project, string id)
+    {
+        ValidateNewId(project, id);
+        return new() { [Path.Combine(project.Root, "UI", id + ".xml")] = Text(new XDocument(new XElement("UIGraph", new XAttribute("id", id), new XAttribute("version", "1"),
+            new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("direction", "Vertical"), new XAttribute("gap", "8"), new XAttribute("padding", "16"))))) };
+    }
+
+    public static Dictionary<string, string?> NewComponent(FaroProject project, string id)
+    {
+        ValidateNewId(project, id);
+        return new() { [Path.Combine(project.Root, "UI", id + ".xml")] = Text(new XDocument(new XElement("ComponentDef", new XAttribute("id", id),
+            new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("gap", "8"))))) };
+    }
+
+    /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in Program.cs.</summary>
+    public static Dictionary<string, string?> RenameScreen(FaroProject project, string oldId, string newId)
+    {
+        ValidateNewId(project, newId);
+        var changes = MoveDoc(project, project.Screens[oldId], newId);
+        foreach (var file in project.BindingFiles)
+        {
+            var binds = file.Root!.Elements("Bind").Where(b => (string?)b.Attribute("target") is { } t && t.StartsWith("Navigate:")
+                && FaroApp.NavigateScreenId(t, project.Screens.Keys) == oldId).ToList();
+            binds.ForEach(b => b.SetAttributeValue("target", $"Navigate:Screen.{newId}"));
+            if (binds.Count > 0) changes[PathOf(file)] = Text(file);
+        }
+        var program = Path.Combine(project.Root, "Program.cs");
+        if (File.Exists(program) && File.ReadAllText(program) is var code && code.Contains($"\"{oldId}\""))
+            changes[program] = code.Replace($"\"{oldId}\"", $"\"{newId}\"");
+        return changes;
+    }
+
+    /// <summary>Renames a component (id and file) and follows every instance that uses it.</summary>
+    public static Dictionary<string, string?> RenameComponent(FaroProject project, string oldId, string newId)
+    {
+        ValidateNewId(project, newId);
+        var changes = MoveDoc(project, project.Components[oldId], newId);
+        foreach (var doc in project.Screens.Values.Concat(project.Components.Values).Where(d => d != project.Components[oldId]))
+        {
+            var instances = doc.Descendants("Node").Where(n => (string?)n.Attribute("component") == oldId).ToList();
+            instances.ForEach(n => n.SetAttributeValue("component", newId));
+            if (instances.Count > 0) changes[PathOf(doc)] = Text(doc);
+        }
+        return changes;
+    }
+
+    /// <summary>Deletes a screen (with the bindings of its nodes) or a component.</summary>
+    public static Dictionary<string, string?> Delete(FaroProject project, XDocument doc)
+    {
+        var changes = new Dictionary<string, string?> { [PathOf(doc)] = null };
+        var ids = doc.Root!.Name == "UIGraph" ? doc.Descendants("Node").Select(n => (string?)n.Attribute("id")).ToHashSet() : [];
+        foreach (var file in project.BindingFiles)
+        {
+            var binds = file.Root!.Elements("Bind").Where(b => ids.Contains((string?)b.Attribute("nodeId"))).ToList();
+            binds.ForEach(b => b.Remove());
+            if (binds.Count > 0) changes[PathOf(file)] = Text(file);
+        }
+        return changes;
+    }
+
+    /// <summary>A new C# class file for Source/, in the namespace the project already uses (spec §6: FaroObject for change notification).</summary>
+    public static string ClassFile(string sourceDir, string relativeFolder, string name)
+    {
+        if (!IdPattern().IsMatch(name) || name.Contains('.')) throw new ArgumentException($"'{name}' is not a valid class name.");
+        var rootNs = Directory.Exists(sourceDir)
+            ? Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories)
+                .SelectMany(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f)).GetRoot().DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>())
+                .Select(n => n.Name.ToString().Split('.')[0]).FirstOrDefault()
+            : null;
+        var ns = string.Join('.', new[] { rootNs ?? "App" }.Concat(relativeFolder.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)));
+        return $"using Faro.Runtime;\n\nnamespace {ns};\n\npublic class {name} : FaroObject\n{{\n}}\n";
+    }
+
+    static Dictionary<string, string?> MoveDoc(FaroProject project, XDocument doc, string newId)
+    {
+        doc.Root!.SetAttributeValue("id", newId);
+        return new() { [PathOf(doc)] = null, [Path.Combine(project.Root, "UI", newId + ".xml")] = Text(doc) };
+    }
+
+    static string PathOf(XDocument doc) => new Uri(doc.BaseUri).LocalPath;
+
+    /// <summary>The same bytes XDocument.Save writes (UTF-8 with BOM and declaration).</summary>
+    static string Text(XDocument doc)
+    {
+        using var stream = new MemoryStream();
+        doc.Save(stream);
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 }

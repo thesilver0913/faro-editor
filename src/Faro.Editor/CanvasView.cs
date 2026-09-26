@@ -31,6 +31,11 @@ public sealed class CanvasView : UserControl
     /// <summary>The control built for a node of the shown screen (for binding candidates in the inspector).</summary>
     public static Control? ControlOf(string id) => byId.GetValueOrDefault(id);
 
+    static event Action<string>? ShowScreenRequested;
+
+    /// <summary>Shows a screen on the canvas (from the explorer).</summary>
+    public static void ShowScreen(string id) => ShowScreenRequested?.Invoke(id);
+
     /// <summary>Runs a canvas edit on the shown screen and commits the changed documents as one UI history step.</summary>
     public static void Edit(string label, Func<FaroProject, XDocument, IEnumerable<XDocument>> change)
     {
@@ -110,12 +115,39 @@ public sealed class CanvasView : UserControl
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            var id = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Control>().Select(c => idOf.GetValueOrDefault(c)).FirstOrDefault(i => i is not null);
+            var id = NodeAt(e.GetPosition(overlay), new HashSet<string?>()); // by bounds: text without a background isn't hit-testable itself
             if (!e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) Select(id is null ? [] : [id]);
             else if (id is not null) Select(Selection.Contains(id) ? Selection.Except([id]).ToList() : [.. Selection, id]);
             Focus(); // keyboard (Delete, Alt+arrows, Ctrl+Z) now goes to the canvas, not a text box elsewhere
             e.Handled = true;
+            if (id is not null && id != (string?)CurrentGraph()?.Root!.Element("Node")!.Attribute("id") && !e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift))
+            {
+                dragId = id;
+                pressAt = e.GetPosition(overlay);
+                e.Pointer.Capture(artboard);
+            }
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        artboard.AddHandler(PointerMovedEvent, (_, e) =>
+        {
+            if (dragId is null) return;
+            var p = e.GetPosition(overlay);
+            if (!dragging && Math.Abs(p.X - pressAt.X) + Math.Abs(p.Y - pressAt.Y) < 5) return; // a click, not a drag yet
+            dragging = true;
+            artboard.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.DragMove);
+            drop = DropTarget(p);
+            DrawSelection();
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        artboard.AddHandler(PointerReleasedEvent, (_, e) =>
+        {
+            var (id, target) = (dragId, dragging ? drop : null);
+            dragId = null;
+            dragging = false;
+            drop = null;
+            artboard.Cursor = null;
+            e.Pointer.Capture(null);
+            if (id is not null && target is { } t) Edit("Move", (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
+            else DrawSelection();
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
 
         var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
@@ -127,6 +159,7 @@ public sealed class CanvasView : UserControl
         base.OnAttachedToVisualTree(e);
         Workspace.Changed += Refresh;
         SelectionChanged += DrawSelection;
+        ShowScreenRequested += ShowScreenHere;
         Refresh();
     }
 
@@ -134,7 +167,14 @@ public sealed class CanvasView : UserControl
     {
         Workspace.Changed -= Refresh;
         SelectionChanged -= DrawSelection;
+        ShowScreenRequested -= ShowScreenHere;
         base.OnDetachedFromVisualTree(e);
+    }
+
+    void ShowScreenHere(string id)
+    {
+        Refresh();
+        screens.SelectedItem = id;
     }
 
     void Refresh()
@@ -183,9 +223,57 @@ public sealed class CanvasView : UserControl
         if (Workspace.Project is { } p) UiHistory.Commit("Sync components", ComponentSync.Sync(p));
     }
 
+    string? dragId;
+    Point pressAt;
+    bool dragging;
+    (string Parent, int Index, Rect Line)? drop;
+
+    /// <summary>The innermost node whose bounds contain the point.</summary>
+    string? NodeAt(Point p, IReadOnlySet<string?> excluded) =>
+        idOf.Where(c => !excluded.Contains(c.Value)).Select(c => (Id: c.Value, Rect: RectOf(c.Key)))
+            .Where(h => h.Rect.Contains(p)).OrderBy(h => h.Rect.Width * h.Rect.Height).Select(h => h.Id).FirstOrDefault();
+
+    XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Screens.GetValueOrDefault(CurrentScreen);
+
+    Rect RectOf(Control c) => c.TranslatePoint(default, overlay) is { } p ? new Rect(p, c.Bounds.Size) : default;
+
+    /// <summary>
+    /// Where a drag would drop (Figma Auto Layout style): into the innermost container under the pointer, or
+    /// beside the node under it, at the child position the pointer is at; plus the insertion line to draw.
+    /// </summary>
+    (string Parent, int Index, Rect Line)? DropTarget(Point p)
+    {
+        if (CurrentGraph() is not { } graph || CanvasEdit.Find(graph, dragId!) is not { } dragged) return null;
+        var excluded = dragged.DescendantsAndSelf("Node").Select(n => (string?)n.Attribute("id")).ToHashSet();
+        var hit = NodeAt(p, excluded) is { } hitId ? CanvasEdit.Find(graph, hitId) : null;
+        var container = hit is null ? graph.Root!.Element("Node")! : CanvasEdit.IsContainer(hit) ? hit : hit.Parent!;
+        if (!CanvasEdit.IsContainer(container) || excluded.Contains((string?)container.Attribute("id"))) return null;
+
+        var horizontal = (string?)container.Attribute("direction") == "Horizontal" && (string?)container.Attribute("type") == "Container.Stack";
+        var reading = (string?)container.Attribute("type") != "Container.Stack"; // wrap / grid: rows, then left to right
+        var children = container.Elements("Node").Where(n => n != dragged).Select(n => RectOf(byId[(string)n.Attribute("id")!])).ToList();
+        var index = children.Count(r => horizontal ? r.Center.X < p.X
+            : reading ? p.Y > r.Bottom || (p.Y >= r.Top && p.X > r.Center.X)
+            : r.Center.Y < p.Y);
+        var box = RectOf(byId[(string)container.Attribute("id")!]);
+        var vertical = horizontal || reading; // a vertical insertion line between items laid out side by side
+        Rect line = children.Count == 0 ? new Rect(box.X + 4, box.Y + 4, box.Width - 8, 2)
+            : index < children.Count
+                ? vertical ? new Rect(children[index].X - 2, children[index].Y, 2, children[index].Height) : new Rect(children[index].X, children[index].Y - 2, children[index].Width, 2)
+                : vertical ? new Rect(children[^1].Right + 1, children[^1].Y, 2, children[^1].Height) : new Rect(children[^1].X, children[^1].Bottom + 1, children[^1].Width, 2);
+        return ((string)container.Attribute("id")!, index, line);
+    }
+
     void DrawSelection()
     {
         overlay.Children.Clear();
+        if (drop is { } d)
+        {
+            var marker = new Avalonia.Controls.Shapes.Rectangle { Width = d.Line.Width, Height = d.Line.Height, Fill = new SolidColorBrush(Color.Parse("#1473E6")) };
+            Canvas.SetLeft(marker, d.Line.X);
+            Canvas.SetTop(marker, d.Line.Y);
+            overlay.Children.Add(marker);
+        }
         foreach (var id in Selection)
             if (byId.GetValueOrDefault(id) is { } c && c.TranslatePoint(default, overlay) is { } p)
             {
