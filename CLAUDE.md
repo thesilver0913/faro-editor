@@ -35,7 +35,7 @@
 ## ブランチとバージョン
 
 - 開発は `canary`、`main` はリリース用(リリースまで空。PR #1 は打ち消し済み)
-- **PR ごとに `Directory.Build.props` の `<Version>` を 0.0.1 上げる**(`samples/HelloFaro/faro.json` の `runtime` も合わせる)。Faro.Runtime の nupkg はこの版で作られ、既存プロジェクトには開いたときに更新を案内する
+- **PR ごとに `Directory.Build.props` の `<Version>` を 0.0.1 上げる**(`samples/HelloFaro/faro.json` の `runtime` も合わせる)。末尾は 0〜9 で繰り上がる:0.1.8 → 0.1.9 → **0.2.0**(0.1.10 にはしない)。Faro.Runtime の nupkg はこの版で作られ、既存プロジェクトには開いたときに更新を案内する
 - リリースで `canary` を `main` にマージする前に、`main` の打ち消しコミット(f354289)を打ち消すこと。そのままマージすると、PR #1 の変更が「取り込み済み・打ち消し済み」と扱われて初期プロトタイプ分が入らない
 
 ## コーディング方針
