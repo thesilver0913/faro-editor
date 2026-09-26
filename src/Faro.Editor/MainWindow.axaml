@@ -25,7 +25,7 @@
           <ProportionalDockSplitter />
           <ToolDock Id="ChatPane" Alignment="Bottom">
             <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
-              <TextBlock Margin="16" Opacity="0.6" Text="Chat (provider-agnostic LLM) — next step" />
+              <local:ChatView />
             </Tool>
           </ToolDock>
         </ProportionalDock>

@@ -173,3 +173,85 @@ public static class ComponentSync
         return [.. changed.Select(n => n.Document!).Distinct()];
     }
 }
+
+/// <summary>Vibe coding (spec §8): prompt, parsing of the generated files, and the checks before approval.</summary>
+public static partial class VibeCoding
+{
+    public sealed record GeneratedFile(string Path, string Code);
+
+    /// <summary>Instructions + current Source/ so the model can add to existing classes (spec §8).</summary>
+    // ponytail: sends all of Source/ each turn; select relevant files when projects outgrow the context window
+    public static string SystemPrompt(FaroProject project, string root, Lifetime lifetime, bool persistent)
+    {
+        var attribute = lifetime == Lifetime.ScreenScoped && !persistent
+            ? "Do not add a [FaroLifetime] attribute (the default lifetime is ScreenScoped)."
+            : $"Put [FaroLifetime(Lifetime.{lifetime}{(persistent ? ", Persistent = true" : "")})] on every new class.";
+        var sourceDir = Path.Combine(root, "Source");
+        var files = Directory.Exists(sourceDir)
+            ? string.Join("\n\n", Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).Order()
+                .Select(f => $"File: {Path.GetRelativePath(root, f).Replace('\\', '/')}\n```csharp\n{File.ReadAllText(f)}\n```"))
+            : "(none yet)";
+        return $$"""
+            You write C# for a Faro project: an Avalonia app whose UI (XML screens) is bound at runtime to public members
+            of classes in Source/, addressed by the string "Namespace.Class.Member".
+
+            Rules:
+            - Event bindings (e.g. OnClick) call public parameterless methods. Property bindings use public properties.
+            - Classes are public, top-level, and inherit Faro.Runtime.FaroObject (`using Faro.Runtime;`). Property setters raise
+              change notifications: `public string Name { get; set => Set(ref field, value); }`. When a computed property depends on
+              others, keep it in a field and update it with Set(ref ..., ..., nameof(Computed)) from those setters.
+            - {{attribute}}
+            - Screens: {{string.Join(", ", project.Screens.Keys.Order())}}. Navigate with Faro.Runtime.FaroApp.Navigate("ScreenId").
+            - When changing an existing class, keep every existing member unless asked to remove it.
+
+            Output format: for every file you create or change, write a line `File: Source/<Folder>/<Name>.cs` followed by a
+            ```csharp block with the COMPLETE new content of that file. Only files under Source/. Keep explanations short.
+
+            Current Source/ files:
+
+            {{files}}
+            """;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t*`]*File:[ \t*`]*(?<path>[^\s`*]+)[ \t*`]*\r?\n```[A-Za-z#]*\r?\n(?<code>.*?)\r?\n```", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.Singleline)]
+    private static partial System.Text.RegularExpressions.Regex FileBlock();
+
+    public static List<GeneratedFile> ParseFiles(string response) =>
+        [.. FileBlock().Matches(response).Select(m => new GeneratedFile(m.Groups["path"].Value, m.Groups["code"].Value + "\n"))];
+
+    /// <summary>Model output is untrusted: only .cs files inside Source/ may be written. Returns the full path or null.</summary>
+    public static string? ResolvePath(string root, string relative)
+    {
+        var source = Path.GetFullPath(Path.Combine(root, "Source")) + Path.DirectorySeparatorChar;
+        var full = Path.GetFullPath(Path.Combine(root, relative));
+        return !Path.IsPathRooted(relative) && full.StartsWith(source) && full.EndsWith(".cs") ? full : null;
+    }
+
+    /// <summary>Roslyn syntax errors; approval is blocked while there are any (spec §11.5).</summary>
+    public static List<string> SyntaxErrors(string code) =>
+        [.. CSharpSyntaxTree.ParseText(code).GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => $"line {d.Location.GetLineSpan().StartLinePosition.Line + 1}: {d.GetMessage()}")];
+
+    /// <summary>Public top-level class names declared in a file (for the per-class edit lock, spec §8.5).</summary>
+    public static IEnumerable<string> ClassNames(string code) =>
+        CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().Select(c => c.Identifier.Text);
+
+    /// <summary>Line diff: ' ' kept, '-' removed, '+' added.</summary>
+    // ponytail: O(n·m) LCS table; switch to Myers if generated files get to thousands of lines
+    public static List<(char Op, string Line)> Diff(string before, string after)
+    {
+        var a = before.Split('\n');
+        var b = after.Split('\n');
+        var lcs = new int[a.Length + 1, b.Length + 1];
+        for (var i = a.Length - 1; i >= 0; i--)
+            for (var j = b.Length - 1; j >= 0; j--)
+                lcs[i, j] = a[i] == b[j] ? lcs[i + 1, j + 1] + 1 : Math.Max(lcs[i + 1, j], lcs[i, j + 1]);
+        var diff = new List<(char, string)>();
+        int x = 0, y = 0;
+        while (x < a.Length || y < b.Length)
+            if (x < a.Length && y < b.Length && a[x] == b[y]) { diff.Add((' ', a[x++])); y++; }
+            else if (x < a.Length && (y == b.Length || lcs[x + 1, y] >= lcs[x, y + 1])) diff.Add(('-', a[x++])); // removals first
+            else diff.Add(('+', b[y++]));
+        return diff;
+    }
+}

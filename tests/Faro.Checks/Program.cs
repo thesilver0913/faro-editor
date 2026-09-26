@@ -56,6 +56,60 @@ project = FaroProject.Load(root);
 Check(Registry.FollowRenames(project, [("MyApp.Services.OrderService", "MyApp.Services.Orders")]).Count == 2, "class rename rewrites both binding files");
 Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 2, "targets follow class rename");
 
+// Vibe coding: parse generated files, keep writes inside Source/, block broken syntax, diff.
+var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";
+var generated = VibeCoding.ParseFiles(reply);
+Check(generated.Count == 2 && generated[0].Path == "Source/Services/Cart.cs" && generated[0].Code.Contains("class Cart"), "generated files parsed");
+Check(VibeCoding.ResolvePath(root, "Source/Services/Cart.cs") == Path.Combine(root, "Source/Services/Cart.cs"), "path inside Source/ accepted");
+Check(new[] { "../Evil.cs", "Source/../Evil.cs", "/etc/passwd.cs", "Source/notes.txt", "UI/MainScreen.cs" }.All(p => VibeCoding.ResolvePath(root, p) is null), "paths outside Source/ or non-.cs rejected");
+Check(VibeCoding.SyntaxErrors(generated[0].Code).Count == 0 && VibeCoding.SyntaxErrors("public class { void }").Count > 0, "syntax check");
+Check(string.Concat(VibeCoding.Diff("a\nb\nc", "a\nx\nc").Select(d => d.Op)) == " -+ ", "line diff");
+var system = VibeCoding.SystemPrompt(FaroProject.Load(root), root, Lifetime.Singleton, true);
+Check(system.Contains("[FaroLifetime(Lifetime.Singleton, Persistent = true)]") && system.Contains("class OrderService") && system.Contains("Detail"), "system prompt has lifetime, sources and screens");
+
+// Both providers stream text from their real wire formats (served by a local stand-in server).
+using (var server = new System.Net.HttpListener())
+{
+    var port = new Random().Next(20000, 60000);
+    server.Prefixes.Add($"http://127.0.0.1:{port}/");
+    server.Start();
+    var requests = new List<(string Path, string? Beta, string Body)>();
+    _ = Task.Run(async () =>
+    {
+        while (server.IsListening)
+        {
+            var ctx = await server.GetContextAsync();
+            var body = await new StreamReader(ctx.Request.InputStream).ReadToEndAsync();
+            lock (requests) requests.Add((ctx.Request.Url!.AbsolutePath, ctx.Request.Headers["anthropic-beta"], body));
+            ctx.Response.ContentType = "text/event-stream";
+            var sse = ctx.Request.Url.AbsolutePath.EndsWith("/messages")
+                ? string.Concat(
+                    Event("message_start", """{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}}}"""),
+                    Event("content_block_start", """{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"""),
+                    Event("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello "}}"""),
+                    Event("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Claude"}}"""),
+                    Event("content_block_stop", """{"type":"content_block_stop","index":0}"""),
+                    Event("message_delta", """{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":2}}"""),
+                    Event("message_stop", """{"type":"message_stop"}"""))
+                : "data: {\"choices\":[{\"delta\":{\"content\":\"Hello \"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"OpenAI\"}}]}\n\ndata: [DONE]\n\n";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sse);
+            await ctx.Response.OutputStream.WriteAsync(bytes);
+            ctx.Response.Close();
+        }
+    });
+    Environment.SetEnvironmentVariable("ANTHROPIC_BASE_URL", $"http://127.0.0.1:{port}");
+    Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", "test-key");
+    ChatTurn[] turns = [new(true, "hi")];
+    var claude = string.Concat(await new ClaudeProvider("claude-opus-5").Stream("sys", turns, default).ToListAsync());
+    var openai = string.Concat(await new OpenAiCompatibleProvider($"http://127.0.0.1:{port}/v1", "local-model").Stream("sys", turns, default).ToListAsync());
+    Check(claude == "Hello Claude", "Claude provider streams text");
+    Check(openai == "Hello OpenAI", "OpenAI-compatible provider streams text");
+    var claudeRequest = requests.First(r => r.Path == "/v1/messages");
+    Check(claudeRequest.Beta?.Contains("server-side-fallback") == true && claudeRequest.Body.Contains("\"fallbacks\"") && claudeRequest.Body.Contains("\"model\":\"claude-opus-5\""), "Claude request has model and refusal fallback");
+    Check(requests.First(r => r.Path == "/v1/chat/completions").Body.Contains("\"role\":\"system\""), "OpenAI request carries the system prompt");
+    server.Stop();
+}
+
 // Runtime binder resolves the same target strings via reflection on the built assembly.
 var asm = typeof(MyApp.Services.OrderService).Assembly;
 Check(FaroApp.Resolve(asm, "MyApp.Services.OrderService.Submit") is MethodInfo, "runtime resolves method");
@@ -71,5 +125,7 @@ static void Check(bool ok, string what)
     Console.WriteLine($"{(ok ? "ok  " : "FAIL")} {what}");
     if (!ok) Environment.Exit(1);
 }
+
+static string Event(string name, string json) => $"event: {name}\ndata: {json}\n\n";
 
 static bool Throws(Action a) { try { a(); return false; } catch (InvalidOperationException) { return true; } }

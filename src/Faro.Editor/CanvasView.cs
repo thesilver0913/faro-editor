@@ -74,9 +74,32 @@ public sealed class CanvasView : UserControl
             if (byId.TryGetValue(group.Key, out var control))
             {
                 var badge = Badge(group);
+                if (group.Select(i => VibeRequest(i, control)).FirstOrDefault(r => r is not null) is { } request)
+                {
+                    badge.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+                    badge.PointerPressed += (_, _) => ChatView.Prefill(request);
+                    ToolTip.SetTip(badge, ToolTip.GetTip(badge) + "\n\nClick to create it with vibe coding.");
+                }
                 AdornerLayer.SetIsClipEnabled(badge, false);
                 AdornerLayer.SetAdorner(control, badge);
             }
+    }
+
+    /// <summary>
+    /// The chat request for a binding whose target member is missing, with the context the canvas knows:
+    /// node, event or bound property and its type (spec §8 round trip). Null for other kinds of issue.
+    /// </summary>
+    static string? VibeRequest(BindingIssue issue, Control control)
+    {
+        var bind = Workspace.Project?.Binds.FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
+        if (bind is null || issue.Target.StartsWith("Navigate:")) return null;
+        var type = Workspace.Project!.Screens.Values.SelectMany(d => d.Descendants("Node")).FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
+        var node = $"node `{issue.NodeId}` ({type})";
+        if ((string?)bind.Attribute("event") is { } eventName)
+            return $"Create `{issue.Target}`: a public parameterless method that runs on {eventName} of {node}.";
+        var prop = (string?)bind.Attribute("prop") ?? "";
+        var propType = AvaloniaPropertyRegistry.Instance.FindRegistered(control, prop)?.PropertyType.Name ?? "object";
+        return $"Create `{issue.Target}`: a public {propType} property, bound {(string?)bind.Attribute("mode") ?? "OneWay"} to {prop} of {node}.";
     }
 
     static Control Badge(IEnumerable<BindingIssue> issues) => new Border

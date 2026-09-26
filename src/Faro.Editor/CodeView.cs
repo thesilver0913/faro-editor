@@ -101,20 +101,7 @@ public sealed class CodeView : UserControl
     void Show()
     {
         if (Current is not { } path || !File.Exists(path)) { editor.IsEnabled = false; return; }
-        if (!buffers.TryGetValue(path, out var doc))
-        {
-            buffers[path] = doc = new TextDocument(saved[path] = File.ReadAllText(path));
-            doc.TextChanged += (_, _) =>
-            {
-                WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
-                {
-                    ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["version"] = ++version },
-                    ["contentChanges"] = new JsonArray(new JsonObject { ["text"] = doc.Text }),
-                }));
-                StateChanged?.Invoke();
-            };
-            DidOpen(path, doc);
-        }
+        var doc = Buffer(path);
         if (editor.Document != doc) editor.Document = doc;
         editor.IsEnabled = true;
         Redraw();
@@ -139,15 +126,51 @@ public sealed class CodeView : UserControl
 
     void Save()
     {
-        if (Current is not { } path || !buffers.TryGetValue(path, out var doc)) return;
+        if (Current is { } path && buffers.ContainsKey(path)) SaveBuffer(path);
+    }
+
+    /// <summary>The shared buffer for a file (created on first use; empty for a file that doesn't exist yet).</summary>
+    static TextDocument Buffer(string path)
+    {
+        if (buffers.TryGetValue(path, out var doc)) return doc;
+        buffers[path] = doc = new TextDocument(saved[path] = File.Exists(path) ? File.ReadAllText(path) : "");
+        doc.TextChanged += (_, _) =>
+        {
+            WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
+            {
+                ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["version"] = ++version },
+                ["contentChanges"] = new JsonArray(new JsonObject { ["text"] = doc.Text }),
+            }));
+            StateChanged?.Invoke();
+        };
+        DidOpen(path, doc);
+        return doc;
+    }
+
+    public static bool IsDirty(string path) => buffers.TryGetValue(path, out var doc) && !doc.UndoStack.IsOriginalFile;
+
+    /// <summary>
+    /// Applies approved AI output through the editor buffer, so it lands in the same undo history as manual
+    /// edits (spec §10), shows up in the editor at once, and gets the same rename follow on save (spec §6).
+    /// </summary>
+    public static void ApplyGenerated(string path, string text)
+    {
+        Buffer(path).Text = text;
+        SaveBuffer(path);
+    }
+
+    static void SaveBuffer(string path)
+    {
+        var doc = buffers[path];
         var text = doc.Text;
         var renames = Registry.Renames(saved[path], text);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, text);
         saved[path] = text;
         doc.UndoStack.MarkAsOriginalFile();
         if (Workspace.Project is { } project) Registry.FollowRenames(project, renames).ForEach(FaroProject.Save);
         WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
-        lspState = renames.Count == 0 ? "Saved." : "Saved. Bindings followed: " + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
+        lspState = renames.Count == 0 ? $"Saved {Path.GetFileName(path)}." : "Saved. Bindings followed: " + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
         StateChanged?.Invoke();
     }
 
