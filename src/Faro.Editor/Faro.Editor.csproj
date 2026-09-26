@@ -12,5 +12,6 @@
     <PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
     <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" />
+    <AvaloniaResource Include="../../assets/faro-splash.png" Link="Assets/faro-splash.png" />
   </ItemGroup>
 </Project>

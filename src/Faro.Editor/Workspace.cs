@@ -18,10 +18,11 @@ public static class Workspace
 
     static FileSystemWatcher? watcher;
 
-    public static void Open(string root)
+    /// <param name="report">Startup progress (step text, percent) for the splash screen.</param>
+    public static void Open(string root, Action<string, double>? report = null)
     {
         Root = root;
-        Reload();
+        Reload(report);
         watcher?.Dispose();
         if (!Directory.Exists(root)) return;
         watcher = new FileSystemWatcher(root) { IncludeSubdirectories = true, EnableRaisingEvents = true };
@@ -29,7 +30,7 @@ public static class Workspace
         {
             var rel = Path.GetRelativePath(root, e.FullPath);
             if (rel.StartsWith("UI") || rel.StartsWith("Bindings") || rel.StartsWith("Source"))
-                Dispatcher.UIThread.Post(Reload);
+                Dispatcher.UIThread.Post(() => Reload());
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;
@@ -37,12 +38,15 @@ public static class Workspace
         watcher.Renamed += (s, e) => onChange(s, e);
     }
 
-    public static void Reload()
+    public static void Reload(Action<string, double>? report = null)
     {
         try
         {
+            report?.Invoke("Loading UI graphs and bindings…", 15);
             Project = FaroProject.Load(Root);
+            report?.Invoke("Analyzing Source/ with Roslyn…", 35);
             Registry = Editor.Registry.Scan(Path.Combine(Root, "Source"));
+            report?.Invoke("Checking bindings…", 60);
             Issues = BindingCheck.Check(Project, Registry);
             LoadError = null;
         }

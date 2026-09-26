@@ -178,7 +178,8 @@ public sealed class CodeView : UserControl
 
     static string Uri(string path) => new Uri(path).AbsoluteUri;
 
-    static Task<LspClient> Lsp() => lsp ??= StartLsp();
+    /// <summary>Starts (or returns) the shared language server; also called by the splash screen.</summary>
+    public static Task<LspClient> Lsp() => lsp ??= StartLsp();
 
     static async Task<LspClient> StartLsp()
     {
