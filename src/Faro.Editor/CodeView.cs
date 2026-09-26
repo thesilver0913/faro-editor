@@ -11,7 +11,10 @@ using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Rendering;
+using AvaloniaEdit.TextMate;
 using Faro.Runtime;
+using TextMateSharp.Grammars;
+using TextMateSharp.Themes;
 
 namespace Faro.Editor;
 
@@ -37,10 +40,6 @@ public sealed class CodeView : UserControl
     {
         ShowLineNumbers = true,
         FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"),
-        // ponytail: built-in C# .xshd colors assume a light background; dark/TextMate themes come with spec §15
-        SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#"),
-        Background = Brushes.White,
-        Foreground = Brushes.Black,
         IsEnabled = false,
     };
 
@@ -57,6 +56,36 @@ public sealed class CodeView : UserControl
         Content = new DockPanel { Children = { bar, editor } };
     }
 
+    TextMate.Installation? textMate;
+
+    /// <summary>Built-in C# .xshd (light) or a TextMate theme, including its editor background/foreground (spec §15).</summary>
+    void ApplyTheme()
+    {
+        textMate?.Dispose();
+        textMate = null;
+        IRawTheme? theme;
+        try { theme = FaroSettings.Current.LoadEditorTheme(); }
+        catch (Exception e) when (e is IOException or System.Xml.XmlException or FormatException or ArgumentException or InvalidOperationException)
+        {
+            lspState = $"Editor theme: {e.Message}";
+            theme = null;
+        }
+        if (theme is null)
+        {
+            editor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
+            editor.Background = Brushes.White;
+            editor.Foreground = Brushes.Black;
+            return;
+        }
+        editor.SyntaxHighlighting = null;
+        var options = new RegistryOptions(ThemeName.DarkPlus);
+        textMate = editor.InstallTextMate(options);
+        textMate.SetGrammar(options.GetScopeByLanguageId(options.GetLanguageByExtension(".cs").Id));
+        textMate.SetTheme(theme);
+        editor.Background = textMate.TryGetThemeColor("editor.background", out var bg) && Color.TryParse(bg, out var b) ? new SolidColorBrush(b) : Brushes.White;
+        editor.Foreground = textMate.TryGetThemeColor("editor.foreground", out var fg) && Color.TryParse(fg, out var f) ? new SolidColorBrush(f) : Brushes.Black;
+    }
+
     string? Current => files.SelectedItem is string rel ? Path.Combine(Workspace.Root, rel) : null;
 
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
@@ -64,6 +93,8 @@ public sealed class CodeView : UserControl
         base.OnAttachedToVisualTree(e);
         Workspace.Changed += Refresh;
         StateChanged += Redraw;
+        FaroSettings.ThemeChanged += ApplyTheme;
+        ApplyTheme();
         Refresh();
     }
 
@@ -71,6 +102,7 @@ public sealed class CodeView : UserControl
     {
         Workspace.Changed -= Refresh;
         StateChanged -= Redraw;
+        FaroSettings.ThemeChanged -= ApplyTheme;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -145,6 +177,13 @@ public sealed class CodeView : UserControl
         };
         DidOpen(path, doc);
         return doc;
+    }
+
+    public static bool AnyDirty => buffers.Values.Any(d => !d.UndoStack.IsOriginalFile);
+
+    public static void SaveAll()
+    {
+        foreach (var path in buffers.Keys.Where(IsDirty).ToList()) SaveBuffer(path);
     }
 
     public static bool IsDirty(string path) => buffers.TryGetValue(path, out var doc) && !doc.UndoStack.IsOriginalFile;

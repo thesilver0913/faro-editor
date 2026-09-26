@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -6,6 +5,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Faro.Runtime;
 
 namespace Faro.Editor;
@@ -19,17 +20,39 @@ public sealed class CanvasView : UserControl
     readonly ComboBox screens = new() { MinWidth = 180 };
     readonly Button sync = new();
     readonly TextBlock status = new() { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
+    readonly Canvas overlay = new() { IsHitTestVisible = false };
+    Dictionary<string, Control> byId = [];
+    Dictionary<Control, string> idOf = [];
+
+    /// <summary>Selected node ids on the current screen (the Select menu drives this too).</summary>
+    public static HashSet<string> Selection { get; } = [];
+    /// <summary>Selectable node ids of the screen on the canvas (nodes inside component instances excluded).</summary>
+    public static List<string> ScreenNodeIds { get; private set; } = [];
+    public static event Action? SelectionChanged;
+
+    public static void Select(IEnumerable<string> ids)
+    {
+        Selection.Clear();
+        Selection.UnionWith(ids);
+        SelectionChanged?.Invoke();
+    }
+
     readonly Border artboard = new() { Width = 420, MinHeight = 720, Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
 
     public CanvasView()
     {
         var run = new Button { Content = "Run" };
-        run.Click += (_, _) => Process.Start(new ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"]) { WorkingDirectory = Workspace.Root });
-        sync.Click += (_, _) =>
+        run.Click += (_, _) => Workspace.Run();
+        sync.Click += (_, _) => SyncComponents();
+        screens.SelectionChanged += (_, _) => { Selection.Clear(); Render(); };
+        // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
+        artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            if (Workspace.Project is { } p) ComponentSync.Sync(p).ForEach(FaroProject.Save);
-        };
-        screens.SelectionChanged += (_, _) => Render();
+            var id = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Control>().Select(c => idOf.GetValueOrDefault(c)).FirstOrDefault(i => i is not null);
+            if (!e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) Select(id is null ? [] : [id]);
+            else if (id is not null) Select(Selection.Contains(id) ? Selection.Except([id]).ToList() : [.. Selection, id]);
+            e.Handled = true;
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(8), Children = { screens, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
@@ -40,12 +63,14 @@ public sealed class CanvasView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         Workspace.Changed += Refresh;
+        SelectionChanged += DrawSelection;
         Refresh();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         Workspace.Changed -= Refresh;
+        SelectionChanged -= DrawSelection;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -57,7 +82,6 @@ public sealed class CanvasView : UserControl
         var outOfDate = Workspace.Project is { } p ? ComponentSync.OutOfDate(p).Count : 0;
         sync.Content = $"Sync components ({outOfDate})";
         sync.IsEnabled = outOfDate > 0;
-        status.Text = Workspace.LoadError ?? $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members";
         Render();
     }
 
@@ -68,8 +92,14 @@ public sealed class CanvasView : UserControl
             artboard.Child = new TextBlock { Text = $"No UI/*.xml screens in {Workspace.Root}", Margin = new(16), Foreground = Brushes.Gray };
             return;
         }
-        var byId = new Dictionary<string, Control>();
-        artboard.Child = UiBuilder.Build(graph.Root!.Element("Node")!, byId, Workspace.Root);
+        byId = [];
+        var built = UiBuilder.Build(graph.Root!.Element("Node")!, byId, Workspace.Root);
+        idOf = byId.Where(p => !p.Key.Contains('/')).ToDictionary(p => p.Value, p => p.Key); // an instance selects as a whole
+        ScreenNodeIds = [.. idOf.Values];
+        Selection.IntersectWith(ScreenNodeIds);
+        (overlay.Parent as Panel)?.Children.Remove(overlay);
+        artboard.Child = new Panel { Children = { built, overlay } };
+        Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
         foreach (var group in Workspace.Issues.GroupBy(i => i.NodeId))
             if (byId.TryGetValue(group.Key, out var control))
             {
@@ -83,6 +113,30 @@ public sealed class CanvasView : UserControl
                 AdornerLayer.SetIsClipEnabled(badge, false);
                 AdornerLayer.SetAdorner(control, badge);
             }
+    }
+
+    public static void SyncComponents()
+    {
+        if (Workspace.Project is { } p) ComponentSync.Sync(p).ForEach(FaroProject.Save);
+    }
+
+    void DrawSelection()
+    {
+        overlay.Children.Clear();
+        foreach (var id in Selection)
+            if (byId.GetValueOrDefault(id) is { } c && c.TranslatePoint(default, overlay) is { } p)
+            {
+                var box = new Avalonia.Controls.Shapes.Rectangle { Width = c.Bounds.Width, Height = c.Bounds.Height, Stroke = new SolidColorBrush(Color.Parse("#1473E6")), StrokeThickness = 2 };
+                Canvas.SetLeft(box, p.X);
+                Canvas.SetTop(box, p.Y);
+                overlay.Children.Add(box);
+            }
+        var selected = Selection.Count == 1 && Workspace.Project?.Screens.GetValueOrDefault(screens.SelectedItem as string ?? "") is { } graph
+            ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())
+            : null;
+        status.Text = Workspace.LoadError
+            ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
+            + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members";
     }
 
     /// <summary>

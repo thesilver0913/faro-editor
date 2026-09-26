@@ -15,6 +15,7 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
 
+        FaroSettings.Current.ApplyTheme();
         var splash = new SplashWindow();
         desktop.MainWindow = splash;
         splash.Show();

@@ -110,11 +110,39 @@ using (var server = new System.Net.HttpListener())
     server.Stop();
 }
 
+// Editor themes (spec §15): built-in TextMate themes, and custom .tmTheme (XML plist) / VS Code JSON files.
+Check(new FaroSettings { EditorTheme = FaroSettings.BuiltInEditorTheme }.LoadEditorTheme() is null, "built-in xshd theme");
+Check(Enum.GetNames<TextMateSharp.Grammars.ThemeName>().All(t => new FaroSettings { EditorTheme = t }.LoadEditorTheme() is not null), "every TextMate built-in theme loads");
+var tmTheme = Path.Combine(root, "test.tmTheme");
+File.WriteAllText(tmTheme, """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0"><dict>
+      <key>name</key><string>Test</string>
+      <key>settings</key><array>
+        <dict><key>settings</key><dict><key>background</key><string>#101010</string><key>foreground</key><string>#EEEEEE</string></dict></dict>
+        <dict><key>scope</key><string>keyword</string><key>settings</key><dict><key>foreground</key><string>#FF0000</string></dict></dict>
+      </array>
+    </dict></plist>
+    """);
+var json = System.Text.Json.Nodes.JsonNode.Parse(FaroSettings.TmThemeToJson(File.ReadAllText(tmTheme)))!;
+Check((string?)json["settings"]![1]!["scope"] == "keyword" && (string?)json["settings"]![0]!["settings"]!["background"] == "#101010", "tmTheme plist converts to JSON");
+Check(new FaroSettings { EditorTheme = FaroSettings.CustomEditorTheme, EditorThemeFile = tmTheme }.LoadEditorTheme() is not null, "custom .tmTheme loads");
+var vscodeTheme = Path.Combine(root, "test.json");
+File.WriteAllText(vscodeTheme, """{ "name": "T", "colors": { "editor.background": "#000000" }, "tokenColors": [ { "scope": "keyword", "settings": { "foreground": "#00FF00" } } ] }""");
+Check(new FaroSettings { EditorTheme = FaroSettings.CustomEditorTheme, EditorThemeFile = vscodeTheme }.LoadEditorTheme() is not null, "custom VS Code JSON theme loads");
+
+var appTheme = Path.Combine(root, "theme.axaml");
+File.WriteAllText(appTheme, """<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><SolidColorBrush x:Key="FaroAccent" Color="#FF8800" /></ResourceDictionary>""");
+Check(FaroSettings.LoadThemeFile(appTheme).ContainsKey("FaroAccent"), "custom AXAML app theme loads");
+File.WriteAllText(appTheme, """<Border xmlns="https://github.com/avaloniaui" />""");
+Check(Throws<InvalidDataException>(() => FaroSettings.LoadThemeFile(appTheme)), "non-ResourceDictionary theme file rejected");
+
 // Runtime binder resolves the same target strings via reflection on the built assembly.
 var asm = typeof(MyApp.Services.OrderService).Assembly;
 Check(FaroApp.Resolve(asm, "MyApp.Services.OrderService.Submit") is MethodInfo, "runtime resolves method");
 Check(FaroApp.Resolve(asm, "MyApp.Models.UserProfile.Name") is PropertyInfo, "runtime resolves property");
-Check(Throws(() => FaroApp.Resolve(asm, "MyApp.Nope.Submit")), "runtime rejects unknown class");
+Check(Throws<InvalidOperationException>(() => FaroApp.Resolve(asm, "MyApp.Nope.Submit")), "runtime rejects unknown class");
 Check(FaroApp.NavigateScreenId("Navigate:Screen.Detail", ["Detail"]) == "Detail", "navigate id");
 
 Directory.Delete(root, true);
@@ -128,4 +156,4 @@ static void Check(bool ok, string what)
 
 static string Event(string name, string json) => $"event: {name}\ndata: {json}\n\n";
 
-static bool Throws(Action a) { try { a(); return false; } catch (InvalidOperationException) { return true; } }
+static bool Throws<T>(Action a) where T : Exception { try { a(); return false; } catch (T) { return true; } }
