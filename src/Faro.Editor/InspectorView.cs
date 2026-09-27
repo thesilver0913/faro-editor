@@ -108,9 +108,10 @@ public sealed class InspectorView : UserControl
         }
 
         body.Children.Add(Section("Bindings"));
-        foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") == id).ToList())
+        // An instance also lists the bindings of its inner nodes ("orderList/price").
+        foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
-        body.Children.Add(AddBindRow(id));
+        body.Children.Add(AddBindRow(id, [id, .. CanvasEdit.InnerNodes(node).Where(n => n != node.Element("Node")).Select(n => $"{id}/{(string?)n.Attribute("id")}")]));
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>
@@ -156,7 +157,8 @@ public sealed class InspectorView : UserControl
         var target = new AutoCompleteBox { Text = (string?)bind.Attribute("target") ?? "", ItemsSource = Candidates(isEvent), FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 220 };
         Commit(target, () => target.Text ?? "", value => EditBind(bind, "Set binding target", b => b.SetAttributeValue("target", value)));
 
-        var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { new TextBlock { Text = $"{name} {(isEvent ? "→" : "⇄")}", VerticalAlignment = VerticalAlignment.Center, MinWidth = 90 }, target } };
+        var inner = ((string?)bind.Attribute("nodeId") ?? "").Split('/', 2) is [_, var path] ? path + " · " : ""; // bound inside an instance
+        var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { new TextBlock { Text = $"{inner}{name} {(isEvent ? "→" : "⇄")}", VerticalAlignment = VerticalAlignment.Center, MinWidth = 90 }, target } };
         if (!isEvent)
         {
             var mode = new ComboBox { ItemsSource = new[] { "OneWay", "TwoWay" }, SelectedItem = (string?)bind.Attribute("mode") ?? "OneWay" };
@@ -194,21 +196,23 @@ public sealed class InspectorView : UserControl
         return panel;
     }
 
-    /// <summary>Adds a binding: event or property of the node's control, bound to a registry member.</summary>
-    Control AddBindRow(string id)
+    /// <summary>Adds a binding: event or property of the node's control (or, on an instance, of a node inside it), bound to a registry member.</summary>
+    Control AddBindRow(string id, List<string> nodes)
     {
+        var at = new ComboBox { ItemsSource = nodes, SelectedIndex = 0, IsVisible = nodes.Count > 1 };
         var kind = new ComboBox { ItemsSource = new[] { "Event", "Property" }, SelectedIndex = 0 };
         var name = new AutoCompleteBox { MinWidth = 140, FilterMode = AutoCompleteFilterMode.ContainsOrdinal };
         void Names()
         {
             // Framework-neutral names only (Faro.Runtime.Bindable), so binding files don't depend on Avalonia.
-            var bindable = CanvasView.ControlOf(id) is { } control ? Faro.Runtime.Bindable.For(control) : null;
+            var bindable = CanvasView.ControlOf((string)at.SelectedItem!) is { } control ? Faro.Runtime.Bindable.For(control) : null;
             var names = (kind.SelectedIndex == 0 ? bindable?.Events.Keys.ToArray() : bindable?.Props.Keys.ToArray()) ?? [];
             name.ItemsSource = names;
             name.PlaceholderText = names.FirstOrDefault() ?? "";
         }
         Names();
         kind.SelectionChanged += (_, _) => Names();
+        at.SelectionChanged += (_, _) => Names();
         var add = new Button { Content = "+ Add binding" };
         add.Click += (_, _) =>
         {
@@ -218,12 +222,12 @@ public sealed class InspectorView : UserControl
             CanvasView.Edit("Add binding", (project, _) =>
             {
                 var file = CanvasEdit.BindingsFileFor(project, CanvasView.CurrentScreen!);
-                file.Root!.Add(new XElement("Bind", new XAttribute("nodeId", id), new XAttribute(isEvent ? "event" : "prop", member), new XAttribute("target", ""),
+                file.Root!.Add(new XElement("Bind", new XAttribute("nodeId", (string)at.SelectedItem!), new XAttribute(isEvent ? "event" : "prop", member), new XAttribute("target", ""),
                     isEvent ? null : new XAttribute("mode", "OneWay")));
                 return [file];
             });
         };
-        return new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { kind, name, add } };
+        return new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { at, kind, name, add } };
     }
 
     static void EditBind(XElement bind, string label, Action<XElement> change) => CanvasView.Edit(label, (_, _) =>

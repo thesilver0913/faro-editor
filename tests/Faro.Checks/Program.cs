@@ -111,6 +111,21 @@ Check(!mockBuilt.Keys.Any(k => k.Contains('~')) && mockBuilt.ContainsKey("orderL
 var mockCopy = new System.Xml.Linq.XElement(orderList);
 MockData.SetRows(mockCopy, [["a", "1"], ["b", ""]]);
 Check(MockData.Rows(mockCopy).Count == 2 && MockData.Rows(mockCopy)[1].SequenceEqual(["b", ""]) && mockCopy.Elements("MockRow").Last().Elements("Set").Count() == 1, "mock rows written back");
+// Bindings to nodes inside an instance ("orderList/price"): checked against the snapshot, followed on rename/delete.
+var mainGraph = project.Screens["MainScreen"];
+Check(CanvasEdit.FindPath(mainGraph, "orderList/price") is { } innerPrice && (string?)innerPrice.Attribute("type") == "Control.Text"
+    && CanvasEdit.FindPath(mainGraph, "orderList/nope") is null && CanvasEdit.FindPath(mainGraph, "price") is null, "node paths reach inside instance snapshots only");
+var innerFile = project.BindingFiles.First(d => FaroProject.ScreenOf(d) == "MainScreen");
+innerFile.Root!.Elements("Bind").Where(b => (string?)b.Attribute("event") == "OnClick").Remove();
+innerFile.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" />"""),
+    System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/nope" prop="Text" target="MyApp.Services.OrderService.Summary" />"""));
+var innerIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
+Check(innerIssues.Count == 1 && innerIssues[0].NodeId == "orderList/nope", "a bind inside an instance is checked like any other");
+CanvasEdit.Rename(project, mainGraph, "orderList", "items");
+Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 2, "renaming an instance follows binds inside it");
+CanvasEdit.Delete(project, mainGraph, ["items"]);
+Check(!project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true), "deleting an instance removes binds inside it");
+project = FaroProject.Load(root);
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

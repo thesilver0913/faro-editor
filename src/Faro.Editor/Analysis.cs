@@ -117,7 +117,7 @@ public static class BindingCheck
             {
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
-                if (!nodes.TryGetValue(nodeId, out var node))
+                if ((nodeId.Contains('/') ? CanvasEdit.FindPath(screen, nodeId) : nodes.GetValueOrDefault(nodeId)) is not { } node)
                     issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
                 else if (Unbindable(bind, node) is { } problem)
                     issues.Add(problem with { Target = target, Screen = screenId });
@@ -375,6 +375,27 @@ public static class CanvasEdit
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
 
     /// <summary>A node authored in the screen (not inside an instance's master snapshot).</summary>
+    /// <summary>
+    /// A bind's node: a screen node ("price"), or a node inside an instance's synced snapshot by path
+    /// ("orderList/price", nested "card/ok/root") — the same keys the runtime registers.
+    /// </summary>
+    public static XElement? FindPath(XDocument graph, string path)
+    {
+        XElement? node = null;
+        foreach (var part in path.Split('/'))
+        {
+            var scope = node is null ? BindingCheck.NodesOf(graph) : InnerNodes(node);
+            if ((node = scope.FirstOrDefault(n => (string?)n.Attribute("id") == part)) is null) return null;
+        }
+        return node;
+    }
+
+    /// <summary>The nodes of an instance's snapshot one level deep (a nested instance counts as one node).</summary>
+    public static IEnumerable<XElement> InnerNodes(XElement instance) =>
+        (string?)instance.Attribute("type") == "Instance" && instance.Element("Node") is { } root
+            ? root.DescendantsAndSelf("Node").Where(n => !n.Ancestors("Node").TakeWhile(a => a != root).Any(a => (string?)a.Attribute("type") == "Instance"))
+            : [];
+
     public static XElement? Find(XDocument screen, string id) =>
         screen.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == id
             && !n.Ancestors("Node").Any(a => (string?)a.Attribute("type") == "Instance"));
@@ -441,7 +462,7 @@ public static class CanvasEdit
     {
         var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
         var gone = nodes.SelectMany(n => n.DescendantsAndSelf("Node")).Select(n => (string?)n.Attribute("id")).ToHashSet();
-        var binds = project.BindsFor(ScreenId(screen)).Where(b => gone.Contains((string?)b.Attribute("nodeId"))).ToList();
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => gone.Contains(((string?)b.Attribute("nodeId"))?.Split('/')[0])).ToList(); // "orderList/price" goes with orderList
         var changed = binds.Select(b => b.Document!).Distinct().Append(screen).ToList();
         nodes.ForEach(n => n.Remove());
         binds.ForEach(b => b.Remove());
@@ -483,8 +504,8 @@ public static class CanvasEdit
         if (IdsOf(screen).Contains(newId)) return ($"'{newId}' is already used on this screen.", []);
         if (Find(screen, oldId) is not { } node) return ($"'{oldId}' not found.", []);
         node.SetAttributeValue("id", newId);
-        var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") == oldId).ToList();
-        binds.ForEach(b => b.SetAttributeValue("nodeId", newId));
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == oldId || n.StartsWith(oldId + "/"))).ToList();
+        binds.ForEach(b => b.SetAttributeValue("nodeId", newId + ((string)b.Attribute("nodeId")!)[oldId.Length..]));
         return (null, [screen, .. binds.Select(b => b.Document!).Distinct()]);
     }
 

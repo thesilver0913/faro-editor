@@ -3,4 +3,5 @@
   <Bind nodeId="txt1" prop="Text" target="MyApp.Models.UserProfile.Name" mode="TwoWay" />
   <Bind nodeId="greeting" prop="Text" target="MyApp.Models.UserProfile.Greeting" mode="OneWay" />
   <Bind nodeId="btnDetail" event="Click" target="Navigate:Screen.Detail" />
+  <Bind nodeId="orderList/price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" />
 </Bindings>
