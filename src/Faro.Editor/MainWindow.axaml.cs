@@ -94,16 +94,20 @@ public partial class MainWindow : Window
 
     // File
 
-    /// <summary>Restarts Faro on the chosen folder: the editor's state (buffers, language server) is per project.</summary>
-    async void OpenProject(object? sender, RoutedEventArgs e)
+    /// <summary>Open Folder: like the welcome screen (initializing non-Faro folders), then restarts Faro on it.</summary>
+    async void OpenProject(object? sender, RoutedEventArgs e) => await WelcomeWindow.OpenFolder(this, folder => Relaunch(folder));
+
+    /// <summary>Close Project: back to the welcome screen.</summary>
+    void CloseProject(object? sender, RoutedEventArgs e) => Relaunch(null);
+
+    /// <summary>The editor's state (buffers, language server, history) is per project, so switching restarts Faro.</summary>
+    async void Relaunch(string? folder)
     {
-        var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Open Faro Project" });
-        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } folder) return;
-        if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Discard them and open the other project?", "Discard and Open"))
+        if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Discard them?", "Discard"))
             return;
         var start = new ProcessStartInfo(Environment.ProcessPath!);
         if (Path.GetFileNameWithoutExtension(Environment.ProcessPath) == "dotnet") start.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location); // run via `dotnet Faro.Editor.dll`
-        start.ArgumentList.Add(folder);
+        if (folder is not null) start.ArgumentList.Add(folder);
         Process.Start(start);
         closeConfirmed = true;
         Close();
@@ -123,7 +127,7 @@ public partial class MainWindow : Window
 
     void SelectAll(object? sender, RoutedEventArgs e) => CanvasView.Select(CanvasView.ScreenNodeIds);
     void SelectNone(object? sender, RoutedEventArgs e) => CanvasView.Select([]);
-    void SelectBroken(object? sender, RoutedEventArgs e) => CanvasView.Select(Workspace.Issues.Select(i => i.NodeId).Intersect(CanvasView.ScreenNodeIds));
+    void SelectBroken(object? sender, RoutedEventArgs e) => CanvasView.Select(Workspace.Issues.Where(i => i.Screen == CanvasView.CurrentScreen).Select(i => i.NodeId).Intersect(CanvasView.ScreenNodeIds));
 
     async void SelectById(object? sender, RoutedEventArgs e)
     {

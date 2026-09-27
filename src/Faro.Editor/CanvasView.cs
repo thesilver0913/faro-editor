@@ -203,7 +203,7 @@ public sealed class CanvasView : UserControl
         (overlay.Parent as Panel)?.Children.Remove(overlay);
         artboard.Child = new Panel { Children = { built, overlay } };
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
-        foreach (var group in Workspace.Issues.GroupBy(i => i.NodeId))
+        foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
             if (byId.TryGetValue(group.Key, out var control))
             {
                 var badge = Badge(group);
@@ -296,7 +296,7 @@ public sealed class CanvasView : UserControl
     /// </summary>
     public static string? VibeRequest(BindingIssue issue, Control control)
     {
-        var bind = Workspace.Project?.Binds.FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
+        var bind = Workspace.Project?.BindsFor(CurrentScreen ?? "").FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
         if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:")) return null;
         var type = Workspace.Project!.Screens.Values.SelectMany(d => d.Descendants("Node")).FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
         var node = $"node `{issue.NodeId}` ({type})";

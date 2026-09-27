@@ -106,7 +106,7 @@ public sealed class InspectorView : UserControl
         }
 
         body.Children.Add(Section("Bindings"));
-        foreach (var bind in project.Binds.Where(b => (string?)b.Attribute("nodeId") == id).ToList())
+        foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") == id).ToList())
             body.Children.Add(BindRow(bind));
         body.Children.Add(AddBindRow(id));
     }
@@ -167,7 +167,7 @@ public sealed class InspectorView : UserControl
 
         var panel = new StackPanel { Spacing = 4, Children = { row } };
         var nodeId = (string?)bind.Attribute("nodeId") ?? "";
-        if (Workspace.Issues.FirstOrDefault(i => i.NodeId == nodeId && i.Target == (string?)bind.Attribute("target")) is { } issue)
+        if (Workspace.Issues.FirstOrDefault(i => i.Screen == CanvasView.CurrentScreen && i.NodeId == nodeId && i.Target == (string?)bind.Attribute("target")) is { } issue)
         {
             panel.Children.Add(new TextBlock { Text = issue.Message, Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap });
             if (CanvasView.ControlOf(nodeId) is { } control && CanvasView.VibeRequest(issue, control) is { } request)

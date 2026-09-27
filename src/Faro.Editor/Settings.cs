@@ -29,6 +29,7 @@ public sealed class FaroSettings
     public string AppThemeFile { get; set; } = ""; // user ResourceDictionary (.axaml)
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
     public string EditorThemeFile { get; set; } = ""; // .tmTheme or VS Code .json
+    public List<string> RecentProjects { get; set; } = [];
 
     static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
 

@@ -16,5 +16,10 @@
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
     <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" />
     <AvaloniaResource Include="../../assets/faro-splash.png" Link="Assets/faro-splash.png" />
+    <!-- Shipped with the editor for new projects: the runtime package and the sample template. -->
+    <None Include="../Faro.Runtime/bin/$(Configuration)/Faro.Runtime.$(Version).nupkg" Link="runtime/Faro.Runtime.$(Version).nupkg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/UI/**" LinkBase="templates/Sample/UI" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Source/**" LinkBase="templates/Sample/Source" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Bindings/**" LinkBase="templates/Sample/Bindings" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
