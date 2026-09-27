@@ -31,6 +31,18 @@
           <Prop name="Text" value="¥0" />
         </Node>
       </Node>
+      <MockRow>
+        <Set node="name" value="りんご" />
+        <Set node="price" value="¥120" />
+      </MockRow>
+      <MockRow>
+        <Set node="name" value="みかん" />
+        <Set node="price" value="¥80" />
+      </MockRow>
+      <MockRow>
+        <Set node="name" value="ぶどう" />
+        <Set node="price" value="¥450" />
+      </MockRow>
     </Node>
   </Node>
 </UIGraph>

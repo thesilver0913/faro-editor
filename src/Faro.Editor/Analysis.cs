@@ -616,3 +616,49 @@ public static partial class ProjectFiles
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 }
+
+/// <summary>
+/// Design-time mock rows for repeatable nodes (spec §10.5), stored under the node as
+/// &lt;MockRow&gt;&lt;Set node="name" value="りんご" /&gt;&lt;/MockRow&gt;. The canvas shows one copy per row;
+/// the runtime ignores them (wiring real data is deferred, spec §5). ponytail: Text only; images when needed.
+/// </summary>
+public static class MockData
+{
+    /// <summary>Nodes a row fills: those with a Text inside the repeatable node (an instance's synced snapshot).</summary>
+    public static List<string> Fields(XElement node) =>
+        [.. Inner(node).DescendantsAndSelf("Node").Where(n => Bindable.For(Bindable.TypeOf(n))?.Props.ContainsKey("Text") == true).Select(n => (string)n.Attribute("id")!).Distinct()];
+
+    public static List<List<string>> Rows(XElement node) =>
+        [.. node.Elements("MockRow").Select(row => Fields(node).Select(f => (string?)row.Elements("Set").FirstOrDefault(s => (string?)s.Attribute("node") == f)?.Attribute("value") ?? "").ToList())];
+
+    public static void SetRows(XElement node, IEnumerable<IReadOnlyList<string>> rows)
+    {
+        node.Elements("MockRow").Remove();
+        var fields = Fields(node);
+        foreach (var row in rows)
+            node.Add(new XElement("MockRow", fields.Zip(row).Where(p => p.Second.Length > 0).Select(p => new XElement("Set", new XAttribute("node", p.First), new XAttribute("value", p.Second)))));
+    }
+
+    /// <summary>A copy of the tree with each repeatable node shown once per mock row (extra copies get ids "id~2", "id~3"…).</summary>
+    public static XElement Expand(XElement root)
+    {
+        var copy = new XElement(root);
+        foreach (var node in copy.DescendantsAndSelf("Node").Where(n => (string?)n.Attribute("repeatable") == "true" && n.Elements("MockRow").Any() && n.Parent is not null).ToList())
+        {
+            var rows = node.Elements("MockRow").ToList();
+            var template = new XElement(node);
+            var last = node;
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var shown = i == 0 ? node : new XElement(template);
+                if (i > 0) { shown.SetAttributeValue("id", $"{(string?)node.Attribute("id")}~{i + 1}"); last.AddAfterSelf(shown); last = shown; }
+                foreach (var set in rows[i].Elements("Set"))
+                    if (Inner(shown).DescendantsAndSelf("Node").FirstOrDefault(n => (string?)n.Attribute("id") == (string?)set.Attribute("node")) is { } target)
+                        CanvasEdit.SetProp(target == Inner(shown) && shown != target ? shown : target, "Text", (string?)set.Attribute("value")); // an instance's root text is an Override
+            }
+        }
+        return copy;
+    }
+
+    static XElement Inner(XElement node) => (string?)node.Attribute("type") == "Instance" && node.Element("Node") is { } snapshot ? snapshot : node;
+}

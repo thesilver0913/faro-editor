@@ -210,8 +210,9 @@ public sealed class CanvasView : UserControl
             return;
         }
         byId = [];
-        var built = UiBuilder.Build(graph.Root!.Element("Node")!, byId, Workspace.Root);
-        idOf = byId.Where(p => !p.Key.Contains('/')).ToDictionary(p => p.Value, p => p.Key); // an instance selects as a whole
+        var built = UiBuilder.Build(MockData.Expand(graph.Root!.Element("Node")!), byId, Workspace.Root);
+        // An instance selects as a whole; mock row copies ("id~2") aren't nodes of the file.
+        idOf = byId.Where(p => !p.Key.Contains('/') && !p.Key.Contains('~')).ToDictionary(p => p.Value, p => p.Key);
         ScreenNodeIds = [.. idOf.Values];
         Selection.IntersectWith(ScreenNodeIds);
         (overlay.Parent as Panel)?.Children.Remove(overlay);
