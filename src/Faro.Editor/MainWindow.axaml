@@ -36,11 +36,13 @@
     </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Explorer" Click="ShowExplorer" />
-      <MenuItem Header="_Problems" Click="ShowProblems" />
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
       <MenuItem Header="_Inspector" Click="ShowInspector" />
       <MenuItem Header="C_ode" Click="ShowCode" />
-      <MenuItem Header="_Vibe Coding" Click="ShowChat" />
+      <MenuItem Header="Co_nsole">
+        <MenuItem Header="_Problems" Click="ShowProblems" />
+        <MenuItem Header="_Vibe Coding" Click="ShowChat" />
+      </MenuItem>
       <Separator />
       <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
     </MenuItem>
@@ -49,7 +51,7 @@
     </MenuItem>
   </Menu>
   </DockPanel>
-  <!-- Default layout (spec §14 + explorer/inspector): explorer and problems left, canvas top-center, code | chat bottom-center, inspector right. -->
+  <!-- Default layout (spec §14 + explorer/inspector): explorer left, canvas top-center, code | console (problems, vibe coding tabs) bottom-center, inspector right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
@@ -60,12 +62,6 @@
           <ToolDock Id="ExplorerPane" Alignment="Left">
             <Tool Id="Explorer" Title="Explorer" CanClose="False">
               <local:ExplorerView />
-            </Tool>
-          </ToolDock>
-          <ProportionalDockSplitter />
-          <ToolDock Id="ProblemsPane" Proportion="0.35" Alignment="Left">
-            <Tool Id="Problems" Title="Problems" CanClose="False">
-              <local:ProblemsView />
             </Tool>
           </ToolDock>
         </ProportionalDock>
@@ -84,9 +80,9 @@
               </Tool>
             </ToolDock>
             <ProportionalDockSplitter />
-            <ToolDock Id="ChatPane">
-              <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
-                <local:ChatView />
+            <ToolDock Id="ConsolePane">
+              <Tool Id="Console" Title="Console" CanClose="False">
+                <local:ConsoleView />
               </Tool>
             </ToolDock>
           </ProportionalDock>

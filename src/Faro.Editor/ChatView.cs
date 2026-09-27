@@ -80,6 +80,7 @@ public sealed class ChatView : UserControl
     {
         draft = text;
         Changed?.Invoke();
+        ConsoleView.Show(ConsoleView.Tab.VibeCoding);
     }
 
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
