@@ -113,6 +113,11 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 生存期間・永続化はC#属性で指定: `[FaroLifetime(Lifetime.Singleton, Persistent = true)]`(未指定はScreenScoped)。永続化データは `ApplicationData/Faro/<アプリ名>/<クラス名>.json`
 - `Navigate:Screen.Detail` の `Screen.` は省略可能な接頭辞で、UIGraphの `id="Detail"` を指す
 - `Container.Grid` は `columns` 属性を持つ均等グリッド
+- **絶対座標を使わないレイアウトの追加オプション**(Figma の Auto Layout／Constraints、Android の ConstraintLayout・Box、CSS flexbox に相当):
+  - Stack:`justify`(主軸の Start/Center/End/SpaceBetween)、子の `alignSelf`(交差軸の揃えを上書き)、Fill の比率 `weight`
+  - 全 Node:`minWidth`/`maxWidth`/`minHeight`/`maxHeight`、`margin`
+  - `padding`/`margin` は `8`・`8 16`(上下 左右)・`8 16 8 16`(上 右 下 左、CSS と同じ順)
+  - `Container.Overlay`:子を重ねて置き、各子を `anchorX`(Left/Center/Right)・`anchorY`(Top/Center/Bottom)で親の辺か中央に固定。Fill はその軸いっぱい、距離は `margin`。画像の上の文字、隅のバッジ、下に固定するボタンなどに使う
 
 ## リスク検証結果(仕様11.5)
 

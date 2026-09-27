@@ -388,7 +388,7 @@ public static class UiHistory
 public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
-        ["Container.Stack", "Container.Wrap", "Container.Grid", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Script"];
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
 

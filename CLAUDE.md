@@ -28,6 +28,7 @@
 - 紐付けの `event`/`prop` は**フレームワーク非依存の共通名**(`Click`、`Text` など。Avalonia の `OnClick` 等は使わない)。Avalonia への対応表は `Faro.Runtime/Bindable.cs` だけに置く
 - 紐付けの `target` は文字列1つのまま:**最後の `.` より後がメンバー名**、前は言語ごとに決まるクラスの識別子(C# では `名前空間.クラス名`)
 - 開始画面は **`faro.json` の `startScreen`**(`Program.cs` には書かない)
+- レイアウトは**絶対座標なし**のまま、Stack の `justify`/`alignSelf`/`weight`、全 Node の min/max・`margin`、辺ごとの `padding`、重ね置きの `Container.Overlay`(子を `anchorX`/`anchorY` で固定)で自由度を出す
 - サイジングは**幅・高さで分ける**(`widthSizing`/`heightSizing`、`sizing`は両軸の省略形)
 - 仕様書にない追加機能として、**インスペクター・キャンバス編集(ドラッグ＆ドロップ含む)・VSCode風エクスプローラー・メニューバー・環境設定・スプラッシュ**を実装する
 - 起動時は**ウェルカム画面**(最近のプロジェクト／フォルダを開く／新規作成、テンプレート選択)。`faro.json` のないフォルダは確認のうえ初期化

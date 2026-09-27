@@ -142,6 +142,19 @@ Check(ScriptPreview.Build(sampleDir, "MyApp.Views.Stamp") is Avalonia.Controls.B
 CanvasEdit.Find(project.Screens["Detail"], "stamp")!.SetAttributeValue("class", "MyApp.Views.Stmp");
 Check(BindingCheck.Check(project, registry, Registry.ScriptClasses(Path.Combine(root, "Source"))).Any(i => i.NodeId == "stamp" && i.Suggestions[0] == "MyApp.Views.Stamp"), "a script node naming a missing class is a problem");
 project = FaroProject.Load(root);
+// Layout options without coordinates: justify / weight / alignSelf / min-max / sides in Stacks, anchors in Overlays.
+Check(UiBuilder.Sides("8") == new Avalonia.Thickness(8) && UiBuilder.Sides("8 16") == new Avalonia.Thickness(16, 8, 16, 8) && UiBuilder.Sides("1 2 3 4") == new Avalonia.Thickness(4, 1, 2, 3), "padding/margin use CSS order");
+Avalonia.Controls.Grid StackGrid(string xml) => (Avalonia.Controls.Grid)((Avalonia.Controls.Border)UiBuilder.Build(System.Xml.Linq.XElement.Parse(xml), new Dictionary<string, Avalonia.Controls.Control>(), root)).Child!;
+var spread = StackGrid("""<Node id="r" type="Container.Stack" direction="Horizontal" justify="SpaceBetween" gap="8"><Node id="a" type="Control.Text" /><Node id="b" type="Control.Text" alignSelf="End" /></Node>""");
+Check(spread.ColumnDefinitions.Count == 3 && spread.ColumnDefinitions[1].Width.IsStar && spread.ColumnSpacing == 0 && spread.Children[1].VerticalAlignment == Avalonia.Layout.VerticalAlignment.Bottom, "SpaceBetween spreads the leftover space; alignSelf overrides the container");
+var centered = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" /></Node>""");
+var weighted = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" heightSizing="Fill" weight="2" /><Node id="b" type="Control.Text" heightSizing="Fill" minHeight="10" maxWidth="90" margin="4 8" /></Node>""");
+Check(centered.VerticalAlignment == Avalonia.Layout.VerticalAlignment.Center && weighted.RowDefinitions[0].Height == new Avalonia.Controls.GridLength(2, Avalonia.Controls.GridUnitType.Star)
+    && weighted.VerticalAlignment == Avalonia.Layout.VerticalAlignment.Stretch && weighted.Children[1] is { MinHeight: 10, MaxWidth: 90 } b && b.Margin == new Avalonia.Thickness(8, 4, 8, 4), "justify packs, Fill weight shares, min/max/margin apply");
+var overlay = StackGrid("""<Node id="o" type="Container.Overlay"><Node id="bg" type="Control.Text" sizing="Fill" /><Node id="badge" type="Control.Text" anchorX="Right" anchorY="Top" margin="8" /><Node id="cta" type="Control.Button" anchorX="Center" anchorY="Bottom" /></Node>""");
+Check(overlay.RowDefinitions.Count == 0 && overlay.Children[0] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Stretch, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Stretch }
+    && overlay.Children[1] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Top }
+    && overlay.Children[2] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Center, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "Overlay layers children at their anchors");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

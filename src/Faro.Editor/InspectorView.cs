@@ -80,13 +80,30 @@ public sealed class InspectorView : UserControl
         body.Children.Add(Section("Layout"));
         body.Children.Add(Row("Width", Sizing(node, "width")));
         body.Children.Add(Row("Height", Sizing(node, "height")));
+        // Placement in the parent: anchors in an Overlay, alignment and fill weight in a Stack.
+        var parentType = (string?)node.Parent?.Attribute("type");
+        if (parentType == "Container.Overlay")
+        {
+            body.Children.Add(Row("Anchor X", Choice(node, "anchorX", ["Left", "Center", "Right"])));
+            body.Children.Add(Row("Anchor Y", Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
+        }
+        else if (parentType == "Container.Stack")
+        {
+            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+            var mainAxis = (string?)node.Parent!.Attribute("direction") == "Horizontal" ? "width" : "height";
+            if (UiBuilder.Sizing(node, mainAxis) == "Fill") body.Children.Add(Row("Fill weight", AttributeField(node, "weight")));
+        }
+        body.Children.Add(Row("Min W / H", Pair(AttributeField(node, "minWidth"), AttributeField(node, "minHeight"))));
+        body.Children.Add(Row("Max W / H", Pair(AttributeField(node, "maxWidth"), AttributeField(node, "maxHeight"))));
+        body.Children.Add(Row("Margin", AttributeField(node, "margin", sides: true)));
         if (CanvasEdit.IsContainer(node))
         {
-            if (type != "Container.Grid") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
-            else body.Children.Add(Row("Columns", AttributeField(node, "columns")));
-            body.Children.Add(Row("Gap", AttributeField(node, "gap")));
-            body.Children.Add(Row("Padding", AttributeField(node, "padding")));
-            body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
+            if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
+            if (type == "Container.Grid") body.Children.Add(Row("Columns", AttributeField(node, "columns")));
+            if (type != "Container.Overlay") body.Children.Add(Row("Gap", AttributeField(node, "gap")));
+            body.Children.Add(Row("Padding", AttributeField(node, "padding", sides: true)));
+            if (type != "Container.Overlay") body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
+            if (type == "Container.Stack") body.Children.Add(Row("Justify", Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
         }
 
         var props = type == "Instance"
@@ -146,20 +163,23 @@ public sealed class InspectorView : UserControl
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
 
-    Control Choice(XElement node, string attribute, string[] values)
+    /// <param name="unset">A choice that removes the attribute (e.g. "Auto": follow the container).</param>
+    Control Choice(XElement node, string attribute, string[] values, string? unset = null)
     {
         var id = (string)node.Attribute("id")!;
         var box = new ComboBox { ItemsSource = values, SelectedItem = (string?)node.Attribute(attribute) ?? values[0], MinWidth = 120 };
-        box.SelectionChanged += (_, _) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, (string)box.SelectedItem!));
+        box.SelectionChanged += (_, _) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, (string)box.SelectedItem! == unset ? null : (string)box.SelectedItem!));
         return box;
     }
 
-    Control AttributeField(XElement node, string attribute)
+    /// <param name="sides">Padding/margin: 1, 2 or 4 numbers ("8", "8 16", "8 16 8 16": top right bottom left).</param>
+    Control AttributeField(XElement node, string attribute, bool sides = false)
     {
         var id = (string)node.Attribute("id")!;
         return Field((string?)node.Attribute(attribute) ?? "", value =>
         {
-            if (value.Length > 0 && !double.TryParse(value, out _)) return; // numbers only; the canvas would fail to build otherwise
+            var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+            if (numbers.Any(v => !double.TryParse(v, out _)) || numbers.Length > 1 && !(sides && numbers.Length is 2 or 4)) return; // the canvas would fail to build otherwise
             EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value));
         }, 80);
     }
@@ -317,6 +337,8 @@ public sealed class InspectorView : UserControl
         grid.Children.Add(editor);
         return grid;
     }
+
+    static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 
     static TextBlock Section(string title) => new() { Text = title, FontWeight = FontWeight.SemiBold, Margin = new(0, 10, 0, 0) };
     static TextBlock Hint(string text) => new() { Text = text, Opacity = 0.6, TextWrapping = TextWrapping.Wrap };

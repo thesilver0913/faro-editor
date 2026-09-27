@@ -82,7 +82,7 @@ ProjectName/
 - 各子要素は `Fill(親いっぱい)` / `Hug(中身の分だけ)` / `Fixed(固定サイズ)` のいずれかのサイジングを選ぶ
 - 間隔(gap)・余白(padding)・揃え(alignment)はコンテナ単位で持つ
 
-> **実装での変更(§16)**:サイジングは幅・高さで別々に持つ(`widthSizing`/`heightSizing`、`sizing` は両軸の省略形、省略時は Hug)。`Grid` は列数(`columns`)指定の均等グリッド
+> **実装での変更(§16)**:サイジングは幅・高さで別々に持つ(`widthSizing`/`heightSizing`、`sizing` は両軸の省略形、省略時は Hug)。`Grid` は列数(`columns`)指定の均等グリッド。絶対座標は使わずに自由度を上げるため、Stack の `justify`(Start/Center/End/SpaceBetween)・子の `alignSelf`・Fill の比率 `weight`、全 Node の最小/最大サイズと `margin`、辺ごとの `padding`、子を親の辺や中央に固定して重ねる `Container.Overlay`(`anchorX`/`anchorY`、Figma の Constraints に相当)を追加
 
 ### コンポーネント(再利用パーツ)
 
@@ -289,7 +289,7 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - 紐付けの `event`/`prop` はフレームワーク非依存の共通名、`target` は「最後の `.` 以降がメンバー名」(§6)
 - 紐付けは画面ごと・コンポーネントごとのファイル。Node ID は画面内で一意(§5・§6)
 - 生存期間・永続化は C# 属性(§6.5)
-- サイジングは幅・高さ別(§5)
+- サイジングは幅・高さ別。レイアウトの追加オプション(justify・alignSelf・weight・min/max・margin・辺ごとの padding・Overlay コンテナ)(§5)
 - Undo/Redo の矢印アイコンは置かない(§10)
 - 既定レイアウトとチャットのタブ化(§8・§14)
 - 開始画面は `faro.json` の `startScreen`

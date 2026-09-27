@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
@@ -19,7 +20,7 @@ public static class UiBuilder
         var type = (string?)node.Attribute("type") ?? "";
         Control control = type switch
         {
-            "Container.Stack" or "Container.Wrap" or "Container.Grid" => Container(node, type, byId, projectRoot, prefix),
+            "Container.Stack" or "Container.Wrap" or "Container.Grid" or "Container.Overlay" => Container(node, type, byId, projectRoot, prefix),
             "Instance" => Instance(node, byId, projectRoot, prefix),
             "Control.Script" => Script((string?)node.Attribute("class") ?? ""),
             "Control.Button" => new Button { Content = Prop(node, "Text") },
@@ -32,6 +33,11 @@ public static class UiBuilder
             templated.Background = new ImageBrush(Bitmap(projectRoot, texture)) { Stretch = Stretch.UniformToFill };
         if (Sizing(node, "width") == "Fixed" && (double?)node.Attribute("width") is { } w) control.Width = w;
         if (Sizing(node, "height") == "Fixed" && (double?)node.Attribute("height") is { } h) control.Height = h;
+        if ((double?)node.Attribute("minWidth") is { } minW) control.MinWidth = minW;
+        if ((double?)node.Attribute("maxWidth") is { } maxW) control.MaxWidth = maxW;
+        if ((double?)node.Attribute("minHeight") is { } minH) control.MinHeight = minH;
+        if ((double?)node.Attribute("maxHeight") is { } maxH) control.MaxHeight = maxH;
+        if (node.Attribute("margin") is { } margin) control.Margin = Sides(margin.Value);
         byId[prefix + (string?)node.Attribute("id")] = control;
         return control;
     }
@@ -86,32 +92,50 @@ public static class UiBuilder
         (string?)node.Elements("Prop").FirstOrDefault(p => (string?)p.Attribute("name") == name)?.Attribute("value");
 
     /// <summary>
-    /// Containers follow Figma Auto Layout: Stack is a Grid with one Auto/Star track per child,
-    /// so Fill children share the main axis and Hug/Fixed children take their own size;
-    /// on the cross axis Fill stretches and Hug/Fixed follow the container's alignment.
+    /// Containers follow Figma Auto Layout: Stack is a Grid with one Auto/Star track per child, so Fill children
+    /// share the main axis (by "weight") and Hug/Fixed children take their own size; "justify" packs the rest at
+    /// Start/Center/End or spreads it (SpaceBetween). On the cross axis Fill stretches, others follow "alignment"
+    /// (or their own "alignSelf"). Overlay layers its children, each anchored to the container's edges or center
+    /// (Figma constraints / Android Box): "anchorX" Left/Center/Right, "anchorY" Top/Center/Bottom, Fill stretches,
+    /// "margin" keeps the distance. No absolute coordinates anywhere.
     /// </summary>
     static Control Container(XElement node, string type, IDictionary<string, Control> byId, string root, string prefix)
     {
         var vertical = (string?)node.Attribute("direction") != "Horizontal";
         var gap = (double?)node.Attribute("gap") ?? 0;
         var align = (string?)node.Attribute("alignment");
-        var hAlign = align switch { "Center" => HorizontalAlignment.Center, "End" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
-        var vAlign = align switch { "Center" => VerticalAlignment.Center, "End" => VerticalAlignment.Bottom, _ => VerticalAlignment.Top };
         var children = node.Elements("Node").Select(n => (Node: n, Control: Build(n, byId, root, prefix))).ToList();
 
         Panel panel;
         if (type == "Container.Stack")
         {
-            var grid = new Grid { RowSpacing = gap, ColumnSpacing = gap };
+            var justify = (string?)node.Attribute("justify") ?? "Start";
+            var anyFill = children.Any(c => Sizing(c.Node, vertical ? "height" : "width") == "Fill");
+            var spread = justify == "SpaceBetween" && !anyFill && children.Count > 1;
+            var grid = new Grid { RowSpacing = spread ? 0 : gap, ColumnSpacing = spread ? 0 : gap };
+            var track = 0;
+            void Add(GridLength length, Control? c)
+            {
+                if (vertical) { grid.RowDefinitions.Add(new RowDefinition(length)); if (c is not null) Grid.SetRow(c, track); }
+                else { grid.ColumnDefinitions.Add(new ColumnDefinition(length)); if (c is not null) Grid.SetColumn(c, track); }
+                track++;
+            }
             for (var i = 0; i < children.Count; i++)
             {
                 var (n, c) = children[i];
-                var length = Sizing(n, vertical ? "height" : "width") == "Fill" ? GridLength.Star : GridLength.Auto;
-                if (vertical) { grid.RowDefinitions.Add(new RowDefinition(length)); Grid.SetRow(c, i); }
-                else { grid.ColumnDefinitions.Add(new ColumnDefinition(length)); Grid.SetColumn(c, i); }
+                if (spread && i > 0) Add(GridLength.Star, null); // the leftover space goes between the children
+                Add(Sizing(n, vertical ? "height" : "width") == "Fill" ? new GridLength((double?)n.Attribute("weight") ?? 1, GridUnitType.Star) : GridLength.Auto, c);
+            }
+            // Packed at Start/Center/End: the grid hugs its children inside the container (Fill children need the whole length).
+            if (!anyFill && !spread && justify is "Center" or "End")
+            {
+                if (vertical) grid.VerticalAlignment = justify == "Center" ? VerticalAlignment.Center : VerticalAlignment.Bottom;
+                else grid.HorizontalAlignment = justify == "Center" ? HorizontalAlignment.Center : HorizontalAlignment.Right;
             }
             panel = grid;
         }
+        else if (type == "Container.Overlay")
+            panel = new Grid(); // one cell: children stack up in z-order, placed by their anchors below
         else if (type == "Container.Wrap")
             panel = new WrapPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal, ItemSpacing = gap, LineSpacing = gap };
         else // ponytail: Grid = uniform grid with a "columns" attribute; explicit row/column tracks when a design needs them
@@ -119,12 +143,39 @@ public static class UiBuilder
 
         foreach (var (n, c) in children)
         {
-            var fill = Sizing(n, vertical ? "width" : "height") == "Fill";
-            if (vertical) c.HorizontalAlignment = fill ? HorizontalAlignment.Stretch : hAlign;
-            else c.VerticalAlignment = fill ? VerticalAlignment.Stretch : vAlign;
+            if (type == "Container.Overlay")
+            {
+                c.HorizontalAlignment = Sizing(n, "width") == "Fill" ? HorizontalAlignment.Stretch
+                    : (string?)n.Attribute("anchorX") switch { "Center" => HorizontalAlignment.Center, "Right" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
+                c.VerticalAlignment = Sizing(n, "height") == "Fill" ? VerticalAlignment.Stretch
+                    : (string?)n.Attribute("anchorY") switch { "Center" => VerticalAlignment.Center, "Bottom" => VerticalAlignment.Bottom, _ => VerticalAlignment.Top };
+            }
+            else
+            {
+                var fill = Sizing(n, vertical ? "width" : "height") == "Fill";
+                var self = (string?)n.Attribute("alignSelf") ?? align;
+                if (vertical) c.HorizontalAlignment = fill ? HorizontalAlignment.Stretch : self switch { "Center" => HorizontalAlignment.Center, "End" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
+                else c.VerticalAlignment = fill ? VerticalAlignment.Stretch : self switch { "Center" => VerticalAlignment.Center, "End" => VerticalAlignment.Bottom, _ => VerticalAlignment.Top };
+            }
             panel.Children.Add(c);
         }
-        return new Border { Padding = new((double?)node.Attribute("padding") ?? 0), Child = panel };
+        return new Border { Padding = Sides((string?)node.Attribute("padding")), Child = panel };
+    }
+
+    /// <summary>
+    /// "16", "8 16" (vertical horizontal) or "8 16 4 16" (top right bottom left), CSS order; commas work too.
+    /// Converted here because Avalonia's Thickness order differs (left top right bottom).
+    /// </summary>
+    public static Thickness Sides(string? text)
+    {
+        var v = (text ?? "").Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(x => double.TryParse(x, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0).ToArray();
+        return v switch
+        {
+            [var all] => new(all),
+            [var y, var x] => new(x, y, x, y),
+            [var top, var right, var bottom, var left] => new(left, top, right, bottom),
+            _ => new(0),
+        };
     }
 
     /// <summary>
