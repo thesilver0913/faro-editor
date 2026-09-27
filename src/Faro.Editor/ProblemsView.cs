@@ -18,42 +18,52 @@ public sealed class ProblemsView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         Workspace.Changed += Render;
+        Workspace.RunChanged += Render;
         Render();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         Workspace.Changed -= Render;
+        Workspace.RunChanged -= Render;
         base.OnDetachedFromVisualTree(e);
     }
 
     void Render()
     {
         list.Children.Clear();
-        if (Workspace.Issues.Count == 0)
+        if (Workspace.Issues.Count == 0 && Workspace.BuildErrors.Count == 0)
         {
             list.Children.Add(new TextBlock { Text = "No problems.", Opacity = 0.6 });
             return;
         }
+        // Compiler errors from the last Run build (spec §11 lists bindings; the build is what breaks the run).
+        if (Workspace.BuildErrors.Count > 0) Header($"Build ({Workspace.BuildErrors.Count})");
+        foreach (var error in Workspace.BuildErrors)
+            Item($"{Path.GetFileName(error.File)}:{error.Line}:{error.Column} {error.Code} {error.Message}", () => CodeView.Open(error.File, error.Line, error.Column));
         foreach (var group in Workspace.Issues.GroupBy(i => i.Screen).OrderBy(g => g.Key))
         {
-            list.Children.Add(new TextBlock { Text = $"{(group.Key.Length > 0 ? group.Key : "Project")} ({group.Count()})", FontWeight = FontWeight.SemiBold, Margin = new(0, 6, 0, 2) });
+            Header($"{(group.Key.Length > 0 ? group.Key : "Project")} ({group.Count()})");
             foreach (var issue in group)
-            {
-                var text = (issue.NodeId.Length > 0 ? issue.NodeId + ": " : "") + issue.Message
-                    + (issue.Suggestions.Count > 0 ? $" Did you mean {issue.Suggestions[0]}?" : "");
-                var item = new Button
-                {
-                    Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = Brushes.Transparent,
-                    Padding = new(6, 3),
-                };
-                item.Click += (_, _) => Reveal(issue);
-                list.Children.Add(item);
-            }
+                Item((issue.NodeId.Length > 0 ? issue.NodeId + ": " : "") + issue.Message
+                    + (issue.Suggestions.Count > 0 ? $" Did you mean {issue.Suggestions[0]}?" : ""), () => Reveal(issue));
         }
+    }
+
+    void Header(string text) => list.Children.Add(new TextBlock { Text = text, FontWeight = FontWeight.SemiBold, Margin = new(0, 6, 0, 2) });
+
+    void Item(string text, Action open)
+    {
+        var item = new Button
+        {
+            Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Background = Brushes.Transparent,
+            Padding = new(6, 3),
+        };
+        item.Click += (_, _) => open();
+        list.Children.Add(item);
     }
 
     static void Reveal(BindingIssue issue)

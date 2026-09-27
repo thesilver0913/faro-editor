@@ -10,7 +10,8 @@ namespace Faro.Editor;
 public sealed record RegistryMember(string Target, bool IsMethod, string Signature);
 
 /// <summary>A broken binding on <paramref name="Screen"/>: a screen or component id (node ids are unique per graph only).</summary>
-public sealed record BindingIssue(string NodeId, string Target, string Message, IReadOnlyList<string> Suggestions, string Screen = "");
+/// <param name="Fix">The &lt;Bind&gt; attribute a suggestion replaces ("target", "event", "prop"); empty when suggestions are only hints.</param>
+public sealed record BindingIssue(string NodeId, string Target, string Message, IReadOnlyList<string> Suggestions, string Screen = "", string Fix = "");
 
 public static class Registry
 {
@@ -126,14 +127,14 @@ public static class BindingCheck
                 {
                     var to = FaroApp.NavigateScreenId(target, project.Screens.Keys);
                     if (!project.Screens.ContainsKey(to))
-                        issues.Add(new(nodeId, target, $"Screen '{to}' does not exist.", Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId));
+                        issues.Add(new(nodeId, target, $"Screen '{to}' does not exist.", Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId, "target"));
                 }
                 else
                 {
                     var isEvent = bind.Attribute("event") is not null;
                     if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
                         issues.Add(new(nodeId, target, $"{(isEvent ? "Method" : "Property")} '{target}' not found in Source/.",
-                            Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId));
+                            Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId, "target"));
                 }
             }
         }
@@ -150,7 +151,7 @@ public static class BindingCheck
         IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
         var kind = isEvent ? "event" : "property";
         return names?.Contains(name) == true ? null
-            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()));
+            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
     }
 
     /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>

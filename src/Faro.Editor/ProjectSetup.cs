@@ -97,13 +97,25 @@ public static partial class ProjectSetup
         WriteNew(Path.Combine(dir, ".gitignore"), "bin/\nobj/\n");
     }
 
-    /// <summary>The newest Faro.Runtime package shipped with the editor (compared as versions, so 0.1.10 &gt; 0.1.9).</summary>
-    public static (string Package, Version Version) BundledRuntime(string? appDir = null)
+    /// <summary>
+    /// Sort key of a runtime version: numeric parts, then the dev build ("0.1.8-dev2"). A release sorts after its
+    /// dev builds (0.1.8-dev1 &lt; 0.1.8-dev2 &lt; 0.1.8 &lt; 0.1.10). Null when the text isn't such a version.
+    /// </summary>
+    public static (Version Release, int Dev)? RuntimeKey(string text) =>
+        text.Split("-dev") switch
+        {
+            [var release] when Version.TryParse(release, out var v) => (v, int.MaxValue),
+            [var release, var dev] when Version.TryParse(release, out var v) && int.TryParse(dev, out var n) => (v, n),
+            _ => null,
+        };
+
+    /// <summary>The newest Faro.Runtime package shipped with the editor.</summary>
+    public static (string Package, string Version) BundledRuntime(string? appDir = null)
     {
         var packages = Path.Combine(appDir ?? AppDir, "runtime");
         return Directory.EnumerateFiles(packages, "Faro.Runtime.*.nupkg")
-            .Select(p => (Package: p, Version: Version.TryParse(Path.GetFileNameWithoutExtension(p)["Faro.Runtime.".Length..], out var v) ? v : null))
-            .Where(p => p.Version is not null).OrderBy(p => p.Version).Select(p => (p.Package, p.Version!)).LastOrDefault() is { Package: not null } latest
+            .Select(p => (Package: p, Version: Path.GetFileNameWithoutExtension(p)["Faro.Runtime.".Length..]))
+            .Where(p => RuntimeKey(p.Version) is not null).MaxBy(p => RuntimeKey(p.Version)) is { Package: not null } latest
             ? latest
             : throw new InvalidOperationException($"The Faro.Runtime package is missing from {packages}.");
     }
@@ -112,13 +124,13 @@ public static partial class ProjectSetup
     private static partial System.Text.RegularExpressions.Regex RuntimeReference();
 
     /// <summary>The Faro.Runtime version the project's .csproj references; null if it doesn't use the package (e.g. the in-repo sample).</summary>
-    public static Version? ProjectRuntime(string dir) =>
+    public static string? ProjectRuntime(string dir) =>
         Directory.EnumerateFiles(dir, "*.csproj").Select(f => RuntimeReference().Match(File.ReadAllText(f)))
-            .FirstOrDefault(m => m.Success) is { } m && Version.TryParse(m.Groups[2].Value, out var v) ? v : null;
+            .FirstOrDefault(m => m.Success) is { } m && RuntimeKey(m.Groups[2].Value) is not null ? m.Groups[2].Value : null;
 
     /// <summary>Runtime update check on open: the editor ships a newer runtime than the project uses.</summary>
     public static bool RuntimeUpdateAvailable(string dir, string? appDir = null) =>
-        ProjectRuntime(dir) is { } used && used < BundledRuntime(appDir).Version;
+        ProjectRuntime(dir) is { } used && RuntimeKey(used)!.Value.CompareTo(RuntimeKey(BundledRuntime(appDir).Version)!.Value) < 0;
 
     /// <summary>Moves the project to the bundled runtime: vendors the package, bumps the .csproj reference and faro.json.</summary>
     public static void UpdateRuntime(string dir, string? appDir = null)

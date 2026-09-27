@@ -38,9 +38,58 @@ public static class Workspace
         watcher.Renamed += (s, e) => onChange(s, e);
     }
 
-    /// <summary>Runs the project with hot reload (spec §9).</summary>
-    public static void Run() =>
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"]) { WorkingDirectory = Root });
+    // Run (spec §9): `dotnet watch run` with its output in the console and its build errors in Problems.
+
+    static System.Diagnostics.Process? app;
+    const int MaxOutputLines = 5000;
+
+    public static bool Running => app is { HasExited: false };
+    public static List<string> Output { get; } = [];
+    public static List<BuildError> BuildErrors { get; private set; } = [];
+    public static event Action<string>? OutputLine;
+    /// <summary>Started/stopped, or the build errors changed.</summary>
+    public static event Action? RunChanged;
+
+    /// <summary>Runs the project with hot reload; code saves hot-reload, UI graph changes restart (dotnet watch).</summary>
+    public static void Run()
+    {
+        if (Running) return;
+        Output.Clear();
+        var start = new System.Diagnostics.ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"])
+        {
+            WorkingDirectory = Root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        var process = new System.Diagnostics.Process { StartInfo = start, EnableRaisingEvents = true };
+        System.Diagnostics.DataReceivedEventHandler read = (_, e) => { if (e.Data is { } line) Dispatcher.UIThread.Post(() => Add(line)); };
+        process.OutputDataReceived += read;
+        process.ErrorDataReceived += read;
+        process.Exited += (_, _) => Dispatcher.UIThread.Post(() => { Add("[Stopped]"); RunChanged?.Invoke(); });
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        app = process;
+        RunChanged?.Invoke();
+    }
+
+    /// <summary>Stops the app together with dotnet watch.</summary>
+    public static void Stop()
+    {
+        if (Running) app!.Kill(entireProcessTree: true);
+    }
+
+    static void Add(string line)
+    {
+        if (Output.Count >= MaxOutputLines) Output.RemoveAt(0);
+        Output.Add(line);
+        OutputLine?.Invoke(line);
+        if (BuildError.Parse(line, out var building) is { } error)
+        {
+            if (!BuildErrors.Contains(error)) { BuildErrors.Add(error); RunChanged?.Invoke(); } // MSBuild repeats errors in its summary
+        }
+        else if (building && BuildErrors.Count > 0) { BuildErrors = []; RunChanged?.Invoke(); }
+    }
 
     public static void Reload(Action<string, double>? report = null)
     {
@@ -61,4 +110,23 @@ public static class Workspace
         }
         Changed?.Invoke();
     }
+}
+
+/// <summary>A compiler error from the run output: "path(line,col): error CS1002: message [project]".</summary>
+public sealed partial record BuildError(string File, int Line, int Column, string Code, string Message)
+{
+    /// <param name="building">A new build started (so the previous errors are gone).</param>
+    public static BuildError? Parse(string line, out bool building)
+    {
+        line = WatchPrefix().Replace(line, "");
+        building = line.StartsWith("Building ");
+        var m = ErrorLine().Match(line);
+        return m.Success ? new(m.Groups[1].Value, int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value), m.Groups[4].Value, m.Groups[5].Value) : null;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^dotnet watch \S+ ")]
+    private static partial System.Text.RegularExpressions.Regex WatchPrefix();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(.+?)\((\d+),(\d+)\): error (\w+): (.*?)(?: \[[^\]]*\])?$")]
+    private static partial System.Text.RegularExpressions.Regex ErrorLine();
 }

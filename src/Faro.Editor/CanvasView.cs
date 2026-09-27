@@ -79,11 +79,12 @@ public sealed class CanvasView : UserControl
 
     readonly Border artboard = new() { Width = 420, MinHeight = 720, Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
 
+    readonly Button run = new() { Content = "Run" };
+
     public CanvasView()
     {
         Focusable = true;
-        var run = new Button { Content = "Run" };
-        run.Click += (_, _) => Workspace.Run();
+        run.Click += (_, _) => ConsoleView.RunOrStop();
         sync.Click += (_, _) => SyncComponents();
         screens.SelectionChanged += (_, _) =>
         {
@@ -161,18 +162,23 @@ public sealed class CanvasView : UserControl
         Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
     }
 
+    void ShowRunState() => run.Content = Workspace.Running ? "Stop" : "Run";
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         Workspace.Changed += Refresh;
+        Workspace.RunChanged += ShowRunState;
         SelectionChanged += DrawSelection;
         ShowScreenRequested += ShowScreenHere;
         Refresh();
+        ShowRunState();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         Workspace.Changed -= Refresh;
+        Workspace.RunChanged -= ShowRunState;
         SelectionChanged -= DrawSelection;
         ShowScreenRequested -= ShowScreenHere;
         base.OnDetachedFromVisualTree(e);
@@ -215,11 +221,13 @@ public sealed class CanvasView : UserControl
             if (byId.TryGetValue(group.Key, out var control))
             {
                 var badge = Badge(group);
-                if (group.Select(i => VibeRequest(i, control)).FirstOrDefault(r => r is not null) is { } request)
+                // Clicking opens the re-binding panel (spec §6): the node's bindings in the inspector, with candidates.
+                var nodeId = group.Key;
+                if (ScreenNodeIds.Contains(nodeId))
                 {
                     badge.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
-                    badge.PointerPressed += (_, _) => ChatView.Prefill(request);
-                    ToolTip.SetTip(badge, ToolTip.GetTip(badge) + "\n\nClick to create it with vibe coding.");
+                    badge.PointerPressed += (_, e) => { Select([nodeId]); e.Handled = true; };
+                    ToolTip.SetTip(badge, ToolTip.GetTip(badge) + "\n\nClick to fix it in the inspector.");
                 }
                 AdornerLayer.SetIsClipEnabled(badge, false);
                 AdornerLayer.SetAdorner(control, badge);

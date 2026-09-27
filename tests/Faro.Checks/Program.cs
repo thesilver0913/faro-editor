@@ -96,6 +96,7 @@ var changedFired = false;
 changedBox.AddHandler(Bindable.For(changedBox)!.Events["Changed"], (EventHandler<Avalonia.Interactivity.RoutedEventArgs>)((_, _) => changedFired = true));
 changedBox.RaiseEvent(new Avalonia.Controls.TextChangedEventArgs(Avalonia.Controls.TextBox.TextChangedEvent));
 Check(changedFired, "TextInput Changed reaches a runtime-style handler");
+Check(vocabIssues[0].Fix == "event" && BindingCheck.Check(project, registry).Where(i => i.Message.Contains("not found in Source")).All(i => i.Fix == "target"), "issues name the attribute their suggestions replace");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");
@@ -186,12 +187,19 @@ Directory.CreateDirectory(Path.Combine(fakeApp, "runtime"));
 var realPackage = ProjectSetup.BundledRuntime().Package;
 File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.9.nupkg"));
 var old = ProjectSetup.Create(projects, "OldApp", "Empty", fakeApp);
-Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 9) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "project runtime read from its csproj");
+Check(ProjectSetup.ProjectRuntime(old) == "0.1.9" && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "project runtime read from its csproj");
 File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.10.nupkg"));
-Check(ProjectSetup.BundledRuntime(fakeApp).Version == new Version(0, 1, 10) && ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "0.1.10 is newer than 0.1.9");
+Check(ProjectSetup.BundledRuntime(fakeApp).Version == "0.1.10" && ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "0.1.10 is newer than 0.1.9");
 ProjectSetup.UpdateRuntime(old, fakeApp);
-Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 10) && File.ReadAllText(Path.Combine(old, "faro.json")).Contains("\"0.1.10\"")
+Check(ProjectSetup.ProjectRuntime(old) == "0.1.10" && File.ReadAllText(Path.Combine(old, "faro.json")).Contains("\"0.1.10\"")
     && Directory.EnumerateFiles(Path.Combine(old, ".faro/packages")).Select(Path.GetFileName).SequenceEqual(["Faro.Runtime.0.1.10.nupkg"]) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "runtime update vendors the package and bumps csproj and faro.json");
+// Run output: compiler errors become Problems; a new build clears them.
+var errorLine = "dotnet watch ❌ /home/me/My App/Source/Services/OrderService.cs(7,10): error CS1002: ; expected [/home/me/My App/App.csproj]";
+Check(BuildError.Parse(errorLine, out var startsBuild) == new BuildError("/home/me/My App/Source/Services/OrderService.cs", 7, 10, "CS1002", "; expected") && !startsBuild, "build error parsed from dotnet watch output");
+Check(BuildError.Parse("dotnet watch 🔨 Building /home/me/App/App.csproj ...", out startsBuild) is null && startsBuild
+    && BuildError.Parse("dotnet watch 🔨     2 Error(s)", out startsBuild) is null && !startsBuild, "build start detected, other lines ignored");
+string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8", "0.1.9-dev1", "0.1.10"];
+Check(ordered.OrderBy(v => ProjectSetup.RuntimeKey(v)).SequenceEqual(ordered) && ProjectSetup.RuntimeKey("0.1.8-beta") is null, "dev builds sort before their release");
 Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");
 Directory.Delete(projects, true);
 

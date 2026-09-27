@@ -36,6 +36,7 @@ public partial class MainWindow : Window
         UiHistory.Changed += UpdateHistory;
         CodeView.HistoryChanged += UpdateHistory;
         UpdateHistory();
+        Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
         // Unsaved code edits would be lost on close: ask first.
         Closing += async (_, e) =>
         {
@@ -114,7 +115,8 @@ public partial class MainWindow : Window
     }
 
     void SaveAll(object? sender, RoutedEventArgs e) => CodeView.SaveAll();
-    void Run(object? sender, RoutedEventArgs e) => Workspace.Run();
+    void Run(object? sender, RoutedEventArgs e) { if (!Workspace.Running) ConsoleView.RunOrStop(); }
+    void Stop(object? sender, RoutedEventArgs e) => Workspace.Stop();
     void Exit(object? sender, RoutedEventArgs e) => Close();
 
     // Edit
@@ -144,6 +146,7 @@ public partial class MainWindow : Window
     void ShowInspector(object? sender, RoutedEventArgs e) => Activate("Inspector");
     void ShowCode(object? sender, RoutedEventArgs e) => Activate("Code");
     void ShowChat(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.VibeCoding); }
+    void ShowOutput(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Output); }
     void ToggleFullScreen(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
     void Activate(string id)
@@ -163,7 +166,7 @@ public partial class MainWindow : Window
         Children =
         {
             new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Left },
-            new TextBlock { Text = $"Faro {Assembly.GetEntryAssembly()!.GetName().Version?.ToString(3)}", FontSize = 20, FontWeight = FontWeight.SemiBold },
+            new TextBlock { Text = $"Faro {App.Version}", FontSize = 20, FontWeight = FontWeight.SemiBold },
             new TextBlock { Text = "Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse.", TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "MIT License. Third-party components: see THIRD-PARTY-NOTICES.md.", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
         },

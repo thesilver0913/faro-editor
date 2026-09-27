@@ -170,6 +170,18 @@ public sealed class InspectorView : UserControl
         if (Workspace.Issues.FirstOrDefault(i => i.Screen == CanvasView.CurrentScreen && i.NodeId == nodeId && i.Target == (string?)bind.Attribute("target")) is { } issue)
         {
             panel.Children.Add(new TextBlock { Text = issue.Message, Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap });
+            // Re-binding (spec §6): one click applies a near-name candidate.
+            if (issue.Fix.Length > 0 && issue.Suggestions.Count > 0)
+            {
+                var candidates = new WrapPanel { ItemSpacing = 4, LineSpacing = 4, Children = { new TextBlock { Text = "Did you mean", VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 } } };
+                foreach (var suggestion in issue.Suggestions)
+                {
+                    var apply = new Button { Content = new TextBlock { Text = suggestion, TextWrapping = TextWrapping.Wrap }, Padding = new(6, 2) };
+                    apply.Click += (_, _) => EditBind(bind, "Rebind", b => b.SetAttributeValue(issue.Fix, suggestion));
+                    candidates.Children.Add(apply);
+                }
+                panel.Children.Add(candidates);
+            }
             if (CanvasView.ControlOf(nodeId) is { } control && CanvasView.VibeRequest(issue, control) is { } request)
             {
                 var create = new Button { Content = "Create with vibe coding" };
