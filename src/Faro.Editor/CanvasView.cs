@@ -165,6 +165,7 @@ public sealed class CanvasView : UserControl
     void ShowRunState()
     {
         run.Content = Workspace.Running ? "Stop" : "Run";
+        if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
         DrawSelection(); // refreshes the status line (unbuilt changes)
     }
 

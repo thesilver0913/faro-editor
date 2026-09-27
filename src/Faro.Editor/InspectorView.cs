@@ -98,6 +98,21 @@ public sealed class InspectorView : UserControl
             foreach (var prop in props)
                 body.Children.Add(Row(prop, Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
+        if (type == "Control.Script")
+        {
+            // The class that builds this node in code (a FaroScript in Source/).
+            body.Children.Add(Section("Script"));
+            var cls = (string?)node.Attribute("class") ?? "";
+            var classBox = new AutoCompleteBox { Text = cls, ItemsSource = Workspace.ScriptClasses, FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = "MyApp.Views.MyScript" };
+            Commit(classBox, () => classBox.Text ?? "", value => EditNode(id, "Set script class", n => n.SetAttributeValue("class", value.Trim())));
+            body.Children.Add(Row("Class", classBox));
+            if (cls.Length > 0 && !Workspace.ScriptClasses.Contains(cls))
+            {
+                var create = new Button { Content = "Create with vibe coding" };
+                create.Click += (_, _) => ChatView.Prefill($"Create `{cls}`: a public class deriving from Faro.Runtime.FaroScript whose Build() returns the Avalonia control for Script node `{id}` on screen {CanvasView.CurrentScreen}.");
+                body.Children.Add(create);
+            }
+        }
         if (type == "Instance")
         {
             var repeatable = new CheckBox { Content = "Repeatable (list)", IsChecked = (string?)node.Attribute("repeatable") == "true" };

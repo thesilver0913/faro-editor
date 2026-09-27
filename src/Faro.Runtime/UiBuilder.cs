@@ -21,6 +21,7 @@ public static class UiBuilder
         {
             "Container.Stack" or "Container.Wrap" or "Container.Grid" => Container(node, type, byId, projectRoot, prefix),
             "Instance" => Instance(node, byId, projectRoot, prefix),
+            "Control.Script" => Script((string?)node.Attribute("class") ?? ""),
             "Control.Button" => new Button { Content = Prop(node, "Text") },
             "Control.TextInput" => new TextBox { PlaceholderText = Prop(node, "Placeholder"), Text = Prop(node, "Text") },
             "Control.Text" => new TextBlock { Text = Prop(node, "Text"), TextWrapping = TextWrapping.Wrap },
@@ -34,6 +35,30 @@ public static class UiBuilder
         byId[prefix + (string?)node.Attribute("id")] = control;
         return control;
     }
+
+    /// <summary>
+    /// Builds a Script node's control from its class name: the app resolves it in the user assembly, the editor
+    /// canvas in the last build. Unset (or failing): a placeholder naming the class.
+    /// </summary>
+    public static Func<string, Control>? ScriptFactory { get; set; }
+
+    /// <summary>The script's control inside a ContentControl, so bindings see a Script node (Visible, Enabled) whatever it builds.</summary>
+    static Control Script(string name)
+    {
+        Control content;
+        try { content = ScriptFactory?.Invoke(name) ?? Placeholder($"Script: {name}", Brushes.Gray); }
+        catch (Exception e) { content = Placeholder($"Script: {name}\n{(e as System.Reflection.TargetInvocationException)?.InnerException?.Message ?? e.Message}", Brushes.OrangeRed); }
+        return new ContentControl { Content = content };
+    }
+
+    static Control Placeholder(string text, IBrush color) => new Border
+    {
+        BorderBrush = color,
+        BorderThickness = new(1),
+        Padding = new(8),
+        MinHeight = 40,
+        Child = new TextBlock { Text = text, Foreground = color, TextWrapping = TextWrapping.Wrap },
+    };
 
     /// <summary>Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug.</summary>
     public static string Sizing(XElement node, string axis) =>

@@ -12,6 +12,7 @@ public static class Workspace
     public static string Root { get; private set; } = "";
     public static FaroProject? Project { get; private set; }
     public static List<RegistryMember> Registry { get; private set; } = [];
+    public static List<string> ScriptClasses { get; private set; } = [];
     public static List<BindingIssue> Issues { get; private set; } = [];
     public static string? LoadError { get; private set; }
     public static event Action? Changed;
@@ -22,6 +23,7 @@ public static class Workspace
     public static void Open(string root, Action<string, double>? report = null)
     {
         Root = root;
+        UiBuilder.ScriptFactory = name => ScriptPreview.Build(root, name);
         Reload(report);
         watcher?.Dispose();
         if (!Directory.Exists(root)) return;
@@ -122,7 +124,8 @@ public static class Workspace
             report?.Invoke("Analyzing Source/ with Roslyn…", 35);
             Registry = Editor.Registry.Scan(Path.Combine(Root, "Source"));
             report?.Invoke("Checking bindings…", 60);
-            Issues = BindingCheck.Check(Project, Registry);
+            ScriptClasses = Editor.Registry.ScriptClasses(Path.Combine(Root, "Source"));
+            Issues = BindingCheck.Check(Project, Registry, ScriptClasses);
             CheckBuilt();
             LoadError = null;
         }

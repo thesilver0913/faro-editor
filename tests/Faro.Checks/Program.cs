@@ -126,6 +126,22 @@ Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))
 CanvasEdit.Delete(project, mainGraph, ["items"]);
 Check(!project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true), "deleting an instance removes binds inside it");
 project = FaroProject.Load(root);
+// Script nodes: a FaroScript class builds the control; the runtime wraps it so bindings see a Script node.
+Check(Registry.ScriptClasses(Path.Combine(root, "Source")).SequenceEqual(["MyApp.Views.Stamp"]) && !registry.Any(m => m.Target.EndsWith(".Build")), "script classes found; their Build() isn't a binding target");
+var scriptGraph = System.Xml.Linq.XElement.Parse("""<Node id="s" type="Control.Script" class="MyApp.Views.Stamp" />""");
+UiBuilder.ScriptFactory = null;
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border } placeholder
+    && Bindable.For(placeholder)!.Type == "Control.Script", "a script without a factory shows a placeholder");
+UiBuilder.ScriptFactory = name => ((FaroScript)Activator.CreateInstance(typeof(MyApp.Views.Stamp).Assembly.GetType(name)!)!).Build();
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border { Child: Avalonia.Controls.StackPanel } }, "a script builds its control in code");
+UiBuilder.ScriptFactory = _ => throw new InvalidOperationException("boom");
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border { Child: Avalonia.Controls.TextBlock { Text: var failed } } } && failed!.Contains("boom"), "a failing script shows its error in place");
+UiBuilder.ScriptFactory = null;
+var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
+Check(ScriptPreview.Build(sampleDir, "MyApp.Views.Stamp") is Avalonia.Controls.Border && Throws<InvalidOperationException>(() => ScriptPreview.Build(sampleDir, "MyApp.Views.Nope")), "the canvas previews scripts from the last build");
+CanvasEdit.Find(project.Screens["Detail"], "stamp")!.SetAttributeValue("class", "MyApp.Views.Stmp");
+Check(BindingCheck.Check(project, registry, Registry.ScriptClasses(Path.Combine(root, "Source"))).Any(i => i.NodeId == "stamp" && i.Suggestions[0] == "MyApp.Views.Stamp"), "a script node naming a missing class is a problem");
+project = FaroProject.Load(root);
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

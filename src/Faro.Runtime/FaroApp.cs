@@ -39,6 +39,15 @@ public abstract class FaroObject : INotifyPropertyChanged
 }
 
 /// <summary>
+/// Base class for a Script node's class (type="Control.Script" class="Ns.Class"): look, controls and behaviour
+/// all written in code. Build() returns the Avalonia control shown in the node's place; lifetimes apply as usual.
+/// </summary>
+public abstract class FaroScript : FaroObject
+{
+    public abstract Control Build();
+}
+
+/// <summary>
 /// The runtime binder: shows UIGraph screens and resolves &lt;Bind&gt; targets against the
 /// user's built assembly with System.Reflection. Generated user projects call <see cref="Run"/>.
 /// </summary>
@@ -55,6 +64,9 @@ public static class FaroApp
     {
         userAssembly = assembly;
         project = FaroProject.Load(AppContext.BaseDirectory);
+        UiBuilder.ScriptFactory = name => userAssembly.GetType(name) is { } type && typeof(FaroScript).IsAssignableFrom(type)
+            ? ((FaroScript)InstanceOf(type)).Build()
+            : throw new InvalidOperationException($"'{name}' is not a FaroScript class in {userAssembly.GetName().Name}.");
         var start = startScreen ?? project.StartScreen ?? "MainScreen";
         AppBuilder.Configure(() => new RuntimeApp(start)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
         Release(screenScoped.Values.Concat(singletons.Values));
