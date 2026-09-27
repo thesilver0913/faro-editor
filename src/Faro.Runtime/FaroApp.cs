@@ -109,8 +109,8 @@ public static class FaroApp
         var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
         if ((string?)bind.Attribute("event") is { } eventName)
         {
-            var routed = RoutedEventRegistry.Instance.GetRegistered(control.GetType()).FirstOrDefault(e => "On" + e.Name == eventName)
-                ?? throw new InvalidOperationException($"{control.GetType().Name} has no event '{eventName}'.");
+            var routed = Bindable.For(control)?.Events.GetValueOrDefault(eventName)
+                ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no event '{eventName}'.");
             if (target.StartsWith("Navigate:"))
             {
                 var screen = NavigateScreenId(target, project.Screens.Keys);
@@ -130,8 +130,8 @@ public static class FaroApp
         else
         {
             var propName = (string?)bind.Attribute("prop") ?? throw new InvalidOperationException("Bind needs 'event' or 'prop'.");
-            var avaloniaProp = AvaloniaPropertyRegistry.Instance.FindRegistered(control, propName)
-                ?? throw new InvalidOperationException($"{control.GetType().Name} has no property '{propName}'.");
+            var avaloniaProp = Bindable.For(control)?.Props.GetValueOrDefault(propName)
+                ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no property '{propName}'.");
             var prop = Resolve(userAssembly, target) as PropertyInfo ?? throw new InvalidOperationException($"'{target}' is not a property.");
             control.Bind(avaloniaProp, new ReflectionBinding(prop.Name)
             {

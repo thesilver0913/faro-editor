@@ -307,13 +307,13 @@ public sealed class CanvasView : UserControl
     public static string? VibeRequest(BindingIssue issue, Control control)
     {
         var bind = Workspace.Project?.BindsFor(CurrentScreen ?? "").FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
-        if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:")) return null;
+        if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:") || Workspace.Registry.Any(m => m.Target == issue.Target)) return null;
         var type = Workspace.Project!.Graph(CurrentScreen ?? "")?.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
         var node = $"node `{issue.NodeId}` ({type})";
         if ((string?)bind.Attribute("event") is { } eventName)
             return $"Create `{issue.Target}`: a public parameterless method that runs on {eventName} of {node}.";
         var prop = (string?)bind.Attribute("prop") ?? "";
-        var propType = AvaloniaPropertyRegistry.Instance.FindRegistered(control, prop)?.PropertyType.Name ?? "object";
+        var propType = Faro.Runtime.Bindable.For(control)?.Props.GetValueOrDefault(prop) is { } p ? Faro.Runtime.Bindable.ValueType(p).Name : "object";
         return $"Create `{issue.Target}`: a public {propType} property, bound {(string?)bind.Attribute("mode") ?? "OneWay"} to {prop} of {node}.";
     }
 

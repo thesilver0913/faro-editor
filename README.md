@@ -87,6 +87,16 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 ## スキーマ補足(仕様書からの追加決定)
 
 - **紐付けは画面ごと**:`Bindings/<画面ID>.xml` の `<Bind>` はその画面にだけ適用される(`Bindings/<コンポーネントID>.xml` はそのコンポーネントの全インスタンスに適用)。Node の ID は画面内で一意(画面をまたいだ重複は可)。どの画面にも対応しない Bindings ファイルは警告。画面の名前変更・削除で対応する Bindings ファイルも移動・削除される
+- **イベント・プロパティ名はフレームワーク非依存**:`<Bind>` の `event`/`prop` には Node 種類ごとの共通名だけを使い、Avalonia の名前への対応は `Faro.Runtime/Bindable.cs` の表だけが持つ(別フレームワーク対応時はこの表を差し替える)。共通名以外(例:旧形式の `OnClick`)は Problems に出て候補(`Click`)を示す
+
+  | Node 種類 | イベント | プロパティ |
+  |---|---|---|
+  | Control.Button | Click | Text, Visible, Enabled |
+  | Control.TextInput | Changed | Text, Placeholder, Visible, Enabled |
+  | Control.Text | – | Text, Visible, Enabled |
+  | Control.Image | – | Visible, Enabled |
+  | Container.* | – | Visible, Enabled |
+  | Instance | マスターのルート Node の種類に従う | 同左 |
 
 - サイジングは軸ごと: `widthSizing` / `heightSizing`(`Fill`/`Hug`/`Fixed`)。`sizing` は両軸共通の省略形、未指定は `Hug`。`Fixed` は `width` / `height` 属性で値を指定
 - `UI/` の各XMLはルートが `<UIGraph>` か `<ComponentDef>` のどちらか1つ

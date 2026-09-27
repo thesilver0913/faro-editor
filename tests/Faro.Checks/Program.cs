@@ -80,10 +80,22 @@ var paths = UiBuilder.InstancePaths(project.Screens["MainScreen"].Root!.Element(
 Check(paths.Contains(("btn1/", "Comp.PrimaryButton")) && paths.Contains(("orderList/", "Comp.OrderRow")) && paths.Count == 3, "instance paths for component-level bindings");
 var nested = System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack"><Node id="card" type="Instance" component="Comp.Card"><Node id="root" type="Container.Stack"><Node id="ok" type="Instance" component="Comp.PrimaryButton"><Node id="root" type="Control.Button" /></Node></Node></Node></Node>""");
 Check(UiBuilder.InstancePaths(nested).Contains(("card/ok/", "Comp.PrimaryButton")), "nested instance paths");
-File.WriteAllText(Path.Combine(root, "Bindings/Comp.OrderRow.xml"), """<Bindings><Bind nodeId="price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" /><Bind nodeId="nope" event="OnClick" target="MyApp.Services.OrderService.Submit" /></Bindings>""");
+File.WriteAllText(Path.Combine(root, "Bindings/Comp.OrderRow.xml"), """<Bindings><Bind nodeId="price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" /><Bind nodeId="nope" event="Click" target="MyApp.Services.OrderService.Submit" /></Bindings>""");
 project = FaroProject.Load(root);
 var componentIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "Comp.OrderRow").ToList();
 Check(componentIssues.Count == 1 && componentIssues[0].NodeId == "nope", "component bindings checked against the master's nodes");
+// Binding files use framework-neutral event/property names (Bindable), checked against the node's type.
+var mainBinds = project.BindingFiles.First(d => FaroProject.ScreenOf(d) == "MainScreen");
+mainBinds.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="btn1" event="OnClick" target="MyApp.Services.OrderService.Submit" />"""));
+var vocabIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
+Check(vocabIssues.Count == 1 && vocabIssues[0].Message == "Control.Button has no event 'OnClick'." && vocabIssues[0].Suggestions[0] == "Click", "Avalonia event names are rejected, the neutral name suggested");
+Check(Bindable.TypeOf(CanvasEdit.Find(project.Screens["MainScreen"], "orderList")!) == "Container.Stack" && Bindable.For("Container.Stack")!.Props.ContainsKey("Visible")
+    && Bindable.For(new Avalonia.Controls.Button())!.Events["Click"] == Avalonia.Controls.Button.ClickEvent && Bindable.For(new Avalonia.Controls.TextBox())!.Type == "Control.TextInput", "neutral names map to Avalonia per node type");
+var changedBox = new Avalonia.Controls.TextBox();
+var changedFired = false;
+changedBox.AddHandler(Bindable.For(changedBox)!.Events["Changed"], (EventHandler<Avalonia.Interactivity.RoutedEventArgs>)((_, _) => changedFired = true));
+changedBox.RaiseEvent(new Avalonia.Controls.TextChangedEventArgs(Avalonia.Controls.TextBox.TextChangedEvent));
+Check(changedFired, "TextInput Changed reaches a runtime-style handler");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

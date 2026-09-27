@@ -109,13 +109,15 @@ public static class BindingCheck
                 issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen or component.", Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
                 continue;
             }
-            var nodeIds = NodesOf(screen).Select(n => (string?)n.Attribute("id")).ToHashSet();
+            var nodes = NodesOf(screen).Where(n => n.Attribute("id") is not null).DistinctBy(n => (string)n.Attribute("id")!).ToDictionary(n => (string)n.Attribute("id")!);
             foreach (var bind in file.Root!.Elements("Bind"))
             {
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
-                if (!nodeIds.Contains(nodeId))
+                if (!nodes.TryGetValue(nodeId, out var node))
                     issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
+                else if (Unbindable(bind, node) is { } problem)
+                    issues.Add(problem with { Target = target, Screen = screenId });
                 else if (target.Length == 0)
                     issues.Add(new(nodeId, target, "No target chosen yet.", [], screenId));
                 else if (target.StartsWith("Navigate:"))
@@ -134,6 +136,19 @@ public static class BindingCheck
             }
         }
         return issues;
+    }
+
+    /// <summary>The bind's event/prop must be one of the framework-neutral names for the node's type (Faro.Runtime.Bindable).</summary>
+    static BindingIssue? Unbindable(XElement bind, XElement node)
+    {
+        var type = Bindable.TypeOf(node);
+        var entry = Bindable.For(type);
+        var isEvent = bind.Attribute("event") is not null;
+        var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
+        IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
+        var kind = isEvent ? "event" : "property";
+        return names?.Contains(name) == true ? null
+            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()));
     }
 
     /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>
@@ -209,7 +224,7 @@ public static partial class VibeCoding
             of classes in Source/, addressed by the string "Namespace.Class.Member".
 
             Rules:
-            - Event bindings (e.g. OnClick) call public parameterless methods. Property bindings use public properties.
+            - Event bindings (e.g. Click) call public parameterless methods. Property bindings use public properties.
             - Classes are public, top-level, and inherit Faro.Runtime.FaroObject (`using Faro.Runtime;`). Property setters raise
               change notifications: `public string Name { get; set => Set(ref field, value); }`. When a computed property depends on
               others, keep it in a field and update it with Set(ref ..., ..., nameof(Computed)) from those setters.
