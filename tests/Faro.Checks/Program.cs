@@ -212,6 +212,20 @@ var errorLine = "dotnet watch ❌ /home/me/My App/Source/Services/OrderService.c
 Check(BuildError.Parse(errorLine, out var startsBuild) == new BuildError("/home/me/My App/Source/Services/OrderService.cs", 7, 10, "CS1002", "; expected") && !startsBuild, "build error parsed from dotnet watch output");
 Check(BuildError.Parse("dotnet watch 🔨 Building /home/me/App/App.csproj ...", out startsBuild) is null && startsBuild
     && BuildError.Parse("dotnet watch 🔨     2 Error(s)", out startsBuild) is null && !startsBuild, "build start detected, other lines ignored");
+// Unbuilt indicator (spec §11.5): saved code newer than the built assembly.
+var unbuilt = Directory.CreateTempSubdirectory("faro-unbuilt").FullName;
+Directory.CreateDirectory(Path.Combine(unbuilt, "Source"));
+Directory.CreateDirectory(Path.Combine(unbuilt, "bin/Debug/net10.0"));
+File.WriteAllText(Path.Combine(unbuilt, "App.csproj"), "<Project />");
+File.WriteAllText(Path.Combine(unbuilt, "Source/A.cs"), "class A { }");
+File.WriteAllText(Path.Combine(unbuilt, "bin/Debug/net10.0/App.dll"), "");
+File.SetLastWriteTimeUtc(Path.Combine(unbuilt, "Source/A.cs"), DateTime.UtcNow.AddMinutes(-2));
+Workspace.Open(unbuilt);
+var builtBefore = !Workspace.Unbuilt;
+File.SetLastWriteTimeUtc(Path.Combine(unbuilt, "Source/A.cs"), DateTime.UtcNow.AddMinutes(1));
+Workspace.Reload();
+Check(builtBefore && Workspace.Unbuilt, "code saved after the last build is flagged as unbuilt");
+Directory.Delete(unbuilt, true);
 string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8", "0.1.9-dev1", "0.1.10"];
 Check(ordered.OrderBy(v => ProjectSetup.RuntimeKey(v)).SequenceEqual(ordered) && ProjectSetup.RuntimeKey("0.1.8-beta") is null, "dev builds sort before their release");
 Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");

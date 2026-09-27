@@ -89,6 +89,28 @@ public static class Workspace
             if (!BuildErrors.Contains(error)) { BuildErrors.Add(error); RunChanged?.Invoke(); } // MSBuild repeats errors in its summary
         }
         else if (building && BuildErrors.Count > 0) { BuildErrors = []; RunChanged?.Invoke(); }
+        if (line.Contains("Build succeeded") || line.Contains("Hot reload succeeded"))
+        {
+            appliedAt = DateTime.UtcNow;
+            CheckBuilt();
+            RunChanged?.Invoke();
+        }
+    }
+
+    static DateTime appliedAt;
+
+    /// <summary>Saved code newer than the last build or hot reload (spec §11.5): the registry may list members the app doesn't have yet.</summary>
+    public static bool Unbuilt { get; private set; }
+
+    static void CheckBuilt()
+    {
+        var source = Path.Combine(Root, "Source");
+        var bin = Path.Combine(Root, "bin");
+        var edited = Directory.Exists(source) ? Directory.EnumerateFiles(source, "*.cs", SearchOption.AllDirectories).Select(File.GetLastWriteTimeUtc).DefaultIfEmpty().Max() : default;
+        var built = Directory.Exists(bin)
+            ? Directory.EnumerateFiles(Root, "*.csproj").SelectMany(p => Directory.EnumerateFiles(bin, Path.GetFileNameWithoutExtension(p) + ".dll", SearchOption.AllDirectories)).Select(File.GetLastWriteTimeUtc).Append(appliedAt).Max()
+            : appliedAt;
+        Unbuilt = edited > built;
     }
 
     public static void Reload(Action<string, double>? report = null)
@@ -101,6 +123,7 @@ public static class Workspace
             Registry = Editor.Registry.Scan(Path.Combine(Root, "Source"));
             report?.Invoke("Checking bindings…", 60);
             Issues = BindingCheck.Check(Project, Registry);
+            CheckBuilt();
             LoadError = null;
         }
         catch (Exception e) when (e is IOException or System.Xml.XmlException or InvalidDataException)

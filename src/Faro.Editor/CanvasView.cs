@@ -162,7 +162,11 @@ public sealed class CanvasView : UserControl
         Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
     }
 
-    void ShowRunState() => run.Content = Workspace.Running ? "Stop" : "Run";
+    void ShowRunState()
+    {
+        run.Content = Workspace.Running ? "Stop" : "Run";
+        DrawSelection(); // refreshes the status line (unbuilt changes)
+    }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -306,7 +310,8 @@ public sealed class CanvasView : UserControl
             ? $"Component master · {ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)} instance(s) to sync · " : "";
         status.Text = Workspace.LoadError
             ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
-            + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members";
+            + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members"
+            + (Workspace.Unbuilt ? " · Unbuilt code changes: new members resolve after Run" : ""); // spec §11.5
     }
 
     /// <summary>
