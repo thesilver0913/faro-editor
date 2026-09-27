@@ -103,6 +103,8 @@ public sealed class InspectorView : UserControl
             var repeatable = new CheckBox { Content = "Repeatable (list)", IsChecked = (string?)node.Attribute("repeatable") == "true" };
             repeatable.IsCheckedChanged += (_, _) => EditNode(id, "Set repeatable", n => CanvasEdit.SetAttribute(n, "repeatable", repeatable.IsChecked == true ? "true" : null));
             body.Children.Add(repeatable);
+            if (repeatable.IsChecked == true && MockData.Fields(node) is { Count: > 0 } fields)
+                body.Children.Add(MockRows(id, node, fields));
         }
 
         body.Children.Add(Section("Bindings"));
@@ -245,6 +247,35 @@ public sealed class InspectorView : UserControl
     }
 
     /// <summary>Commits on Enter or when focus leaves, once per actual change (one history step per edit).</summary>
+    /// <summary>Mock rows for the canvas (spec §10.5): one line per row, values in field order separated by "|".</summary>
+    Control MockRows(string id, XElement node, List<string> fields)
+    {
+        var box = new TextBox
+        {
+            AcceptsReturn = true,
+            MinHeight = 60,
+            Text = string.Join("\n", MockData.Rows(node).Select(r => string.Join(" | ", r))),
+            Watermark = string.Join(" | ", fields.Select(_ => "…")),
+        };
+        var last = box.Text;
+        box.LostFocus += (_, _) =>
+        {
+            if (box.Text == last) return;
+            last = box.Text;
+            var rows = (box.Text ?? "").Split('\n').Where(l => l.Trim().Length > 0).Select(l => (IReadOnlyList<string>)[.. l.Split('|').Select(v => v.Trim())]).ToList();
+            EditNode(id, "Set mock rows", n => MockData.SetRows(n, rows));
+        };
+        return new StackPanel
+        {
+            Spacing = 4,
+            Children =
+            {
+                new TextBlock { Text = $"Mock rows (canvas only): {string.Join(" | ", fields)}", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+                box,
+            },
+        };
+    }
+
     static void Commit(Control box, Func<string> text, Action<string> commit)
     {
         var last = text();

@@ -138,7 +138,10 @@ public sealed class CodeView : UserControl
         var dir = Path.Combine(Workspace.Root, "Source");
         foreach (var (path, doc) in buffers)
             if (doc.UndoStack.IsOriginalFile && File.Exists(path) && File.ReadAllText(path) is var disk && disk != saved[path])
+            {
                 doc.Text = saved[path] = disk;
+                doc.UndoStack.MarkAsOriginalFile(); // the reload is the file's content now, not an unsaved edit
+            }
 
         var selected = files.SelectedItem as string;
         files.ItemsSource = Directory.Exists(dir)
@@ -182,12 +185,13 @@ public sealed class CodeView : UserControl
         var here = Current is { } p && editor.Document is { } doc
             ? diagnostics.GetValueOrDefault(Uri(p))?.FirstOrDefault(d => Squiggles.Offset(doc, d!["range"]!["start"]!) <= caret && caret <= Squiggles.Offset(doc, d!["range"]!["end"]!))
             : null;
-        status.Text = here is not null ? $"{here["code"]}: {here["message"]}" : lspState;
+        status.Text = here is not null ? $"{here["code"]}: {here["message"]}"
+            : Current is { } path && IsDirty(path) && ChangedOnDisk(path) ? "Changed on disk too: saving will ask before overwriting." : lspState;
     }
 
-    void Save()
+    async void Save()
     {
-        if (Current is { } path && buffers.ContainsKey(path)) SaveBuffer(path);
+        if (Current is { } path && buffers.ContainsKey(path) && await ConfirmOverwrite((Window)TopLevel.GetTopLevel(this)!, [path])) SaveBuffer(path);
     }
 
     /// <summary>The shared buffer for a file (created on first use; empty for a file that doesn't exist yet).</summary>
@@ -226,10 +230,19 @@ public sealed class CodeView : UserControl
 
     public static bool AnyDirty => buffers.Values.Any(d => !d.UndoStack.IsOriginalFile);
 
-    public static void SaveAll()
+    /// <summary>Saves every edited file; asks first when that would overwrite a change made outside Faro.</summary>
+    public static async Task SaveAll(Window owner)
     {
-        foreach (var path in buffers.Keys.Where(IsDirty).ToList()) SaveBuffer(path);
+        var dirty = buffers.Keys.Where(IsDirty).ToList();
+        if (await ConfirmOverwrite(owner, dirty)) dirty.ForEach(SaveBuffer);
     }
+
+    /// <summary>The file changed on disk since Faro last loaded or saved it (another editor, git).</summary>
+    static bool ChangedOnDisk(string path) => File.Exists(path) && File.ReadAllText(path) != saved[path];
+
+    static async Task<bool> ConfirmOverwrite(Window owner, List<string> paths) =>
+        paths.Where(ChangedOnDisk).Select(Path.GetFileName).ToList() is not { Count: > 0 } changed
+        || await Dialogs.Confirm(owner, "Changed on disk", $"{string.Join(", ", changed)} changed outside Faro since it was opened. Saving overwrites those changes.", "Overwrite");
 
     public static bool IsDirty(string path) => buffers.TryGetValue(path, out var doc) && !doc.UndoStack.IsOriginalFile;
 
