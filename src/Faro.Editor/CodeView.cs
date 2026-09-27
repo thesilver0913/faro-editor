@@ -148,10 +148,14 @@ public sealed class CodeView : UserControl
         Show();
     }
 
-    void Show(string path)
+    void Show(string path, int line, int column)
     {
         Refresh(); // a new file may not be listed yet
         files.SelectedItem = Path.GetRelativePath(Workspace.Root, path);
+        if (line <= 0 || editor.Document is not { } doc || line > doc.LineCount) return;
+        editor.TextArea.Caret.Position = new(line, Math.Max(column, 1));
+        editor.ScrollTo(line, column);
+        editor.Focus();
     }
 
     void Show()
@@ -204,10 +208,10 @@ public sealed class CodeView : UserControl
         return doc;
     }
 
-    static event Action<string>? OpenRequested;
+    static event Action<string, int, int>? OpenRequested;
 
-    /// <summary>Shows a Source/ file in the code editor (from the explorer).</summary>
-    public static void Open(string path) => OpenRequested?.Invoke(path);
+    /// <summary>Shows a Source/ file in the code editor (from the explorer), optionally at a 1-based line/column (build errors).</summary>
+    public static void Open(string path, int line = 0, int column = 0) => OpenRequested?.Invoke(path, line, column);
 
     /// <summary>Drops the buffer of a file that was renamed or deleted (it has no unsaved edits by then).</summary>
     public static void Forget(string path)

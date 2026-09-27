@@ -32,7 +32,8 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン・開始画面 `startScreen`)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
 - **Faro.Runtime はプロジェクト内に同梱**:エディターのビルド時に `Faro.Runtime.<版>.nupkg` を作り、新規プロジェクトの `.faro/packages/` にコピーして `nuget.config` から参照する。フォルダごと別の場所・PC に移してもビルドできる(Avalonia 本体は nuget.org から取得)。`.faro/` はプロジェクトと一緒にバージョン管理する
 - 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
-- **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較。PR ごとに 0.0.1 ずつ上がり、0.1.9 の次は 0.2.0)
+- **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較。PR ごとに 0.0.1 ずつ上がり、0.1.9 の次は 0.2.0。作業中の Runtime は `0.1.8-dev1`, `-dev2` … とし、リリース版より前に並ぶ)
+- **Run / Stop**:キャンバスの Run(F5)で `dotnet watch run` を起動し、出力を Console の Output タブに表示。もう一度押す(または Shift+F5)と止まる。エディターを閉じるとアプリも止まる
 - `samples/HelloFaro` はこのリポジトリ内での開発用で、Runtime をプロジェクト参照している
 
 ## コードエディタ
@@ -50,13 +51,13 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 書き込み先は `Source/` 配下の `.cs` のみ(モデル出力のパスは検証する)
 - 承認した変更はコードエディタのバッファ経由で保存 → 手動編集と同じ Undo 履歴に入り(Ctrl+Z で戻せる)、リネーム追従も効く
 - 新規クラスの生存期間(ScreenScoped/Singleton/Transient)と永続化をチャット欄で選択。生成クラスは `FaroObject` を継承し、変更通知を埋め込む
-- キャンバスの赤バッジ(メンバーが存在しない紐付け)をクリックすると、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
+- キャンバスの赤バッジをクリックすると、その Node を選択してインスペクターに**再紐づけパネル**(仕様§6)が出る:近い名前の候補をボタンで並べ、押すとその候補に付け替える。メンバーが存在しない場合は「Create with vibe coding」で、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
 
 ## キャンバス編集とインスペクター
 
-- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜Console、右端にインスペクター。Console は VSCode 風に Problems／Vibe Coding をタブで切り替える(赤バッジから依頼文を入れると Vibe Coding タブに切り替わる)
+- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜Console、右端にインスペクター。Console は VSCode 風に Problems／Output／Vibe Coding をタブで切り替える(依頼文を入れると Vibe Coding、Run で Output に切り替わる)
 - **コンポーネントのマスター編集**:キャンバスの画面リスト(またはエクスプローラー)からコンポーネントを開くと、画面と同じようにマスターを編集できる。インスタンスへの反映は「Sync components」(明示同期)。マスターの紐付けは `Bindings/<コンポーネントID>.xml` に保存され、**全インスタンス共通**で実行時に各インスタンス内の Node に適用される(仕様§5 の 2 階建て。インスタンス固有の紐付けは画面の Bindings でインスタンス ID に付ける)
-- **Problems タブ**(仕様§11、Console 内。件数をタブ名に表示):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択
+- **Problems タブ**(仕様§11、Console 内。件数をタブ名に表示):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択。Run 中のビルドエラー(C# のコンパイルエラー)も「Build」として並び、クリックでコードエディタの該当行へ。次のビルドが始まると消える
 - **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable
@@ -71,13 +72,13 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## メニューと環境設定
 
-- **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／すべて保存(Ctrl+Shift+S)／実行(F5)／終了。未保存のコードがあれば確認してから閉じる
+- **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／すべて保存(Ctrl+Shift+S)／実行(F5)・停止(Shift+F5)／終了。未保存のコードがあれば確認してから閉じる
 - **Edit**:元に戻す(Ctrl+Z)／やり直し(Ctrl+Y・Ctrl+Shift+Z)／削除(Del)／コンポーネント同期／環境設定(Ctrl+,)
 - **Undo/Redo(仕様§10)**:Ctrl+Z / Ctrl+Y と Edit メニュー。最後に操作したペインで対象が切り替わる(右上に表示)
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Vibe Coding タブ)の各パネルを前面に／全画面(F11)
+- **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Output・Vibe Coding タブ)の各パネルを前面に／全画面(F11)
 - **Help**:Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)
