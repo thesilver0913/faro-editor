@@ -31,6 +31,12 @@ public sealed class FaroSettings
     public string EditorThemeFile { get; set; } = ""; // .tmTheme or VS Code .json
     public List<string> RecentProjects { get; set; } = [];
 
+    // Editor layout (spec §14: saved per app). ponytail: pane sizes and the window; docking moves, tabs and floating panes reset on restart.
+    public Dictionary<string, double> PaneProportions { get; set; } = [];
+    public double WindowWidth { get; set; }
+    public double WindowHeight { get; set; }
+    public bool WindowMaximized { get; set; }
+
     static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
 
     public static FaroSettings Current { get; } = Load();

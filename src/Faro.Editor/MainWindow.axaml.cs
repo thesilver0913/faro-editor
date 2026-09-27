@@ -37,6 +37,8 @@ public partial class MainWindow : Window
         CodeView.HistoryChanged += UpdateHistory;
         UpdateHistory();
         Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
+        RestoreLayout();
+        Closed += (_, _) => SaveLayout();
         // Unsaved code edits would be lost on close: ask first.
         Closing += async (_, e) =>
         {
@@ -48,6 +50,46 @@ public partial class MainWindow : Window
                 Close();
             }
         };
+    }
+
+    // Layout (spec §14)
+
+    static IEnumerable<Dock.Model.Core.IDockable> Dockables(Dock.Model.Core.IDockable dockable) =>
+        dockable is Dock.Model.Core.IDock { VisibleDockables: { } children } ? children.SelectMany(Dockables).Prepend(dockable) : [dockable];
+
+    Dictionary<string, double> defaultProportions = [];
+
+    void ApplyProportions(Dictionary<string, double> proportions)
+    {
+        if (Dock.Layout is null) return;
+        foreach (var dockable in Dockables(Dock.Layout))
+            if (dockable.Id is { } id && proportions.TryGetValue(id, out var proportion)) dockable.Proportion = proportion;
+    }
+
+    Dictionary<string, double> Proportions() => Dock.Layout is null ? [] : Dockables(Dock.Layout)
+        .Where(d => d.Id is not null && !double.IsNaN(d.Proportion)).GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First().Proportion);
+
+    void ResetLayout(object? sender, RoutedEventArgs e) => ApplyProportions(defaultProportions);
+
+    void RestoreLayout()
+    {
+        var settings = FaroSettings.Current;
+        if (settings.WindowWidth > 0) (Width, Height) = (settings.WindowWidth, settings.WindowHeight);
+        if (settings.WindowMaximized) WindowState = WindowState.Maximized;
+        Opened += (_, _) =>
+        {
+            defaultProportions = Proportions(); // as laid out in MainWindow.axaml
+            ApplyProportions(settings.PaneProportions);
+        };
+    }
+
+    void SaveLayout()
+    {
+        var settings = FaroSettings.Current;
+        settings.WindowMaximized = WindowState == WindowState.Maximized;
+        if (WindowState == WindowState.Normal) (settings.WindowWidth, settings.WindowHeight) = (Bounds.Width, Bounds.Height);
+        settings.PaneProportions = Proportions();
+        settings.Save();
     }
 
     // Undo / redo

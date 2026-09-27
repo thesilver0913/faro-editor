@@ -46,6 +46,7 @@
         <MenuItem Header="_Vibe Coding" Click="ShowChat" />
       </MenuItem>
       <Separator />
+      <MenuItem Header="_Reset Layout" Click="ResetLayout" />
       <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
     </MenuItem>
     <MenuItem Header="_Help">
