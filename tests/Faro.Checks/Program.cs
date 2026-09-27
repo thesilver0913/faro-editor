@@ -122,7 +122,7 @@ innerFile.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/pr
 var innerIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
 Check(innerIssues.Count == 1 && innerIssues[0].NodeId == "orderList/nope", "a bind inside an instance is checked like any other");
 CanvasEdit.Rename(project, mainGraph, "orderList", "items");
-Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 2, "renaming an instance follows binds inside it");
+Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 3 && !project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("orderList") == true), "renaming an instance follows binds inside it");
 CanvasEdit.Delete(project, mainGraph, ["items"]);
 Check(!project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true), "deleting an instance removes binds inside it");
 project = FaroProject.Load(root);
@@ -254,7 +254,7 @@ Check(Registry.Renames(code, renamed.Replace("class OrderService", "class Orders
 Check(Registry.Renames(code, code.Replace("public void Submit() => SubmitCount++;", "public void A() { }\n    public void B() { }")).Count == 0, "ambiguous change is not a rename");
 project = FaroProject.Load(root);
 Check(Registry.FollowRenames(project, [("MyApp.Services.OrderService", "MyApp.Services.Orders")]).Count == 2, "class rename rewrites both binding files");
-Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 2, "targets follow class rename");
+Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 3, "targets follow class rename");
 
 // Vibe coding: parse generated files, keep writes inside Source/, block broken syntax, diff.
 var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";
