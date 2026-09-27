@@ -50,11 +50,13 @@ public static class FaroApp
     static readonly Dictionary<Type, object> singletons = [];
     static Dictionary<Type, object> screenScoped = [];
 
-    public static void Run(string[] args, Assembly assembly, string startScreen)
+    /// <summary>Starts the app on faro.json's "startScreen" (<paramref name="startScreen"/> overrides it).</summary>
+    public static void Run(string[] args, Assembly assembly, string? startScreen = null)
     {
         userAssembly = assembly;
         project = FaroProject.Load(AppContext.BaseDirectory);
-        AppBuilder.Configure(() => new RuntimeApp(startScreen)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+        var start = startScreen ?? project.StartScreen ?? "MainScreen";
+        AppBuilder.Configure(() => new RuntimeApp(start)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
         Release(screenScoped.Values.Concat(singletons.Values));
     }
 
@@ -74,12 +76,16 @@ public static class FaroApp
         window.Title = screenId;
 
         var errors = new List<string>();
-        foreach (var bind in project.BindsFor(screenId))
+        void Bind(XElement bind, string prefix)
         {
-            if (!byId.TryGetValue((string?)bind.Attribute("nodeId") ?? "", out var control)) continue;
+            if (!byId.TryGetValue(prefix + ((string?)bind.Attribute("nodeId") ?? ""), out var control)) return;
             try { Apply(bind, control); }
             catch (Exception e) { errors.Add($"{bind}\n  → {e.Message}"); }
         }
+        foreach (var bind in project.BindsFor(screenId)) Bind(bind, "");
+        // Component-level bindings (Bindings/<ComponentId>.xml) apply inside every instance of that component.
+        foreach (var (prefix, component) in UiBuilder.InstancePaths(graph.Root!.Element("Node")!))
+            foreach (var bind in project.BindsFor(component)) Bind(bind, prefix);
         if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
     }
 
@@ -105,8 +111,8 @@ public static class FaroApp
         var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
         if ((string?)bind.Attribute("event") is { } eventName)
         {
-            var routed = RoutedEventRegistry.Instance.GetRegistered(control.GetType()).FirstOrDefault(e => "On" + e.Name == eventName)
-                ?? throw new InvalidOperationException($"{control.GetType().Name} has no event '{eventName}'.");
+            var routed = Bindable.For(control)?.Events.GetValueOrDefault(eventName)
+                ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no event '{eventName}'.");
             if (target.StartsWith("Navigate:"))
             {
                 var screen = NavigateScreenId(target, project.Screens.Keys);
@@ -126,8 +132,8 @@ public static class FaroApp
         else
         {
             var propName = (string?)bind.Attribute("prop") ?? throw new InvalidOperationException("Bind needs 'event' or 'prop'.");
-            var avaloniaProp = AvaloniaPropertyRegistry.Instance.FindRegistered(control, propName)
-                ?? throw new InvalidOperationException($"{control.GetType().Name} has no property '{propName}'.");
+            var avaloniaProp = Bindable.For(control)?.Props.GetValueOrDefault(propName)
+                ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no property '{propName}'.");
             var prop = Resolve(userAssembly, target) as PropertyInfo ?? throw new InvalidOperationException($"'{target}' is not a property.");
             control.Bind(avaloniaProp, new ReflectionBinding(prop.Name)
             {

@@ -39,6 +39,24 @@ public static class UiBuilder
     public static string Sizing(XElement node, string axis) =>
         (string?)node.Attribute(axis + "Sizing") ?? (string?)node.Attribute("sizing") ?? "Hug";
 
+    /// <summary>
+    /// Every instance under a node with the key prefix its inner nodes get in <c>byId</c> ("btn1/", nested
+    /// "card/btn1/") and its component — so component-level bindings can reach each instance's controls.
+    /// </summary>
+    public static IEnumerable<(string Prefix, string Component)> InstancePaths(XElement node, string prefix = "")
+    {
+        if ((string?)node.Attribute("type") == "Instance")
+        {
+            var inner = $"{prefix}{(string?)node.Attribute("id")}/";
+            yield return (inner, (string?)node.Attribute("component") ?? "");
+            if (node.Element("Node") is { } snapshot)
+                foreach (var nested in InstancePaths(snapshot, inner)) yield return nested;
+            yield break;
+        }
+        foreach (var child in node.Elements("Node"))
+            foreach (var path in InstancePaths(child, prefix)) yield return path;
+    }
+
     public static string? Prop(XElement node, string name) =>
         (string?)node.Elements("Prop").FirstOrDefault(p => (string?)p.Attribute("name") == name)?.Attribute("value");
 

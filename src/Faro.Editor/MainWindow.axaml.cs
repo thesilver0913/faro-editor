@@ -139,10 +139,11 @@ public partial class MainWindow : Window
     // Window
 
     void ShowExplorer(object? sender, RoutedEventArgs e) => Activate("Explorer");
+    void ShowProblems(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Problems); }
     void ShowCanvas(object? sender, RoutedEventArgs e) => Activate("Canvas");
     void ShowInspector(object? sender, RoutedEventArgs e) => Activate("Inspector");
     void ShowCode(object? sender, RoutedEventArgs e) => Activate("Code");
-    void ShowChat(object? sender, RoutedEventArgs e) => Activate("Chat");
+    void ShowChat(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.VibeCoding); }
     void ToggleFullScreen(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
     void Activate(string id)

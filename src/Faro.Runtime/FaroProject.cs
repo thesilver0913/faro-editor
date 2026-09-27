@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
 namespace Faro.Runtime;
@@ -14,12 +15,19 @@ public sealed class FaroProject
     public Dictionary<string, XDocument> Components { get; } = [];
     public List<XDocument> BindingFiles { get; } = [];
 
+    /// <summary>"startScreen" in faro.json: the screen the app opens with (kept out of the code, so it's language-neutral).</summary>
+    public string? StartScreen { get; private set; }
+
     /// <summary>Every bind in the project (for project-wide follow-ups such as class renames).</summary>
     public IEnumerable<XElement> Binds => BindingFiles.SelectMany(d => d.Root!.Elements("Bind"));
 
-    /// <summary>Bindings/&lt;ScreenId&gt;.xml belongs to that screen: its binds apply only there.</summary>
+    /// <summary>Bindings/&lt;Id&gt;.xml belongs to the screen or component with that id: its binds apply only there.</summary>
     public static string ScreenOf(XDocument bindingFile) => Path.GetFileNameWithoutExtension(new Uri(bindingFile.BaseUri).LocalPath);
 
+    /// <summary>A screen or a component master by id (both are edited on the canvas).</summary>
+    public XDocument? Graph(string id) => Screens.GetValueOrDefault(id) ?? Components.GetValueOrDefault(id);
+
+    /// <summary>Binds of a screen, or of a component master (those apply inside every instance, spec §5).</summary>
     public IEnumerable<XElement> BindsFor(string screenId) =>
         BindingFiles.Where(d => ScreenOf(d) == screenId).SelectMany(d => d.Root!.Elements("Bind"));
 
@@ -37,6 +45,8 @@ public sealed class FaroProject
             };
         }
         project.BindingFiles.AddRange(LoadAll(Path.Combine(root, "Bindings")));
+        var meta = Path.Combine(root, "faro.json");
+        project.StartScreen = File.Exists(meta) ? (string?)JsonNode.Parse(File.ReadAllText(meta))?["startScreen"] : null;
         return project;
     }
 

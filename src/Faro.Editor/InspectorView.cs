@@ -52,7 +52,7 @@ public sealed class InspectorView : UserControl
     {
         body.Children.Clear();
         var project = Workspace.Project;
-        var screen = CanvasView.CurrentScreen is { } s ? project?.Screens.GetValueOrDefault(s) : null;
+        var screen = CanvasView.CurrentScreen is { } s ? project?.Graph(s) : null;
         if (project is null || screen is null || CanvasView.Selection.Count != 1 || CanvasEdit.Find(screen, CanvasView.Selection.First()) is not { } node)
         {
             body.Children.Add(Hint(CanvasView.Selection.Count > 1 ? $"{CanvasView.Selection.Count} nodes selected." : "Select a node on the canvas."));
@@ -184,21 +184,22 @@ public sealed class InspectorView : UserControl
     Control AddBindRow(string id)
     {
         var kind = new ComboBox { ItemsSource = new[] { "Event", "Property" }, SelectedIndex = 0 };
-        var name = new AutoCompleteBox { MinWidth = 140, FilterMode = AutoCompleteFilterMode.ContainsOrdinal, PlaceholderText = "OnClick" };
+        var name = new AutoCompleteBox { MinWidth = 140, FilterMode = AutoCompleteFilterMode.ContainsOrdinal };
         void Names()
         {
-            var control = CanvasView.ControlOf(id);
-            name.ItemsSource = control is null ? Array.Empty<string>() : kind.SelectedIndex == 0
-                ? Avalonia.Interactivity.RoutedEventRegistry.Instance.GetRegistered(control.GetType()).Select(e => "On" + e.Name).Distinct().OrderBy(n => n != "OnClick").ThenBy(n => n).ToArray()
-                : AvaloniaPropertyRegistry.Instance.GetRegistered(control).Select(p => p.Name).Distinct().Order().ToArray();
-            name.PlaceholderText = kind.SelectedIndex == 0 ? "OnClick" : "Text";
+            // Framework-neutral names only (Faro.Runtime.Bindable), so binding files don't depend on Avalonia.
+            var bindable = CanvasView.ControlOf(id) is { } control ? Faro.Runtime.Bindable.For(control) : null;
+            var names = (kind.SelectedIndex == 0 ? bindable?.Events.Keys.ToArray() : bindable?.Props.Keys.ToArray()) ?? [];
+            name.ItemsSource = names;
+            name.PlaceholderText = names.FirstOrDefault() ?? "";
         }
         Names();
         kind.SelectionChanged += (_, _) => Names();
         var add = new Button { Content = "+ Add binding" };
         add.Click += (_, _) =>
         {
-            var member = string.IsNullOrWhiteSpace(name.Text) ? name.PlaceholderText! : name.Text.Trim();
+            var member = string.IsNullOrWhiteSpace(name.Text) ? name.PlaceholderText ?? "" : name.Text.Trim();
+            if (member.Length == 0) return;
             var isEvent = kind.SelectedIndex == 0;
             CanvasView.Edit("Add binding", (project, _) =>
             {

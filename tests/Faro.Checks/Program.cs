@@ -74,6 +74,38 @@ File.AppendAllText(screenFile, "<!-- edited elsewhere -->");
 Check(UiHistory.Undo() is { } refused && refused.Contains("changed outside Faro") && File.ReadAllText(screenFile).Contains("edited elsewhere") && UiHistory.UndoLabel is null, "UI undo never overwrites an external edit");
 File.WriteAllText(screenFile, afterSync);
 
+// Component masters (spec §5): edited like screens; their own bindings apply inside every instance.
+project = FaroProject.Load(root);
+var paths = UiBuilder.InstancePaths(project.Screens["MainScreen"].Root!.Element("Node")!).ToList();
+Check(paths.Contains(("btn1/", "Comp.PrimaryButton")) && paths.Contains(("orderList/", "Comp.OrderRow")) && paths.Count == 3, "instance paths for component-level bindings");
+var nested = System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack"><Node id="card" type="Instance" component="Comp.Card"><Node id="root" type="Container.Stack"><Node id="ok" type="Instance" component="Comp.PrimaryButton"><Node id="root" type="Control.Button" /></Node></Node></Node></Node>""");
+Check(UiBuilder.InstancePaths(nested).Contains(("card/ok/", "Comp.PrimaryButton")), "nested instance paths");
+File.WriteAllText(Path.Combine(root, "Bindings/Comp.OrderRow.xml"), """<Bindings><Bind nodeId="price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" /><Bind nodeId="nope" event="Click" target="MyApp.Services.OrderService.Submit" /></Bindings>""");
+project = FaroProject.Load(root);
+var componentIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "Comp.OrderRow").ToList();
+Check(componentIssues.Count == 1 && componentIssues[0].NodeId == "nope", "component bindings checked against the master's nodes");
+// Binding files use framework-neutral event/property names (Bindable), checked against the node's type.
+var mainBinds = project.BindingFiles.First(d => FaroProject.ScreenOf(d) == "MainScreen");
+mainBinds.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="btn1" event="OnClick" target="MyApp.Services.OrderService.Submit" />"""));
+var vocabIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
+Check(vocabIssues.Count == 1 && vocabIssues[0].Message == "Control.Button has no event 'OnClick'." && vocabIssues[0].Suggestions[0] == "Click", "Avalonia event names are rejected, the neutral name suggested");
+Check(Bindable.TypeOf(CanvasEdit.Find(project.Screens["MainScreen"], "orderList")!) == "Container.Stack" && Bindable.For("Container.Stack")!.Props.ContainsKey("Visible")
+    && Bindable.For(new Avalonia.Controls.Button())!.Events["Click"] == Avalonia.Controls.Button.ClickEvent && Bindable.For(new Avalonia.Controls.TextBox())!.Type == "Control.TextInput", "neutral names map to Avalonia per node type");
+var changedBox = new Avalonia.Controls.TextBox();
+var changedFired = false;
+changedBox.AddHandler(Bindable.For(changedBox)!.Events["Changed"], (EventHandler<Avalonia.Interactivity.RoutedEventArgs>)((_, _) => changedFired = true));
+changedBox.RaiseEvent(new Avalonia.Controls.TextChangedEventArgs(Avalonia.Controls.TextBox.TextChangedEvent));
+Check(changedFired, "TextInput Changed reaches a runtime-style handler");
+var rowMaster = project.Components["Comp.OrderRow"];
+CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
+Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");
+UiHistory.CommitFiles("Rename component", ProjectFiles.RenameComponent(FaroProject.Load(root), "Comp.OrderRow", "Comp.Row"));
+Check(File.Exists(Path.Combine(root, "Bindings/Comp.Row.xml")) && !File.Exists(Path.Combine(root, "Bindings/Comp.OrderRow.xml")), "component rename moves its bindings file");
+UiHistory.CommitFiles("Delete component", ProjectFiles.Delete(FaroProject.Load(root), FaroProject.Load(root).Components["Comp.Row"]));
+Check(!File.Exists(Path.Combine(root, "Bindings/Comp.Row.xml")), "component delete removes its bindings file");
+Check(UiHistory.Undo() is null && UiHistory.Undo() is null && File.Exists(Path.Combine(root, "Bindings/Comp.OrderRow.xml")), "component rename/delete undo");
+File.Delete(Path.Combine(root, "Bindings/Comp.OrderRow.xml"));
+
 // Canvas editing (spec §5): add / props / overrides / rename with binding follow / move / delete with binds.
 project = FaroProject.Load(root);
 var main = project.Screens["MainScreen"];
@@ -110,13 +142,16 @@ UiHistory.CommitFiles("New screen", ProjectFiles.NewScreen(project, "Settings"))
 Check(FaroProject.Load(root).Screens.ContainsKey("Settings"), "new screen file");
 Check(Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "Settings")) && Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "../evil")), "new screen rejects duplicates and path-like ids");
 Check(UiHistory.Undo() is null && !FaroProject.Load(root).Screens.ContainsKey("Settings") && !File.Exists(Path.Combine(root, "UI/Settings.xml")), "undo removes the created file");
-File.WriteAllText(Path.Combine(root, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"Detail\");\n");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detail" }""");
 UiHistory.CommitFiles("Rename screen", ProjectFiles.RenameScreen(FaroProject.Load(root), "Detail", "Info"));
 project = FaroProject.Load(root);
 Check(project.BindsFor("Info").Any(b => (string?)b.Attribute("nodeId") == "back") && !File.Exists(Path.Combine(root, "Bindings/Detail.xml")), "screen rename moves its bindings file");
 Check(project.Screens.ContainsKey("Info") && !File.Exists(Path.Combine(root, "UI/Detail.xml")) && project.Binds.Any(b => (string?)b.Attribute("target") == "Navigate:Screen.Info")
-    && File.ReadAllText(Path.Combine(root, "Program.cs")).Contains("\"Info\""), "screen rename follows file, Navigate targets and start screen");
+    && project.StartScreen == "Info", "screen rename follows file, Navigate targets and start screen (faro.json)");
 Check(UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail"), "screen rename undoable");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detial" }""");
+Check(BindingCheck.Check(FaroProject.Load(root), registry).Any(i => i.Message.Contains("Start screen 'Detial'") && i.Suggestions[0] == "Detail"), "a missing start screen is a problem");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detail" }""");
 UiHistory.CommitFiles("Rename component", ProjectFiles.RenameComponent(FaroProject.Load(root), "Comp.PrimaryButton", "Comp.MainButton"));
 project = FaroProject.Load(root);
 Check(project.Components.ContainsKey("Comp.MainButton") && project.Screens["MainScreen"].Descendants("Node").Count(n => (string?)n.Attribute("component") == "Comp.MainButton") == 2, "component rename follows instances");
@@ -133,7 +168,7 @@ var empty = ProjectSetup.Create(projects, "EmptyApp", "Empty");
 Check(ProjectSetup.IsFaroProject(empty) && FaroProject.Load(empty).Screens.ContainsKey("MainScreen")
     && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("PackageReference Include=\"Faro.Runtime\"")
     && Directory.EnumerateFiles(Path.Combine(empty, ".faro/packages"), "Faro.Runtime.*.nupkg").Any()
-    && File.ReadAllText(Path.Combine(empty, "Program.cs")).Contains("\"MainScreen\""), "empty project: faro.json, start screen, csproj, vendored runtime");
+    && FaroProject.Load(empty).StartScreen == "MainScreen" && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("faro.json;"), "empty project: faro.json, start screen, csproj, vendored runtime");
 var sampleProject = ProjectSetup.Create(projects, "SampleApp", "Sample");
 Check(BindingCheck.Check(FaroProject.Load(sampleProject), Registry.Scan(Path.Combine(sampleProject, "Source"))).Count == 0 && FaroProject.Load(sampleProject).Screens.Count == 2, "sample project copies a working template");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))

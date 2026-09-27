@@ -9,7 +9,7 @@ namespace Faro.Editor;
 /// <summary>A bindable public member found in Source/. <c>Target</c> is the "Ns.Class.Member" string used by &lt;Bind&gt;.</summary>
 public sealed record RegistryMember(string Target, bool IsMethod, string Signature);
 
-/// <summary>A broken binding on <paramref name="Screen"/> (node ids are unique per screen only).</summary>
+/// <summary>A broken binding on <paramref name="Screen"/>: a screen or component id (node ids are unique per graph only).</summary>
 public sealed record BindingIssue(string NodeId, string Target, string Message, IReadOnlyList<string> Suggestions, string Screen = "");
 
 public static class Registry
@@ -101,21 +101,25 @@ public static class BindingCheck
             foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
                 issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
 
+        if (project.StartScreen is { } start && !project.Screens.ContainsKey(start))
+            issues.Add(new("", "", $"Start screen '{start}' (faro.json) does not exist.", Nearest(start, project.Screens.Keys), ""));
         foreach (var file in project.BindingFiles)
         {
             var screenId = FaroProject.ScreenOf(file);
-            if (!project.Screens.TryGetValue(screenId, out var screen))
+            if (project.Graph(screenId) is not { } screen) // a screen, or a component master (component-level bindings)
             {
-                issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen (there is no screen '{screenId}').", Nearest(screenId, project.Screens.Keys), screenId));
+                issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen or component.", Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
                 continue;
             }
-            var nodeIds = NodesOf(screen).Select(n => (string?)n.Attribute("id")).ToHashSet();
+            var nodes = NodesOf(screen).Where(n => n.Attribute("id") is not null).DistinctBy(n => (string)n.Attribute("id")!).ToDictionary(n => (string)n.Attribute("id")!);
             foreach (var bind in file.Root!.Elements("Bind"))
             {
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
-                if (!nodeIds.Contains(nodeId))
+                if (!nodes.TryGetValue(nodeId, out var node))
                     issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
+                else if (Unbindable(bind, node) is { } problem)
+                    issues.Add(problem with { Target = target, Screen = screenId });
                 else if (target.Length == 0)
                     issues.Add(new(nodeId, target, "No target chosen yet.", [], screenId));
                 else if (target.StartsWith("Navigate:"))
@@ -134,6 +138,19 @@ public static class BindingCheck
             }
         }
         return issues;
+    }
+
+    /// <summary>The bind's event/prop must be one of the framework-neutral names for the node's type (Faro.Runtime.Bindable).</summary>
+    static BindingIssue? Unbindable(XElement bind, XElement node)
+    {
+        var type = Bindable.TypeOf(node);
+        var entry = Bindable.For(type);
+        var isEvent = bind.Attribute("event") is not null;
+        var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
+        IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
+        var kind = isEvent ? "event" : "property";
+        return names?.Contains(name) == true ? null
+            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()));
     }
 
     /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>
@@ -209,7 +226,7 @@ public static partial class VibeCoding
             of classes in Source/, addressed by the string "Namespace.Class.Member".
 
             Rules:
-            - Event bindings (e.g. OnClick) call public parameterless methods. Property bindings use public properties.
+            - Event bindings (e.g. Click) call public parameterless methods. Property bindings use public properties.
             - Classes are public, top-level, and inherit Faro.Runtime.FaroObject (`using Faro.Runtime;`). Property setters raise
               change notifications: `public string Name { get; set => Set(ref field, value); }`. When a computed property depends on
               others, keep it in a field and update it with Set(ref ..., ..., nameof(Computed)) from those setters.
@@ -515,7 +532,7 @@ public static partial class ProjectFiles
             new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("gap", "8"))))) };
     }
 
-    /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in Program.cs.</summary>
+    /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in faro.json.</summary>
     public static Dictionary<string, string?> RenameScreen(FaroProject project, string oldId, string newId)
     {
         ValidateNewId(project, newId);
@@ -527,14 +544,13 @@ public static partial class ProjectFiles
             binds.ForEach(b => b.SetAttributeValue("target", $"Navigate:Screen.{newId}"));
             if (binds.Count > 0) changes[PathOf(file)] = Text(file);
         }
-        if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == oldId) is { } own) // the screen's bindings move with it
+        MoveBindings(project, oldId, newId, changes);
+        var meta = Path.Combine(project.Root, "faro.json");
+        if (project.StartScreen == oldId && System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(meta)) is System.Text.Json.Nodes.JsonObject json)
         {
-            changes[PathOf(own)] = null;
-            changes[Path.Combine(project.Root, "Bindings", newId + ".xml")] = Text(own);
+            json["startScreen"] = newId;
+            changes[meta] = json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n";
         }
-        var program = Path.Combine(project.Root, "Program.cs");
-        if (File.Exists(program) && File.ReadAllText(program) is var code && code.Contains($"\"{oldId}\""))
-            changes[program] = code.Replace($"\"{oldId}\"", $"\"{newId}\"");
         return changes;
     }
 
@@ -543,6 +559,7 @@ public static partial class ProjectFiles
     {
         ValidateNewId(project, newId);
         var changes = MoveDoc(project, project.Components[oldId], newId);
+        MoveBindings(project, oldId, newId, changes);
         foreach (var doc in project.Screens.Values.Concat(project.Components.Values).Where(d => d != project.Components[oldId]))
         {
             var instances = doc.Descendants("Node").Where(n => (string?)n.Attribute("component") == oldId).ToList();
@@ -552,13 +569,21 @@ public static partial class ProjectFiles
         return changes;
     }
 
-    /// <summary>Deletes a screen (with its bindings file) or a component.</summary>
+    /// <summary>Deletes a screen or a component, with its bindings file.</summary>
     public static Dictionary<string, string?> Delete(FaroProject project, XDocument doc)
     {
         var changes = new Dictionary<string, string?> { [PathOf(doc)] = null };
-        if (doc.Root!.Name == "UIGraph" && project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == (string?)doc.Root.Attribute("id")) is { } own)
+        if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == (string?)doc.Root!.Attribute("id")) is { } own)
             changes[PathOf(own)] = null;
         return changes;
+    }
+
+    /// <summary>A screen's or component's own bindings file moves with its id.</summary>
+    static void MoveBindings(FaroProject project, string oldId, string newId, Dictionary<string, string?> changes)
+    {
+        if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == oldId) is not { } own) return;
+        changes[PathOf(own)] = null;
+        changes[Path.Combine(project.Root, "Bindings", newId + ".xml")] = Text(own);
     }
 
     /// <summary>A new C# class file for Source/, in the namespace the project already uses (spec §6: FaroObject for change notification).</summary>
