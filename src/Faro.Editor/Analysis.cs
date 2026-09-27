@@ -101,6 +101,8 @@ public static class BindingCheck
             foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
                 issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
 
+        if (project.StartScreen is { } start && !project.Screens.ContainsKey(start))
+            issues.Add(new("", "", $"Start screen '{start}' (faro.json) does not exist.", Nearest(start, project.Screens.Keys), ""));
         foreach (var file in project.BindingFiles)
         {
             var screenId = FaroProject.ScreenOf(file);
@@ -530,7 +532,7 @@ public static partial class ProjectFiles
             new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("gap", "8"))))) };
     }
 
-    /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in Program.cs.</summary>
+    /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in faro.json.</summary>
     public static Dictionary<string, string?> RenameScreen(FaroProject project, string oldId, string newId)
     {
         ValidateNewId(project, newId);
@@ -543,9 +545,12 @@ public static partial class ProjectFiles
             if (binds.Count > 0) changes[PathOf(file)] = Text(file);
         }
         MoveBindings(project, oldId, newId, changes);
-        var program = Path.Combine(project.Root, "Program.cs");
-        if (File.Exists(program) && File.ReadAllText(program) is var code && code.Contains($"\"{oldId}\""))
-            changes[program] = code.Replace($"\"{oldId}\"", $"\"{newId}\"");
+        var meta = Path.Combine(project.Root, "faro.json");
+        if (project.StartScreen == oldId && System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(meta)) is System.Text.Json.Nodes.JsonObject json)
+        {
+            json["startScreen"] = newId;
+            changes[meta] = json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n";
+        }
         return changes;
     }
 

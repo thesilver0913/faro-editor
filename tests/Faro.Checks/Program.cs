@@ -142,13 +142,16 @@ UiHistory.CommitFiles("New screen", ProjectFiles.NewScreen(project, "Settings"))
 Check(FaroProject.Load(root).Screens.ContainsKey("Settings"), "new screen file");
 Check(Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "Settings")) && Throws<ArgumentException>(() => ProjectFiles.NewScreen(FaroProject.Load(root), "../evil")), "new screen rejects duplicates and path-like ids");
 Check(UiHistory.Undo() is null && !FaroProject.Load(root).Screens.ContainsKey("Settings") && !File.Exists(Path.Combine(root, "UI/Settings.xml")), "undo removes the created file");
-File.WriteAllText(Path.Combine(root, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"Detail\");\n");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detail" }""");
 UiHistory.CommitFiles("Rename screen", ProjectFiles.RenameScreen(FaroProject.Load(root), "Detail", "Info"));
 project = FaroProject.Load(root);
 Check(project.BindsFor("Info").Any(b => (string?)b.Attribute("nodeId") == "back") && !File.Exists(Path.Combine(root, "Bindings/Detail.xml")), "screen rename moves its bindings file");
 Check(project.Screens.ContainsKey("Info") && !File.Exists(Path.Combine(root, "UI/Detail.xml")) && project.Binds.Any(b => (string?)b.Attribute("target") == "Navigate:Screen.Info")
-    && File.ReadAllText(Path.Combine(root, "Program.cs")).Contains("\"Info\""), "screen rename follows file, Navigate targets and start screen");
+    && project.StartScreen == "Info", "screen rename follows file, Navigate targets and start screen (faro.json)");
 Check(UiHistory.Undo() is null && FaroProject.Load(root).Screens.ContainsKey("Detail"), "screen rename undoable");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detial" }""");
+Check(BindingCheck.Check(FaroProject.Load(root), registry).Any(i => i.Message.Contains("Start screen 'Detial'") && i.Suggestions[0] == "Detail"), "a missing start screen is a problem");
+File.WriteAllText(Path.Combine(root, "faro.json"), """{ "name": "T", "startScreen": "Detail" }""");
 UiHistory.CommitFiles("Rename component", ProjectFiles.RenameComponent(FaroProject.Load(root), "Comp.PrimaryButton", "Comp.MainButton"));
 project = FaroProject.Load(root);
 Check(project.Components.ContainsKey("Comp.MainButton") && project.Screens["MainScreen"].Descendants("Node").Count(n => (string?)n.Attribute("component") == "Comp.MainButton") == 2, "component rename follows instances");
@@ -165,7 +168,7 @@ var empty = ProjectSetup.Create(projects, "EmptyApp", "Empty");
 Check(ProjectSetup.IsFaroProject(empty) && FaroProject.Load(empty).Screens.ContainsKey("MainScreen")
     && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("PackageReference Include=\"Faro.Runtime\"")
     && Directory.EnumerateFiles(Path.Combine(empty, ".faro/packages"), "Faro.Runtime.*.nupkg").Any()
-    && File.ReadAllText(Path.Combine(empty, "Program.cs")).Contains("\"MainScreen\""), "empty project: faro.json, start screen, csproj, vendored runtime");
+    && FaroProject.Load(empty).StartScreen == "MainScreen" && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("faro.json;"), "empty project: faro.json, start screen, csproj, vendored runtime");
 var sampleProject = ProjectSetup.Create(projects, "SampleApp", "Sample");
 Check(BindingCheck.Check(FaroProject.Load(sampleProject), Registry.Scan(Path.Combine(sampleProject, "Source"))).Count == 0 && FaroProject.Load(sampleProject).Screens.Count == 2, "sample project copies a working template");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))

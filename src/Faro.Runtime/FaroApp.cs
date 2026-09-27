@@ -50,11 +50,13 @@ public static class FaroApp
     static readonly Dictionary<Type, object> singletons = [];
     static Dictionary<Type, object> screenScoped = [];
 
-    public static void Run(string[] args, Assembly assembly, string startScreen)
+    /// <summary>Starts the app on faro.json's "startScreen" (<paramref name="startScreen"/> overrides it).</summary>
+    public static void Run(string[] args, Assembly assembly, string? startScreen = null)
     {
         userAssembly = assembly;
         project = FaroProject.Load(AppContext.BaseDirectory);
-        AppBuilder.Configure(() => new RuntimeApp(startScreen)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+        var start = startScreen ?? project.StartScreen ?? "MainScreen";
+        AppBuilder.Configure(() => new RuntimeApp(start)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
         Release(screenScoped.Values.Concat(singletons.Values));
     }
 

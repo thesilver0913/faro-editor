@@ -64,7 +64,7 @@ public static partial class ProjectSetup
         var (package, version) = BundledRuntime(appDir);
         Vendor(dir, package);
 
-        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = "CSharp", ["runtime"] = version.ToString() }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = "CSharp", ["runtime"] = version.ToString(), ["startScreen"] = startScreen }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         WriteNew(Path.Combine(dir, "nuget.config"), """
             <?xml version="1.0" encoding="utf-8"?>
             <configuration>
@@ -86,14 +86,14 @@ public static partial class ProjectSetup
                   </PropertyGroup>
                   <ItemGroup>
                     <PackageReference Include="Faro.Runtime" Version="{version}" />
-                    <Content Include="UI/**;Bindings/**;Assets/**" CopyToOutputDirectory="PreserveNewest" />
+                    <Content Include="faro.json;UI/**;Bindings/**;Assets/**" CopyToOutputDirectory="PreserveNewest" />
                     <!-- dotnet watch restarts the app when the UI graph or bindings change (spec §9). -->
                     <Watch Include="UI/**;Bindings/**" />
                   </ItemGroup>
                 </Project>
 
                 """);
-        WriteNew(Path.Combine(dir, "Program.cs"), $"Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly, \"{startScreen}\");\n");
+        WriteNew(Path.Combine(dir, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly); // start screen: faro.json\n");
         WriteNew(Path.Combine(dir, ".gitignore"), "bin/\nobj/\n");
     }
 

@@ -37,7 +37,7 @@ public sealed class ProblemsView : UserControl
         }
         foreach (var group in Workspace.Issues.GroupBy(i => i.Screen).OrderBy(g => g.Key))
         {
-            list.Children.Add(new TextBlock { Text = $"{group.Key} ({group.Count()})", FontWeight = FontWeight.SemiBold, Margin = new(0, 6, 0, 2) });
+            list.Children.Add(new TextBlock { Text = $"{(group.Key.Length > 0 ? group.Key : "Project")} ({group.Count()})", FontWeight = FontWeight.SemiBold, Margin = new(0, 6, 0, 2) });
             foreach (var issue in group)
             {
                 var text = (issue.NodeId.Length > 0 ? issue.NodeId + ": " : "") + issue.Message
