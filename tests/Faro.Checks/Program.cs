@@ -186,12 +186,14 @@ Directory.CreateDirectory(Path.Combine(fakeApp, "runtime"));
 var realPackage = ProjectSetup.BundledRuntime().Package;
 File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.9.nupkg"));
 var old = ProjectSetup.Create(projects, "OldApp", "Empty", fakeApp);
-Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 9) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "project runtime read from its csproj");
+Check(ProjectSetup.ProjectRuntime(old) == "0.1.9" && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "project runtime read from its csproj");
 File.Copy(realPackage, Path.Combine(fakeApp, "runtime", "Faro.Runtime.0.1.10.nupkg"));
-Check(ProjectSetup.BundledRuntime(fakeApp).Version == new Version(0, 1, 10) && ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "0.1.10 is newer than 0.1.9");
+Check(ProjectSetup.BundledRuntime(fakeApp).Version == "0.1.10" && ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "0.1.10 is newer than 0.1.9");
 ProjectSetup.UpdateRuntime(old, fakeApp);
-Check(ProjectSetup.ProjectRuntime(old) == new Version(0, 1, 10) && File.ReadAllText(Path.Combine(old, "faro.json")).Contains("\"0.1.10\"")
+Check(ProjectSetup.ProjectRuntime(old) == "0.1.10" && File.ReadAllText(Path.Combine(old, "faro.json")).Contains("\"0.1.10\"")
     && Directory.EnumerateFiles(Path.Combine(old, ".faro/packages")).Select(Path.GetFileName).SequenceEqual(["Faro.Runtime.0.1.10.nupkg"]) && !ProjectSetup.RuntimeUpdateAvailable(old, fakeApp), "runtime update vendors the package and bumps csproj and faro.json");
+string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8", "0.1.9-dev1", "0.1.10"];
+Check(ordered.OrderBy(v => ProjectSetup.RuntimeKey(v)).SequenceEqual(ordered) && ProjectSetup.RuntimeKey("0.1.8-beta") is null, "dev builds sort before their release");
 Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");
 Directory.Delete(projects, true);
 
