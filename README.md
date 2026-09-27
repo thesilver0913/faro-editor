@@ -34,6 +34,8 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
 - **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較。PR ごとに 0.0.1 ずつ上がり、0.1.9 の次は 0.2.0。作業中の Runtime は `0.1.8-dev1`, `-dev2` … とし、リリース版より前に並ぶ)
 - **Run / Stop**:キャンバスの Run(F5)で `dotnet watch run` を起動し、出力を Console の Output タブに表示。もう一度押す(または Shift+F5)と止まる。エディターを閉じるとアプリも止まる
+- **レイアウトの保存**(仕様§14):パネルの大きさとウィンドウサイズをアプリ全体の設定(`settings.json`)に保存し、次回起動時に戻す。Window → Reset Layout で既定に戻る。パネルの移動・タブ化・切り離しは保存しない
+- **外部での変更**:コードエディタで開いているファイルが Faro の外で変わると、未保存の編集がなければ読み込み直す。編集中なら状態行で知らせ、保存するときに上書きしてよいか確認する
 - `samples/HelloFaro` はこのリポジトリ内での開発用で、Runtime をプロジェクト参照している
 
 ## コードエディタ
@@ -60,7 +62,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - **Problems タブ**(仕様§11、Console 内。件数をタブ名に表示):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択。Run 中のビルドエラー(C# のコンパイルエラー)も「Build」として並び、クリックでコードエディタの該当行へ。次のビルドが始まると消える
 - **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
-- インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable
+- インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with vibe coding」
 - Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
 
@@ -111,4 +113,5 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 ## リスク検証結果(仕様11.5)
 
 - **ホットリロードとReflectionキャッシュの整合性 → 問題なし。** `dotnet watch` でメソッド本体を書き換えると、書き換え前に取得した `MethodInfo` がそのまま新しい本体を実行し、ハンドルも同一(`spikes/HotReloadMethodInfo/run.sh` で再現可能)。バインダーは `MethodInfo` をキャッシュしてよい
+- **未ビルドとの差分の可視化 → 簡易インジケータを実装。** `Source/` の保存が最後のビルド(`bin/` のアセンブリ、または Run 中のビルド成功・ホットリロード成功)より新しいと、キャンバスの状態行に「Unbuilt code changes」を表示
 - **LSPサーバーのプロセス管理 → 実用範囲。** csharp-ls の起動(initialize)は約1秒、プロジェクト読み込み後の最初の診断まで約7〜13秒(サンプルプロジェクト、クラウド環境で計測)。その間も編集はでき、補完・診断は準備でき次第反映される
