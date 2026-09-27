@@ -74,12 +74,16 @@ public static class FaroApp
         window.Title = screenId;
 
         var errors = new List<string>();
-        foreach (var bind in project.BindsFor(screenId))
+        void Bind(XElement bind, string prefix)
         {
-            if (!byId.TryGetValue((string?)bind.Attribute("nodeId") ?? "", out var control)) continue;
+            if (!byId.TryGetValue(prefix + ((string?)bind.Attribute("nodeId") ?? ""), out var control)) return;
             try { Apply(bind, control); }
             catch (Exception e) { errors.Add($"{bind}\n  → {e.Message}"); }
         }
+        foreach (var bind in project.BindsFor(screenId)) Bind(bind, "");
+        // Component-level bindings (Bindings/<ComponentId>.xml) apply inside every instance of that component.
+        foreach (var (prefix, component) in UiBuilder.InstancePaths(graph.Root!.Element("Node")!))
+            foreach (var bind in project.BindsFor(component)) Bind(bind, prefix);
         if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
     }
 

@@ -54,7 +54,9 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## キャンバス編集とインスペクター
 
-- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜チャット(並べて常時表示)、右端にインスペクター
+- 既定レイアウト:左端にエクスプローラー(下に Problems)、中央上にキャンバス、中央下にコード｜チャット(並べて常時表示)、右端にインスペクター
+- **コンポーネントのマスター編集**:キャンバスの画面リスト(またはエクスプローラー)からコンポーネントを開くと、画面と同じようにマスターを編集できる。インスタンスへの反映は「Sync components」(明示同期)。マスターの紐付けは `Bindings/<コンポーネントID>.xml` に保存され、**全インスタンス共通**で実行時に各インスタンス内の Node に適用される(仕様§5 の 2 階建て。インスタンス固有の紐付けは画面の Bindings でインスタンス ID に付ける)
+- **Problems パネル**(仕様§11):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択
 - **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable
@@ -75,7 +77,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Explorer／Canvas／Inspector／Code／Vibe Coding の各パネルを前面に／全画面(F11)
+- **Window**:Explorer／Problems／Canvas／Inspector／Code／Vibe Coding の各パネルを前面に／全画面(F11)
 - **Help**:Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)
@@ -84,7 +86,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## スキーマ補足(仕様書からの追加決定)
 
-- **紐付けは画面ごと**:`Bindings/<画面ID>.xml` の `<Bind>` はその画面にだけ適用される。Node の ID は画面内で一意(画面をまたいだ重複は可)。どの画面にも対応しない Bindings ファイルは警告。画面の名前変更・削除で対応する Bindings ファイルも移動・削除される
+- **紐付けは画面ごと**:`Bindings/<画面ID>.xml` の `<Bind>` はその画面にだけ適用される(`Bindings/<コンポーネントID>.xml` はそのコンポーネントの全インスタンスに適用)。Node の ID は画面内で一意(画面をまたいだ重複は可)。どの画面にも対応しない Bindings ファイルは警告。画面の名前変更・削除で対応する Bindings ファイルも移動・削除される
 
 - サイジングは軸ごと: `widthSizing` / `heightSizing`(`Fill`/`Hug`/`Fixed`)。`sizing` は両軸共通の省略形、未指定は `Hug`。`Fixed` は `width` / `height` 属性で値を指定
 - `UI/` の各XMLはルートが `<UIGraph>` か `<ComponentDef>` のどちらか1つ

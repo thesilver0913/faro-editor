@@ -74,6 +74,26 @@ File.AppendAllText(screenFile, "<!-- edited elsewhere -->");
 Check(UiHistory.Undo() is { } refused && refused.Contains("changed outside Faro") && File.ReadAllText(screenFile).Contains("edited elsewhere") && UiHistory.UndoLabel is null, "UI undo never overwrites an external edit");
 File.WriteAllText(screenFile, afterSync);
 
+// Component masters (spec §5): edited like screens; their own bindings apply inside every instance.
+project = FaroProject.Load(root);
+var paths = UiBuilder.InstancePaths(project.Screens["MainScreen"].Root!.Element("Node")!).ToList();
+Check(paths.Contains(("btn1/", "Comp.PrimaryButton")) && paths.Contains(("orderList/", "Comp.OrderRow")) && paths.Count == 3, "instance paths for component-level bindings");
+var nested = System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack"><Node id="card" type="Instance" component="Comp.Card"><Node id="root" type="Container.Stack"><Node id="ok" type="Instance" component="Comp.PrimaryButton"><Node id="root" type="Control.Button" /></Node></Node></Node></Node>""");
+Check(UiBuilder.InstancePaths(nested).Contains(("card/ok/", "Comp.PrimaryButton")), "nested instance paths");
+File.WriteAllText(Path.Combine(root, "Bindings/Comp.OrderRow.xml"), """<Bindings><Bind nodeId="price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" /><Bind nodeId="nope" event="OnClick" target="MyApp.Services.OrderService.Submit" /></Bindings>""");
+project = FaroProject.Load(root);
+var componentIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "Comp.OrderRow").ToList();
+Check(componentIssues.Count == 1 && componentIssues[0].NodeId == "nope", "component bindings checked against the master's nodes");
+var rowMaster = project.Components["Comp.OrderRow"];
+CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
+Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");
+UiHistory.CommitFiles("Rename component", ProjectFiles.RenameComponent(FaroProject.Load(root), "Comp.OrderRow", "Comp.Row"));
+Check(File.Exists(Path.Combine(root, "Bindings/Comp.Row.xml")) && !File.Exists(Path.Combine(root, "Bindings/Comp.OrderRow.xml")), "component rename moves its bindings file");
+UiHistory.CommitFiles("Delete component", ProjectFiles.Delete(FaroProject.Load(root), FaroProject.Load(root).Components["Comp.Row"]));
+Check(!File.Exists(Path.Combine(root, "Bindings/Comp.Row.xml")), "component delete removes its bindings file");
+Check(UiHistory.Undo() is null && UiHistory.Undo() is null && File.Exists(Path.Combine(root, "Bindings/Comp.OrderRow.xml")), "component rename/delete undo");
+File.Delete(Path.Combine(root, "Bindings/Comp.OrderRow.xml"));
+
 // Canvas editing (spec §5): add / props / overrides / rename with binding follow / move / delete with binds.
 project = FaroProject.Load(root);
 var main = project.Screens["MainScreen"];

@@ -36,6 +36,7 @@
     </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Explorer" Click="ShowExplorer" />
+      <MenuItem Header="_Problems" Click="ShowProblems" />
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
       <MenuItem Header="_Inspector" Click="ShowInspector" />
       <MenuItem Header="C_ode" Click="ShowCode" />
@@ -48,18 +49,26 @@
     </MenuItem>
   </Menu>
   </DockPanel>
-  <!-- Default layout (spec §14 + explorer/inspector): explorer left, canvas top-center, code | chat bottom-center, inspector right. -->
+  <!-- Default layout (spec §14 + explorer/inspector): explorer and problems left, canvas top-center, code | chat bottom-center, inspector right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
     </DockControl.Factory>
     <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
       <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
-        <ToolDock Id="ExplorerPane" Proportion="0.15" Alignment="Left">
-          <Tool Id="Explorer" Title="Explorer" CanClose="False">
-            <local:ExplorerView />
-          </Tool>
-        </ToolDock>
+        <ProportionalDock Id="LeftPane" Proportion="0.15" Orientation="Vertical">
+          <ToolDock Id="ExplorerPane" Alignment="Left">
+            <Tool Id="Explorer" Title="Explorer" CanClose="False">
+              <local:ExplorerView />
+            </Tool>
+          </ToolDock>
+          <ProportionalDockSplitter />
+          <ToolDock Id="ProblemsPane" Proportion="0.35" Alignment="Left">
+            <Tool Id="Problems" Title="Problems" CanClose="False">
+              <local:ProblemsView />
+            </Tool>
+          </ToolDock>
+        </ProportionalDock>
         <ProportionalDockSplitter />
         <ProportionalDock Id="CenterPane" Proportion="0.63" Orientation="Vertical">
           <ToolDock Id="CanvasPane" Proportion="0.6">

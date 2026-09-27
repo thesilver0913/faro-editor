@@ -39,12 +39,19 @@ public sealed class CanvasView : UserControl
     /// <summary>Runs a canvas edit on the shown screen and commits the changed documents as one UI history step.</summary>
     public static void Edit(string label, Func<FaroProject, XDocument, IEnumerable<XDocument>> change)
     {
-        if (Workspace.Project is not { } project || CurrentScreen is null || !project.Screens.TryGetValue(CurrentScreen, out var screen)) return;
+        if (Workspace.Project is not { } project || CurrentScreen is null || project.Graph(CurrentScreen) is not { } screen) return;
         UiHistory.Commit(label, change(project, screen).ToList());
         Workspace.Reload(); // show it now rather than when the file watcher fires
     }
 
-    public static void AddNode(string type, string? component = null) => Edit($"Add {(component ?? type).Split('.')[^1]}", (project, screen) =>
+    public static void AddNode(string type, string? component = null)
+    {
+        // ponytail: blocks direct self-instancing only; deeper cycles (A in B in A) are left to the snapshots
+        if (component is not null && component == CurrentScreen) return;
+        AddNodeTo(type, component);
+    }
+
+    static void AddNodeTo(string type, string? component) => Edit($"Add {(component ?? type).Split('.')[^1]}", (project, screen) =>
     {
         var node = CanvasEdit.Add(project, screen, Selection.Count == 1 ? Selection.First() : null, type, component);
         Selection.Clear();
@@ -98,7 +105,7 @@ public sealed class CanvasView : UserControl
                 menu.Items.Add(item);
             }
             menu.Items.Add(new Separator());
-            foreach (var component in Workspace.Project?.Components.Keys.Order() ?? Enumerable.Empty<string>())
+            foreach (var component in Workspace.Project?.Components.Keys.Where(c => c != CurrentScreen).Order() ?? Enumerable.Empty<string>())
             {
                 var item = new MenuItem { Header = component };
                 item.Click += (_, _) => AddNode("Instance", component);
@@ -180,8 +187,9 @@ public sealed class CanvasView : UserControl
     void Refresh()
     {
         var selected = screens.SelectedItem as string;
-        screens.ItemsSource = Workspace.Project?.Screens.Keys.Order().ToList() ?? [];
-        screens.SelectedItem = selected ?? Workspace.Project?.Screens.Keys.Order().FirstOrDefault();
+        // Screens first, then component masters (edited here too; instances pick changes up via Sync components).
+        screens.ItemsSource = Workspace.Project is { } p0 ? [.. p0.Screens.Keys.Order(), .. p0.Components.Keys.Order()] : new List<string>();
+        screens.SelectedItem = selected is not null && Workspace.Project?.Graph(selected) is not null ? selected : Workspace.Project?.Screens.Keys.Order().FirstOrDefault();
         var outOfDate = Workspace.Project is { } p ? ComponentSync.OutOfDate(p).Count : 0;
         sync.Content = $"Sync components ({outOfDate})";
         sync.IsEnabled = outOfDate > 0;
@@ -190,7 +198,7 @@ public sealed class CanvasView : UserControl
 
     void Render()
     {
-        if (Workspace.Project?.Screens.GetValueOrDefault(screens.SelectedItem as string ?? "") is not { } graph)
+        if (Workspace.Project?.Graph(screens.SelectedItem as string ?? "") is not { } graph)
         {
             artboard.Child = new TextBlock { Text = $"No UI/*.xml screens in {Workspace.Root}", Margin = new(16), Foreground = Brushes.Gray };
             return;
@@ -233,7 +241,7 @@ public sealed class CanvasView : UserControl
         idOf.Where(c => !excluded.Contains(c.Value)).Select(c => (Id: c.Value, Rect: RectOf(c.Key)))
             .Where(h => h.Rect.Contains(p)).OrderBy(h => h.Rect.Width * h.Rect.Height).Select(h => h.Id).FirstOrDefault();
 
-    XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Screens.GetValueOrDefault(CurrentScreen);
+    XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
 
     Rect RectOf(Control c) => c.TranslatePoint(default, overlay) is { } p ? new Rect(p, c.Bounds.Size) : default;
 
@@ -282,12 +290,14 @@ public sealed class CanvasView : UserControl
                 Canvas.SetTop(box, p.Y);
                 overlay.Children.Add(box);
             }
-        var selected = Selection.Count == 1 && Workspace.Project?.Screens.GetValueOrDefault(screens.SelectedItem as string ?? "") is { } graph
+        var selected = Selection.Count == 1 && CurrentGraph() is { } graph
             ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())
             : null;
+        var editingComponent = CurrentScreen is not null && Workspace.Project?.Components.ContainsKey(CurrentScreen) == true
+            ? $"Component master · {ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)} instance(s) to sync · " : "";
         status.Text = Workspace.LoadError
             ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
-            + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members";
+            + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members";
     }
 
     /// <summary>
@@ -298,7 +308,7 @@ public sealed class CanvasView : UserControl
     {
         var bind = Workspace.Project?.BindsFor(CurrentScreen ?? "").FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
         if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:")) return null;
-        var type = Workspace.Project!.Screens.Values.SelectMany(d => d.Descendants("Node")).FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
+        var type = Workspace.Project!.Graph(CurrentScreen ?? "")?.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
         var node = $"node `{issue.NodeId}` ({type})";
         if ((string?)bind.Attribute("event") is { } eventName)
             return $"Create `{issue.Target}`: a public parameterless method that runs on {eventName} of {node}.";

@@ -52,7 +52,7 @@ public sealed class InspectorView : UserControl
     {
         body.Children.Clear();
         var project = Workspace.Project;
-        var screen = CanvasView.CurrentScreen is { } s ? project?.Screens.GetValueOrDefault(s) : null;
+        var screen = CanvasView.CurrentScreen is { } s ? project?.Graph(s) : null;
         if (project is null || screen is null || CanvasView.Selection.Count != 1 || CanvasEdit.Find(screen, CanvasView.Selection.First()) is not { } node)
         {
             body.Children.Add(Hint(CanvasView.Selection.Count > 1 ? $"{CanvasView.Selection.Count} nodes selected." : "Select a node on the canvas."));

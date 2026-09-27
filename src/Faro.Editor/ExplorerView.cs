@@ -85,7 +85,7 @@ public sealed class ExplorerView : UserControl
     void Open(string path)
     {
         if (Path.GetExtension(path) == ".cs") CodeView.Open(path);
-        else if (UiDoc(path) is { Root.Name.LocalName: "UIGraph" } screen) CanvasView.ShowScreen((string)screen.Root!.Attribute("id")!);
+        else if (UiDoc(path) is { } graph) CanvasView.ShowScreen((string)graph.Root!.Attribute("id")!); // screens and component masters
     }
 
     MenuFlyout? Menu(string path, bool isDir)
