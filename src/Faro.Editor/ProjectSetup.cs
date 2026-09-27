@@ -32,10 +32,7 @@ public static partial class ProjectSetup
     /// <summary>Creates &lt;location&gt;/&lt;name&gt; from a template and returns its path.</summary>
     public static string Create(string location, string name, string template, string? appDir = null)
     {
-        if (!NamePattern().IsMatch(name)) throw new ArgumentException($"'{name}' can't be a project name: use letters, digits and '_', starting with a letter.");
-        if (!Path.IsPathRooted(location)) throw new ArgumentException("Choose a full folder path for the location.");
-        var dir = Path.Combine(location, name);
-        if (Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any()) throw new ArgumentException($"{dir} already exists and isn't empty.");
+        var dir = Target(location, name);
         Directory.CreateDirectory(dir);
         var startScreen = "MainScreen";
         if (template == "Sample")
@@ -50,6 +47,80 @@ public static partial class ProjectSetup
                 WriteNew(path, text!);
         Initialize(dir, name, startScreen, appDir);
         return dir;
+    }
+
+    /// <summary>&lt;location&gt;/&lt;name&gt; for a new or saved-as project, validated.</summary>
+    static string Target(string location, string name)
+    {
+        if (!NamePattern().IsMatch(name)) throw new ArgumentException($"'{name}' can't be a project name: use letters, digits and '_', starting with a letter.");
+        if (!Path.IsPathRooted(location)) throw new ArgumentException("Choose a full folder path for the location.");
+        var dir = Path.GetFullPath(Path.Combine(location, name));
+        if (Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any()) throw new ArgumentException($"{dir} already exists and isn't empty.");
+        return dir;
+    }
+
+    // Untitled projects: a new project starts in UntitledRoot and gets its name and place on the first Save / Save As.
+
+    public static string UntitledRoot { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "Untitled");
+
+    public static bool IsUntitled(string dir) =>
+        Path.GetFullPath(dir).StartsWith(Path.GetFullPath(UntitledRoot) + Path.DirectorySeparatorChar);
+
+    public static string CreateUntitled(string template, string? appDir = null)
+    {
+        Directory.CreateDirectory(UntitledRoot);
+        var n = 1;
+        while (Directory.Exists(Path.Combine(UntitledRoot, $"Untitled{n}"))) n++;
+        return Create(UntitledRoot, $"Untitled{n}", template, appDir);
+    }
+
+    /// <summary>
+    /// Save As: copies the project (without bin/ and obj/) to &lt;location&gt;/&lt;name&gt;, renaming it in faro.json and
+    /// its generated .csproj. An untitled original is discarded. Returns the new folder, which the editor then opens.
+    /// </summary>
+    public static string SaveAs(string dir, string location, string name)
+    {
+        dir = Path.GetFullPath(dir);
+        var target = Target(location, name);
+        if (target.StartsWith(dir + Path.DirectorySeparatorChar)) throw new ArgumentException("Choose a location outside the project folder.");
+        bool Copied(string path) => Path.GetRelativePath(dir, path).Split(Path.DirectorySeparatorChar)[0] is not ("bin" or "obj");
+        Directory.CreateDirectory(target);
+        foreach (var folder in Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories).Where(Copied)) // empty ones too
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(dir, folder)));
+        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Where(Copied))
+            File.Copy(file, Path.Combine(target, Path.GetRelativePath(dir, file)));
+        var meta = Path.Combine(target, ProjectFile);
+        if (File.Exists(meta) && JsonNode.Parse(File.ReadAllText(meta)) is JsonObject json)
+        {
+            var oldCsproj = Path.Combine(target, (string?)json["name"] + ".csproj");
+            if (File.Exists(oldCsproj)) File.Move(oldCsproj, Path.Combine(target, name + ".csproj")); // a folder's own .csproj keeps its name
+            json["name"] = name;
+            File.WriteAllText(meta, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        }
+        if (IsUntitled(dir)) Discard(dir);
+        return target;
+    }
+
+    /// <summary>Queues an untitled project for deletion; it happens on a later start, when no process holds its files.</summary>
+    public static void Discard(string dir)
+    {
+        if (!IsUntitled(dir)) return; // never user folders
+        FaroSettings.Current.PendingDeletes = [.. FaroSettings.Current.PendingDeletes.Append(Path.GetFullPath(dir)).Distinct()];
+        FaroSettings.Current.Save();
+    }
+
+    /// <summary>Deletes discarded untitled projects (except <paramref name="open"/>); ones still in use are retried next time.</summary>
+    public static void DeletePending(string? open = null)
+    {
+        var settings = FaroSettings.Current;
+        settings.PendingDeletes = [.. settings.PendingDeletes.Where(dir =>
+        {
+            if (!IsUntitled(dir) || !Directory.Exists(dir)) return false;
+            if (open is not null && Path.GetFullPath(open) == dir) return true;
+            try { Directory.Delete(dir, recursive: true); return false; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return true; }
+        })];
+        settings.Save();
     }
 
     /// <summary>
@@ -166,6 +237,7 @@ public static partial class ProjectSetup
     /// <summary>Most recent first, without duplicates, at most 10 (kept in the app settings).</summary>
     public static void Remember(string dir)
     {
+        if (IsUntitled(dir)) return;
         var settings = FaroSettings.Current;
         settings.RecentProjects = [.. new[] { Path.GetFullPath(dir) }.Concat(settings.RecentProjects).Distinct().Take(10)];
         settings.Save();

@@ -39,16 +39,16 @@ public partial class MainWindow : Window
         Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
         RestoreLayout();
         Closed += (_, _) => SaveLayout();
-        // Unsaved code edits would be lost on close: ask first.
+        // An untitled project or unsaved code would be lost on close: ask first.
         Closing += async (_, e) =>
         {
-            if (closeConfirmed || !CodeView.AnyDirty) return;
+            if (closeConfirmed) return;
             e.Cancel = true;
-            if (await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Close Faro and discard them?", "Discard and Close"))
-            {
-                closeConfirmed = true;
-                Close();
-            }
+            if (!await LeaveUntitled()) return;
+            if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Close Faro and discard them?", "Discard and Close"))
+                return;
+            closeConfirmed = true;
+            Close();
         };
     }
 
@@ -129,7 +129,9 @@ public partial class MainWindow : Window
         if (!codeHistory && e.KeyModifiers == KeyModifiers.None && e.Key == Key.Delete) { CanvasView.DeleteSelection(); e.Handled = true; return; }
         if (!codeHistory && e.KeyModifiers == KeyModifiers.Alt && e.Key is Key.Up or Key.Down) { CanvasView.MoveSelection(e.Key == Key.Up ? -1 : 1); e.Handled = true; return; }
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
-        if (e.Key == Key.Z && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) Undo(this, e);
+        if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Shift)) SaveAs(this, e);
+        else if (e.Key == Key.S) Save(this, e);
+        else if (e.Key == Key.Z && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) Undo(this, e);
         else if (e.Key == Key.Y || e.Key == Key.Z) Redo(this, e);
         else return;
         e.Handled = true;
@@ -146,6 +148,7 @@ public partial class MainWindow : Window
     /// <summary>The editor's state (buffers, language server, history) is per project, so switching restarts Faro.</summary>
     async void Relaunch(string? folder)
     {
+        if (!await LeaveUntitled()) return;
         if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Discard them?", "Discard"))
             return;
         var start = new ProcessStartInfo(Environment.ProcessPath!);
@@ -156,7 +159,61 @@ public partial class MainWindow : Window
         Close();
     }
 
-    void SaveAll(object? sender, RoutedEventArgs e) => _ = CodeView.SaveAll(this);
+    /// <summary>Save: the code files (canvas edits are written as they happen); an untitled project first gets a name and a place.</summary>
+    async void Save(object? sender, RoutedEventArgs e)
+    {
+        if (ProjectSetup.IsUntitled(Workspace.Root)) SaveAs(sender, e);
+        else await CodeView.SaveAll(this);
+    }
+
+    /// <summary>Save As: the project goes to a new name and place (copied), and Faro reopens it there.</summary>
+    async void SaveAs(object? sender, RoutedEventArgs e)
+    {
+        if (await SaveProjectAs() is { } saved) { savedAs = true; Relaunch(saved); }
+    }
+
+    bool savedAs;
+
+    async Task<string?> SaveProjectAs()
+    {
+        var untitled = ProjectSetup.IsUntitled(Workspace.Root);
+        var name = new TextBox { Text = untitled ? "MyFaroApp" : Path.GetFileName(Workspace.Root) + "Copy" };
+        var location = new TextBox { Text = untitled ? ProjectSetup.DefaultLocation : Path.GetDirectoryName(Workspace.Root), MinWidth = 380 };
+        var browse = new Button { Content = "Browse…" };
+        browse.Click += async (_, _) =>
+        {
+            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Project Location" });
+            if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) location.Text = path;
+        };
+        DockPanel.SetDock(browse, Avalonia.Controls.Dock.Right);
+        var form = new StackPanel
+        {
+            Spacing = 8,
+            Children = { new TextBlock { Text = "Name" }, name, new TextBlock { Text = "Location" }, new DockPanel { Children = { browse, location } } },
+        };
+        while (await Dialogs.Form(this, "Save Project As", form, "Save"))
+        {
+            await CodeView.SaveAll(this);
+            try { return ProjectSetup.SaveAs(Workspace.Root, location.Text ?? "", (name.Text ?? "").Trim()); }
+            catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+            {
+                await Dialogs.Info(this, "Save Project As", new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap });
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Leaving an untitled project: save it somewhere, or discard it. False: stay.</summary>
+    async Task<bool> LeaveUntitled()
+    {
+        if (savedAs || !ProjectSetup.IsUntitled(Workspace.Root)) return true;
+        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", "Save As…", "Don't Save"))
+        {
+            case 0: return savedAs = await SaveProjectAs() is not null;
+            case 1: ProjectSetup.Discard(Workspace.Root); return true;
+            default: return false;
+        }
+    }
     void Run(object? sender, RoutedEventArgs e) { if (!Workspace.Running) ConsoleView.RunOrStop(); }
     void Stop(object? sender, RoutedEventArgs e) => Workspace.Stop();
     void Exit(object? sender, RoutedEventArgs e) => Close();

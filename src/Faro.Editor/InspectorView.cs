@@ -259,7 +259,7 @@ public sealed class InspectorView : UserControl
             AcceptsReturn = true,
             MinHeight = 60,
             Text = string.Join("\n", MockData.Rows(node).Select(r => string.Join(" | ", r))),
-            Watermark = string.Join(" | ", fields.Select(_ => "…")),
+            PlaceholderText = string.Join(" | ", fields.Select(_ => "…")),
         };
         var last = box.Text;
         box.LostFocus += (_, _) =>

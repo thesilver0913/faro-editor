@@ -210,6 +210,22 @@ File.WriteAllText(Path.Combine(existing, "Mine.csproj"), "<Project />");
 ProjectSetup.Initialize(existing);
 Check(ProjectSetup.IsFaroProject(existing) && File.ReadAllText(Path.Combine(existing, "Program.cs")) == "// mine" && Directory.EnumerateFiles(existing, "*.csproj").Count() == 1
     && new[] { "UI", "Source", "Bindings", "Assets" }.All(f => Directory.Exists(Path.Combine(existing, f))), "initializing a folder adds what's missing and keeps existing files");
+// Untitled projects and Save As: new projects start untitled; Save As copies to a name and place, the untitled one is discarded.
+ProjectSetup.UntitledRoot = Path.Combine(projects, "untitled-root");
+var untitled1 = ProjectSetup.CreateUntitled("Sample");
+File.WriteAllText(Path.Combine(untitled1, "bin-marker.txt"), "");
+Directory.CreateDirectory(Path.Combine(untitled1, "bin/Debug"));
+File.WriteAllText(Path.Combine(untitled1, "bin/Debug/App.dll"), "");
+Check(Path.GetFileName(untitled1) == "Untitled1" && Path.GetFileName(ProjectSetup.CreateUntitled("Empty")) == "Untitled2" && ProjectSetup.IsUntitled(untitled1) && !ProjectSetup.IsUntitled(empty), "new projects start untitled");
+var shop = ProjectSetup.SaveAs(untitled1, projects, "Shop");
+Check(File.Exists(Path.Combine(shop, "Shop.csproj")) && !File.Exists(Path.Combine(shop, "Untitled1.csproj")) && File.ReadAllText(Path.Combine(shop, "faro.json")).Contains("\"Shop\"")
+    && File.Exists(Path.Combine(shop, "bin-marker.txt")) && Directory.Exists(Path.Combine(shop, "Assets")) && !Directory.Exists(Path.Combine(shop, "bin")) && FaroProject.Load(shop).Screens.Count == 2, "Save As copies the project under the new name, without build output");
+Check(FaroSettings.Current.PendingDeletes.Contains(untitled1) && Directory.Exists(untitled1), "the untitled original is queued, not deleted while open");
+ProjectSetup.DeletePending();
+Check(!Directory.Exists(untitled1) && !FaroSettings.Current.PendingDeletes.Contains(untitled1), "queued untitled projects are deleted later");
+ProjectSetup.Discard(shop);
+Check(!FaroSettings.Current.PendingDeletes.Contains(shop) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, projects, "Shop")) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, shop, "Inside")), "only untitled folders are ever discarded; Save As validates the target");
+
 // Runtime update check: an older project gets the newer bundled package (versions compared numerically).
 var fakeApp = Path.Combine(projects, "app");
 Directory.CreateDirectory(Path.Combine(fakeApp, "runtime"));

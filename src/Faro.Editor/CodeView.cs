@@ -127,8 +127,7 @@ public sealed class CodeView : UserControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         var command = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
-        if (command && e.Key == Key.S) { Save(); e.Handled = true; }
-        else if (command && e.Key == Key.Space) { Complete(); e.Handled = true; }
+        if (command && e.Key == Key.Space) { Complete(); e.Handled = true; }
         base.OnKeyDown(e);
     }
 

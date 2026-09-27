@@ -15,6 +15,30 @@ public static class Dialogs
 
     public static Task Info(Window owner, string title, Control content) => Show(owner, title, null, content, null);
 
+    /// <summary>A form of controls with OK/Cancel: true on OK.</summary>
+    public static async Task<bool> Form(Window owner, string title, Control content, string ok) => await Show(owner, title, null, content, ok) is not null;
+
+    /// <summary>A message with several choices (plus Cancel): the index chosen, or -1 on Cancel/close.</summary>
+    public static async Task<int> Choose(Window owner, string title, string message, params string[] choices)
+    {
+        var result = -1;
+        var window = new Window { Title = title, SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 360, MaxWidth = 640, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        for (var i = 0; i < choices.Length; i++)
+        {
+            var index = i;
+            var button = new Button { Content = choices[i], IsDefault = i == 0 };
+            button.Click += (_, _) => { result = index; window.Close(); };
+            buttons.Children.Add(button);
+        }
+        var cancel = new Button { Content = "Cancel", IsCancel = true };
+        cancel.Click += (_, _) => window.Close();
+        buttons.Children.Add(cancel);
+        window.Content = new StackPanel { Spacing = 12, Margin = new(20), Children = { new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap }, buttons } };
+        await window.ShowDialog(owner);
+        return result;
+    }
+
     /// <summary>Returns the text box's text (or "" without one) on OK, null on Cancel/close.</summary>
     static async Task<string?> Show(Window owner, string title, string? message, Control? content, string? ok)
     {
