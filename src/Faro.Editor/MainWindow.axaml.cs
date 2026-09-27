@@ -114,7 +114,7 @@ public partial class MainWindow : Window
         Close();
     }
 
-    void SaveAll(object? sender, RoutedEventArgs e) => CodeView.SaveAll();
+    void SaveAll(object? sender, RoutedEventArgs e) => _ = CodeView.SaveAll(this);
     void Run(object? sender, RoutedEventArgs e) { if (!Workspace.Running) ConsoleView.RunOrStop(); }
     void Stop(object? sender, RoutedEventArgs e) => Workspace.Stop();
     void Exit(object? sender, RoutedEventArgs e) => Close();
