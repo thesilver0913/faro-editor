@@ -27,6 +27,17 @@ public sealed class SplashWindow : Window
             Children =
             {
                 new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-splash.png"))), Stretch = Stretch.UniformToFill },
+                // The version under the "Faro" wordmark of the artwork, in Inter (OFL, bundled).
+                new TextBlock
+                {
+                    Text = App.Version,
+                    FontFamily = new FontFamily("avares://Faro.Editor/Assets/Fonts#Inter"),
+                    FontSize = 22,
+                    Foreground = new SolidColorBrush(Color.Parse("#7A7C80")),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new(59, 182, 0, 0),
+                },
                 new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Spacing = 8, Margin = new(24, 0, 24, 20), Children = { step, bar } },
             },
         };

@@ -166,7 +166,7 @@ public partial class MainWindow : Window
         Children =
         {
             new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Left },
-            new TextBlock { Text = $"Faro {Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]}", FontSize = 20, FontWeight = FontWeight.SemiBold },
+            new TextBlock { Text = $"Faro {App.Version}", FontSize = 20, FontWeight = FontWeight.SemiBold },
             new TextBlock { Text = "Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse.", TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "MIT License. Third-party components: see THIRD-PARTY-NOTICES.md.", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
         },

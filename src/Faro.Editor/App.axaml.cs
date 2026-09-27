@@ -1,3 +1,4 @@
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -7,6 +8,9 @@ namespace Faro.Editor;
 
 public partial class App : Application
 {
+    /// <summary>"0.1.8" or "0.1.8-dev1" (without the commit hash the SDK appends).</summary>
+    public static string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+
     static string? root;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);

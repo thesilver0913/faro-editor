@@ -14,6 +14,12 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | Anthropic C# SDK | 12.50.0 | Copyright 2023 Anthropic, PBC. | https://github.com/anthropics/anthropic-sdk-csharp | バイブコーディング(Claude プロバイダ) |
 | Roslyn (Microsoft.CodeAnalysis.CSharp) | 5.9.0 | Copyright (c) .NET Foundation and Contributors | https://github.com/dotnet/roslyn | Source/ の解析(レジストリ抽出) |
 
+## フォント
+
+| 名前 | 著作権表示 | ライセンス | 用途 |
+|---|---|---|---|
+| Inter 4.1 (Regular) | Copyright (c) 2016 The Inter Project Authors | SIL Open Font License 1.1(全文は `assets/fonts/Inter-LICENSE.txt`) | スプラッシュの版表示 |
+
 ## 実行時にダウンロードするツール(配布物には含まれません)
 
 | 名前 | バージョン | 著作権表示 | リポジトリ | 用途 |
