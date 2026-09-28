@@ -490,6 +490,13 @@ Check(FaroApp.Resolve(asm, "MyApp.Models.UserProfile.Name") is PropertyInfo, "ru
 Check(Throws<InvalidOperationException>(() => FaroApp.Resolve(asm, "MyApp.Nope.Submit")), "runtime rejects unknown class");
 Check(FaroApp.NavigateScreenId("Navigate:Screen.Detail", ["Detail"]) == "Detail", "navigate id");
 
+// Android APK head: a valid application id, Source/ compiled, the project's references re-rooted to .faro/android.
+Check(AndroidApk.ApplicationId("Hello Faro!") == "io.faro.hellofaro" && AndroidApk.ApplicationId("123") == "io.faro.app", "android application id");
+var headProject = System.Xml.Linq.XDocument.Load(AndroidApk.Write(sample));
+Check(headProject.Descendants("ProjectReference").Any(r => Path.GetFullPath(Path.Combine(AndroidApk.Head(sample), (string)r.Attribute("Include")!)) == Path.GetFullPath(Path.Combine(sample, "../../src/Faro.Runtime/Faro.Runtime.csproj")))
+    && headProject.Descendants("Compile").Any(c => (string?)c.Attribute("Include") == "../../Source/**/*.cs"), "android head compiles Source/ with the project's references");
+Directory.Delete(AndroidApk.Head(sample), true);
+
 Directory.Delete(root, true);
 Console.WriteLine("All checks passed.");
 

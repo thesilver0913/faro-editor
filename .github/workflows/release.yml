@@ -1,4 +1,4 @@
-# Builds the Windows installer and the Linux archive. A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
+# Builds the Windows installer, the Linux archive and .deb, and the macOS disk images (arm64, x64; ad-hoc signed). A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
 # "v0.2.4-canary.1" (Canary) publishes them as a GitHub Release, which Faro's update check reads.
 # PRs that touch the installer or this workflow build them as a dry run (artifacts only, no release).
 # Run it by hand (Actions › Release › Run workflow) with a tag to release the chosen branch's head under that tag,
@@ -19,10 +19,13 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { os: windows-latest, rid: win-x64 }
           - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: macos-latest, rid: osx-arm64 }
+          - { os: macos-latest, rid: osx-x64 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +48,7 @@ jobs:
         run: |
           if [[ -n "$INPUT_TAG" ]]; then v="${INPUT_TAG#v}"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
-          else v="$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"; fi
+          else v="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)"; fi # BSD grep (macOS) has no -P
           echo "VERSION=$v" >> "$GITHUB_ENV"
       - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
       - name: Installer
@@ -58,7 +61,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Archive
         if: matrix.rid == 'linux-x64'
-        run: mkdir -p dist && tar -czf dist/Faro-$VERSION-linux-x64.tar.gz -C publish/linux-x64 .
+        run: |
+          mkdir -p dist && tar -czf dist/Faro-$VERSION-linux-x64.tar.gz -C publish/linux-x64 .
+          bash installer/deb.sh "$VERSION" publish/linux-x64 dist
+      - name: Disk image
+        if: startsWith(matrix.rid, 'osx-')
+        run: bash installer/dmg.sh "$VERSION" ${{ matrix.rid }} publish/${{ matrix.rid }} dist
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.rid }}

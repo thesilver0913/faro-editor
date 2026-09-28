@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
         RestoreLayout();
         TrustItem.IsVisible = !Workspace.Trusted;
+        ApkItem.IsEnabled = !Workspace.IsJava; // ponytail: C# projects only for now (JavaFX on Android needs Gluon + GraalVM)
         Closed += (_, _) => SaveLayout();
         // An untitled project or unsaved code would be lost on close: ask first.
         Closing += async (_, e) =>
@@ -271,6 +272,7 @@ public partial class MainWindow : Window
     }
     void Run(object? sender, RoutedEventArgs e) { if (!Workspace.Running) ConsoleView.RunOrStop(); }
     void Stop(object? sender, RoutedEventArgs e) => Workspace.Stop();
+    void BuildApk(object? sender, RoutedEventArgs e) { Workspace.BuildApk(); ConsoleView.Show(ConsoleView.Tab.Output); }
     void Exit(object? sender, RoutedEventArgs e) => Close();
 
     // Edit

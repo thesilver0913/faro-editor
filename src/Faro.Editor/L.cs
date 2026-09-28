@@ -22,7 +22,9 @@ public static class L
         // Menus (MainWindow.axaml) and panels
         ["_File"] = "ファイル(_F)", ["_Edit"] = "編集(_E)", ["_Select"] = "選択(_S)", ["_Window"] = "ウィンドウ(_W)", ["_Help"] = "ヘルプ(_H)",
         ["_Open Folder…"] = "フォルダを開く(_O)…", ["_Close Project"] = "プロジェクトを閉じる(_C)", ["_Trust Project…"] = "プロジェクトを信頼(_T)…",
-        ["_Save"] = "保存(_S)", ["Save _As…"] = "名前を付けて保存(_A)…", ["_Run"] = "実行(_R)", ["S_top"] = "停止(_T)", ["E_xit"] = "終了(_X)",
+        ["_Save"] = "保存(_S)", ["Save _As…"] = "名前を付けて保存(_A)…", ["_Run"] = "実行(_R)", ["S_top"] = "停止(_T)", ["Build Android _APK"] = "Android APK をビルド(_A)",
+        ["Installing the Android SDK and JDK if needed (the first build downloads them)…"] = "必要なら Android SDK と JDK を入れます(初回はダウンロードします)…",
+        ["The APK build failed (see above)."] = "APK のビルドに失敗しました(上の出力を参照)。", ["APK: {0}"] = "APK: {0}", ["E_xit"] = "終了(_X)",
         ["_Undo"] = "元に戻す(_U)", ["_Redo"] = "やり直し(_R)", ["Cu_t"] = "切り取り(_T)", ["_Copy"] = "コピー(_C)", ["_Paste"] = "貼り付け(_P)", ["D_uplicate"] = "複製(_U)",
         ["_Delete"] = "削除(_D)", ["_Sync Components"] = "コンポーネントを同期(_S)", ["_Preferences…"] = "環境設定(_P)…",
         ["_All Nodes"] = "すべての Node(_A)", ["_None"] = "選択解除(_N)", ["Node by _ID…"] = "ID で Node を選択(_I)…", ["Nodes with _Broken Bindings"] = "紐付けが壊れた Node(_B)",

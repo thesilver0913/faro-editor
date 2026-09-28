@@ -55,21 +55,51 @@ public static class FaroApp
 {
     static FaroProject project = null!;
     static Assembly userAssembly = null!;
-    static Window window = null!;
+    static Window? window; // desktop; Android shows one view
+    static ContentControl host = null!; // holds the current screen
+    static TextBox? errors; // Android: errors show over the screen
+    static string start = "";
     static readonly Dictionary<Type, object> singletons = [];
     static Dictionary<Type, object> screenScoped = [];
 
     /// <summary>Starts the app on faro.json's "startScreen" (<paramref name="startScreen"/> overrides it).</summary>
     public static void Run(string[] args, Assembly assembly, string? startScreen = null)
     {
+        Init(assembly, AppContext.BaseDirectory, startScreen);
+        AppBuilder.Configure<FaroApplication>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+        Release(screenScoped.Values.Concat(singletons.Values));
+    }
+
+    /// <summary>Loads the project for <see cref="FaroApplication"/>; the Android head calls it with the unpacked project folder.</summary>
+    public static void Init(Assembly assembly, string projectRoot, string? startScreen = null)
+    {
         userAssembly = assembly;
-        project = FaroProject.Load(AppContext.BaseDirectory);
+        project = FaroProject.Load(projectRoot);
         UiBuilder.ScriptFactory = name => userAssembly.GetType(name) is { } type && typeof(FaroScript).IsAssignableFrom(type)
             ? ((FaroScript)InstanceOf(type)).Build()
             : throw new InvalidOperationException($"'{name}' is not a FaroScript class in {userAssembly.GetName().Name}.");
-        var start = startScreen ?? project.StartScreen ?? "MainScreen";
-        AppBuilder.Configure(() => new RuntimeApp(start)).UsePlatformDetect().StartWithClassicDesktopLifetime(args);
-        Release(screenScoped.Values.Concat(singletons.Values));
+        start = startScreen ?? project.StartScreen ?? "MainScreen";
+    }
+
+    internal static FaroProject Project => project;
+
+    internal static void Attach(IApplicationLifetime? lifetime)
+    {
+        host = new ContentControl();
+        if (lifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow = window = new Window { Width = 480, Height = 720, Content = host };
+            window.Opened += (_, _) => Navigate(start); // after Opened: the error window needs a visible owner
+        }
+        else if (lifetime is IActivityApplicationLifetime activity) // Android: a new view per activity, the same screen
+            activity.MainViewFactory = () =>
+            {
+                (host.Parent as Panel)?.Children.Clear();
+                errors = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, IsVisible = false, MaxHeight = 240, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom };
+                var view = new Grid { Children = { host, errors } };
+                if (host.Content is null) Navigate(start);
+                return view;
+            };
     }
 
     /// <summary>Opens a screen by UIGraph id. Also the API user code calls for parameterised navigation (spec §7).</summary>
@@ -84,8 +114,8 @@ public static class FaroApp
         screenScoped = [];
 
         var byId = new Dictionary<string, Control>();
-        window.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
-        window.Title = screenId;
+        host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
+        if (window is not null) window.Title = screenId;
 
         // Screen binds, then component-level binds (Bindings/<ComponentId>.xml) inside every instance of that component.
         var node = graph.Root!.Element("Node")!;
@@ -141,11 +171,11 @@ public static class FaroApp
         var prefix = key[..^((string?)list.Node.Attribute("id") ?? "").Length];
         System.Collections.Specialized.INotifyCollectionChanged? watched = null;
         System.Collections.Specialized.NotifyCollectionChangedEventHandler changed = null!;
-        var screen = window.Content;
+        var screen = host.Content;
         void Render()
         {
             if (watched is not null) watched.CollectionChanged -= changed;
-            if (window.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
+            if (host.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
             var items = prop.GetValue(owner) as System.Collections.IEnumerable;
             watched = items as System.Collections.Specialized.INotifyCollectionChanged;
             if (watched is not null) watched.CollectionChanged += changed;
@@ -239,30 +269,37 @@ public static class FaroApp
     static string PersistPath(Type type) => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", userAssembly.GetName().Name!, type.FullName + ".json");
 
-    /// <summary>Binding/runtime errors in a small window whose text can be selected and copied (spec §6).</summary>
-    static void ShowError(string text) => new Window
+    /// <summary>Binding/runtime errors in a small window whose text can be selected and copied (spec §6); on Android, over the screen.</summary>
+    static void ShowError(string text)
     {
-        Title = "Faro: binding error",
-        Width = 640,
-        Height = 320,
-        Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontFamily = FontFamily.Parse("monospace") },
-    }.Show(window);
+        if (window is null)
+        {
+            (errors!.Text, errors.IsVisible) = (text, true);
+            return;
+        }
+        new Window
+        {
+            Title = "Faro: binding error",
+            Width = 640,
+            Height = 320,
+            Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontFamily = FontFamily.Parse("monospace") },
+        }.Show(window);
+    }
+}
 
-    sealed class RuntimeApp(string startScreen) : Application
+/// <summary>The app: Fluent plus the project's design language, showing <see cref="FaroApp"/>'s screens in a window (desktop) or one view (Android).</summary>
+public sealed class FaroApplication : Application
+{
+    public override void Initialize()
     {
-        public override void Initialize()
-        {
-            Styles.Add(new FluentTheme());
-            project.Design.Apply(Styles, Resources);
-            RequestedThemeVariant = project.Design.Variant;
-        }
+        Styles.Add(new FluentTheme());
+        FaroApp.Project.Design.Apply(Styles, Resources);
+        RequestedThemeVariant = FaroApp.Project.Design.Variant;
+    }
 
-        public override void OnFrameworkInitializationCompleted()
-        {
-            ((IClassicDesktopStyleApplicationLifetime)ApplicationLifetime!).MainWindow = window = new Window { Width = 480, Height = 720 };
-            // After Opened: the error window needs a visible owner.
-            window.Opened += (_, _) => Navigate(startScreen);
-            base.OnFrameworkInitializationCompleted();
-        }
+    public override void OnFrameworkInitializationCompleted()
+    {
+        FaroApp.Attach(ApplicationLifetime);
+        base.OnFrameworkInitializationCompleted();
     }
 }

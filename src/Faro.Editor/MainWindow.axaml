@@ -19,6 +19,7 @@
       <Separator />
       <MenuItem Header="_Run" Click="Run" InputGesture="F5" HotKey="F5" />
       <MenuItem Header="S_top" Click="Stop" InputGesture="Shift+F5" HotKey="Shift+F5" />
+      <MenuItem x:Name="ApkItem" Header="Build Android _APK" Click="BuildApk" />
       <Separator />
       <MenuItem Header="E_xit" Click="Exit" />
     </MenuItem>

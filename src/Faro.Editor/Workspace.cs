@@ -90,10 +90,33 @@ public static class Workspace
         RunChanged?.Invoke();
     }
 
-    /// <summary>Stops the app together with dotnet watch.</summary>
+    /// <summary>Stops the app together with dotnet watch, or an APK build.</summary>
     public static void Stop()
     {
         if (Running) app!.Kill(entireProcessTree: true);
+        apk?.Cancel();
+    }
+
+    static CancellationTokenSource? apk;
+    public static bool BuildingApk => apk is not null;
+
+    /// <summary>File › Build Android APK (C# projects): output in the console, the APK in dist/.</summary>
+    public static async void BuildApk()
+    {
+        if (Running || apk is not null || !Trusted || IsJava) return;
+        Output.Clear();
+        apk = new();
+        RunChanged?.Invoke();
+        try
+        {
+            var path = await AndroidApk.BuildAsync(Root, line => Dispatcher.UIThread.Post(() => Add(line)), apk.Token);
+            Add(path is null ? L.T("The APK build failed (see above).") : L.F("APK: {0}", path));
+        }
+        finally
+        {
+            apk = null;
+            RunChanged?.Invoke();
+        }
     }
 
     static void Add(string line)
