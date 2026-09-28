@@ -460,7 +460,8 @@ public static partial class JavaProject
         var target = Path.Combine(AndroidApk.Head(root), "target");
         if (Directory.Exists(target)) Directory.Delete(target, true);
         output(L.T("Building with GluonFX (the first build downloads the Android SDK and takes several minutes)…"));
-        if (await AndroidApk.Exec("mvn", ["-B", "-f", pom, "gluonfx:build", "gluonfx:package"], output, cancel) != 0) return null;
+        // GluonFX points ANDROID_HOME at its own SDK; Gradle refuses to build when ANDROID_SDK_ROOT names another one.
+        if (await AndroidApk.Exec("mvn", ["-B", "-f", pom, "gluonfx:build", "gluonfx:package"], output, cancel, "ANDROID_SDK_ROOT") != 0) return null;
         return Directory.Exists(target) && Directory.EnumerateFiles(target, "*.apk", SearchOption.AllDirectories).MaxBy(File.GetLastWriteTimeUtc) is { } apk
             ? AndroidApk.CopyToDist(root, apk, Path.GetFileName(Path.TrimEndingDirectorySeparator(root)))
             : null;

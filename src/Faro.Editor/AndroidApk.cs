@@ -139,9 +139,11 @@ public static class AndroidApk
         return target;
     }
 
-    public static async Task<int> Exec(string file, string[] args, Action<string> output, CancellationToken cancel, string? directory = null)
+    /// <param name="unset">Environment variables the process shouldn't see.</param>
+    public static async Task<int> Exec(string file, string[] args, Action<string> output, CancellationToken cancel, params string[] unset)
     {
-        using var process = new Process { StartInfo = new(file, args) { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, WorkingDirectory = directory ?? "" } };
+        using var process = new Process { StartInfo = new(file, args) { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true } };
+        foreach (var name in unset) process.StartInfo.Environment.Remove(name);
         process.OutputDataReceived += (_, e) => { if (e.Data is { } line) output(line); };
         process.ErrorDataReceived += (_, e) => { if (e.Data is { } line) output(line); };
         try { process.Start(); }
