@@ -321,7 +321,7 @@ Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyA
 var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";
 var generated = VibeCoding.ParseFiles(reply);
 Check(generated.Count == 2 && generated[0].Path == "Source/Services/Cart.cs" && generated[0].Code.Contains("class Cart"), "generated files parsed");
-Check(VibeCoding.ResolvePath(root, "Source/Services/Cart.cs") == Path.Combine(root, "Source/Services/Cart.cs"), "path inside Source/ accepted");
+Check(VibeCoding.ResolvePath(root, "Source/Services/Cart.cs") == Path.GetFullPath(Path.Combine(root, "Source", "Services", "Cart.cs")), "path inside Source/ accepted"); // normalized: \\ on Windows
 Check(new[] { "../Evil.cs", "Source/../Evil.cs", "/etc/passwd.cs", "Source/notes.txt", "UI/MainScreen.cs" }.All(p => VibeCoding.ResolvePath(root, p) is null), "paths outside Source/ or non-.cs rejected");
 Check(VibeCoding.SyntaxErrors(generated[0].Code).Count == 0 && VibeCoding.SyntaxErrors("public class { void }").Count > 0, "syntax check");
 Check(string.Concat(VibeCoding.Diff("a\nb\nc", "a\nx\nc").Select(d => d.Op)) == " -+ ", "line diff");
