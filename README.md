@@ -26,6 +26,8 @@ dotnet run --project src/Faro.Editor -- samples/HelloFaro   # フォルダを指
 cd samples/HelloFaro && dotnet watch run                    # アプリをホットリロード付きで実行(エディターのRunボタンと同じ)
 ```
 
+PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/checks.yml`)が Linux・Windows・macOS で `tests/Faro.Checks` を実行する。
+
 ## プロジェクトの作成と配布
 
 - **ワークスペースの信頼(Workspace Trust)**:初めて開くフォルダでは「Trust / Restricted Mode」を確認する。開くと restore(MSBuild)・言語サーバー・Script のプレビュー(ビルド済み DLL の実行)でプロジェクトのコードが動くため。Restricted Mode では表示と編集だけで、それらと Run は止まり、Script は枠表示。File › Trust Project… で信頼して開き直せる。Faro が作った Untitled と、その Save As 先は最初から信頼済み

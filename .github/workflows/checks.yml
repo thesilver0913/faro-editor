@@ -1,0 +1,21 @@
+# Runs the self-checks (tests/Faro.Checks) on every PR and push, on the three desktop platforms Faro targets.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [canary, main]
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet run --project tests/Faro.Checks
