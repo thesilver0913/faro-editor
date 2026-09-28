@@ -67,6 +67,29 @@ jobs:
       - name: Installer package
         if: startsWith(matrix.rid, 'osx-')
         run: bash installer/pkg.sh "$VERSION" ${{ matrix.rid }} publish/${{ matrix.rid }} dist
+      # Smoke tests: install the package the way a user does, then start Faro (--version prints the version and exits),
+      # which proves the launcher finds .NET. The .deb and .pkg also run their .NET download when the runner's isn't seen.
+      - name: Install and start (Windows)
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist\*-setup.exe)[0].FullName
+          # WaitForExit, not -Wait: -Wait also waits for the Faro window the installer starts afterwards.
+          (Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$env:RUNNER_TEMP\Faro" -PassThru).WaitForExit()
+          Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue
+          $faro = Start-Process "$env:RUNNER_TEMP\Faro\Faro.Editor.exe" -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\version.txt"
+          Get-Content "$env:RUNNER_TEMP\version.txt"
+          if ($faro.ExitCode -ne 0) { exit 1 }
+      - name: Install and start (Linux)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          sudo apt-get install -y ./dist/*.deb
+          faro --version
+      - name: Install and start (macOS)
+        if: matrix.rid == 'osx-arm64' # the runner is Apple Silicon
+        run: |
+          sudo installer -pkg dist/*.pkg -target /
+          /Applications/Faro.app/Contents/MacOS/Faro.Editor --version
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.rid }}

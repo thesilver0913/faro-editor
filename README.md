@@ -28,7 +28,9 @@ dotnet run --project src/Faro.Editor -- samples/HelloFaro   # フォルダを指
 cd samples/HelloFaro && dotnet watch run                    # アプリをホットリロード付きで実行(エディターのRunボタンと同じ)
 ```
 
-PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/checks.yml`)が Linux・Windows・macOS で `tests/Faro.Checks` を実行する。
+PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/checks.yml`)が Linux・Windows・macOS で `tests/Faro.Checks` を実行する。あわせて次も確かめる。
+- 両サンプルの APK を作る。C# 版は Android エミュレーターで起動し、30 秒後も動いていることを確かめる(画面のスクリーンショットとログは Artifacts の `HelloFaro-on-emulator`)。Java 版は arm64 専用のため、エミュレーターでの起動はしない
+- インストーラーやワークフローを変えた PR では、`release.yml` が Windows のセットアップ・.deb・.pkg を実際にインストールし、`Faro.Editor --version` で起動を確かめる(.NET を見つけられるか)
 
 ## プロジェクトの作成と配布
 
