@@ -24,5 +24,11 @@
     <None Include="../../samples/HelloFaro/Source/**" LinkBase="templates/Sample/Source" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/Bindings/**" LinkBase="templates/Sample/Bindings" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/Assets/**" LinkBase="templates/Sample/Assets" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Java projects: the JavaFX runtime binder as sources (vendored into .faro/runtime-java) and the Java sample. -->
+    <None Include="../Faro.Runtime.Java/**/*.java" LinkBase="runtime-java" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/UI/**" LinkBase="templates/SampleJava/UI" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Bindings/**" LinkBase="templates/SampleJava/Bindings" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Assets/**" LinkBase="templates/SampleJava/Assets" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Source/**" LinkBase="templates/SampleJava/Source" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

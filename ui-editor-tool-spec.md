@@ -24,6 +24,8 @@
 | 出力方式 | ランタイムバインダー型(コード生成型ではない) |
 | レジストリ抽出方式 | Roslynによるソースコード解析(未ビルドでも解析可能) |
 
+> **実装での変更**:対象言語に **Java**(UIフレームワークは JavaFX、ビルドは Maven)を追加した。UI/・Bindings/ の形式は共通で、レジストリは .java の宣言をソースから読み取る(§16 参照)。
+
 ### 将来の拡張として温存する項目(プロトタイプ範囲外)
 
 - プロジェクト作成時の「デザイン言語」選択→対応UIフレームワーク自動切り替え
@@ -317,4 +319,5 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **バイブコーディングの LLM** はプロバイダを差し替え可能(Claude／OpenAI 互換)
 - **インストーラーと更新**:Windows は Inno Setup、Linux は tar.gz を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
 - **デザイン言語**:`faro.json` の `design`(`language` Fluent / Material3、`seedColor`、`theme` System / Light / Dark)。Material 3 Expressive はシードカラーから色の役割を作り、形・文字スタイル・押したときの形の変化を付ける。Node ごとの設定は `m3.variant` などの属性で、インスペクターの「Material 3」欄で編集する
+- **Java(JavaFX)プロジェクト**:新規作成時に C# か Java を選ぶ。Java 版ランタイムバインダー(`src/Faro.Runtime.Java`)をソースのまま `.faro/runtime-java` に同梱し、Maven(`mvn javafx:run`)でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか、getName()/isName() を持つ Bean プロパティ `name`)。Material 3 は JavaFX 用 CSS(`.faro/design.css`)をエディターが生成する
 - **ログとクラッシュレポート**:設定フォルダの `logs/` に保存し、次回起動時に Issue での報告を案内(自動送信なし)

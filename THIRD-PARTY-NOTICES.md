@@ -27,6 +27,14 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 |---|---|---|---|---|
 | csharp-ls | 0.28.0 | Copyright (c) 2020-2021 Saulius Menkevičius | https://github.com/razzmatazz/csharp-language-server | C#言語サーバー(LSP)。初回利用時に `dotnet tool install` で Faro の環境設定フォルダへ導入 |
 
+## Java プロジェクトのビルドで Maven が取得するライブラリ(配布物には含まれません)
+
+| 名前 | バージョン | ライセンス | リポジトリ | 用途 |
+|---|---|---|---|---|
+| OpenJFX (javafx-controls) | 21.0.5 | GPL v2 + Classpath Exception | https://github.com/openjdk/jfx | Java プロジェクトの UI フレームワーク |
+| javafx-maven-plugin | 0.0.8 | Apache License 2.0 | https://github.com/openjfx/javafx-maven-plugin | `mvn javafx:run` |
+| build-helper-maven-plugin | 3.6.0 | MIT | https://github.com/mojohaus/build-helper-maven-plugin | 同梱ランタイムのソースをビルドに加える |
+
 ## 開発ツール(配布物には含まれません)
 
 | 名前 | 著作権表示 | リポジトリ | 用途 |

@@ -29,7 +29,7 @@ public sealed class CodeView : UserControl
     static readonly Dictionary<string, string> saved = []; // last-saved content per file (rename detection)
     static readonly Dictionary<string, JsonArray> diagnostics = []; // by document uri
     static Task<LspClient>? lsp;
-    static string lspState = L.T("Language server: starting…");
+    static string lspState = L.T(Workspace.IsJava ? "Java: syntax colors only (no language server yet)" : "Language server: starting…");
     static int version, restarts;
     static event Action? StateChanged;
     static string? shownPath;
@@ -155,8 +155,8 @@ public sealed class CodeView : UserControl
             }
 
         var selected = files.SelectedItem as string;
-        // Source/*.cs, plus any other text file opened from the explorer.
-        files.ItemsSource = (Directory.Exists(dir) ? Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories) : [])
+        // Source/*.cs (*.java), plus any other text file opened from the explorer.
+        files.ItemsSource = (Directory.Exists(dir) ? Directory.EnumerateFiles(dir, Workspace.IsJava ? "*.java" : "*.cs", SearchOption.AllDirectories) : [])
             .Concat(buffers.Keys.Where(File.Exists)).Select(f => Path.GetRelativePath(Workspace.Root, f)).Distinct().Order().ToList();
         files.SelectedItem = selected ?? (files.ItemsSource as List<string>)?.FirstOrDefault();
         Show();

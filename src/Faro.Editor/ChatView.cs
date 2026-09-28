@@ -140,8 +140,8 @@ public sealed class ChatView : UserControl
     /// <summary>Classes in files with unsaved manual edits: AI changes to them are held back (spec §8.5).</summary>
     static IEnumerable<string> LockedClasses() =>
         Directory.Exists(Path.Combine(Workspace.Root, "Source"))
-            ? Directory.EnumerateFiles(Path.Combine(Workspace.Root, "Source"), "*.cs", SearchOption.AllDirectories)
-                .Where(CodeView.IsDirty).SelectMany(f => VibeCoding.ClassNames(File.ReadAllText(f)))
+            ? Directory.EnumerateFiles(Path.Combine(Workspace.Root, "Source"), "*.*", SearchOption.AllDirectories)
+                .Where(CodeView.IsDirty).SelectMany(f => f.EndsWith(".java") ? JavaProject.ClassNames(File.ReadAllText(f)) : VibeCoding.ClassNames(File.ReadAllText(f)))
             : [];
 
     void Render()
@@ -166,8 +166,9 @@ public sealed class ChatView : UserControl
     Control ProposalCard(Proposal p)
     {
         var before = File.Exists(p.Path) ? File.ReadAllText(p.Path) : "";
-        var syntax = VibeCoding.SyntaxErrors(p.Code);
-        var locked = CodeView.IsDirty(p.Path) ? VibeCoding.ClassNames(before).FirstOrDefault() ?? Path.GetFileName(p.Path) : null;
+        var java = p.Path.EndsWith(".java");
+        var syntax = java ? [] : VibeCoding.SyntaxErrors(p.Code); // ponytail: no Java syntax check before approval; the build reports errors
+        var locked = CodeView.IsDirty(p.Path) ? (java ? JavaProject.ClassNames(before) : VibeCoding.ClassNames(before)).FirstOrDefault() ?? Path.GetFileName(p.Path) : null;
 
         var diff = new SelectableTextBlock { FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"), FontSize = 12 };
         foreach (var (op, line) in VibeCoding.Diff(before, p.Code))

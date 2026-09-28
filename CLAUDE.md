@@ -8,7 +8,7 @@
 
 - 名前:**Faro**(イタリア語で灯台の意)
 - 基本思想:「Figma × UI Binding × Vibe Coding」の統合ツール
-- プロトタイプ対象:C#系言語、UIフレームワークはAvaloniaに固定
+- プロトタイプ対象:C#系言語、UIフレームワークはAvaloniaに固定(実装フェーズで Java + JavaFX を追加)
 - エディター自体の実装:C#/.NET(Avalonia)、UIはFluentAvalonia + Adobe Spectrumのトーンのハイブリッド
 - 出力方式:ランタイムバインダー型(コード生成型ではない)
 - レジストリ抽出:Roslynによるソースコード解析(未ビルドでも可)、実行時解決はSystem.Reflection
@@ -38,6 +38,7 @@
 - Grid は行・列のトラック指定(`columns="Auto, *, 2*, 120px"`、子は `row`/`column`/`rowSpan`/`columnSpan`)
 - **Script 部品**(`Control.Script` + `class`):`FaroScript` を継承したクラスの `Build()` が見た目も動作もコードで作る。キャンバスは最後のビルド結果で実物を表示
 - 画面の言語は English / 日本語(初回起動ウィザードと環境設定で選ぶ)。文言は英語をキーに `src/Faro.Editor/L.cs` の表で訳す。新しい文言を足したら表にも足す
+- **Java(JavaFX)** も対象言語:`faro.json` の `language` が `Java`。Java 版ランタイムは `src/Faro.Runtime.Java`(ソース)で、各プロジェクトの `.faro/runtime-java` にコピーして Maven でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか Bean プロパティ名)。Java 固有のエディター処理は `src/Faro.Editor/JavaProject.cs` にまとめる。Java 版ランタイムを変えたら C# 版と同じ振る舞いに揃える
 - **デザイン言語**は `faro.json` の `design`(Fluent / Material3、`seedColor`、`theme`)。Node ごとの言語固有の設定は `m3.variant="Tonal"` のような `<言語>.<名前>` 属性で持ち、UiBuilder がスタイルクラス(`m3-variant-tonal`)に変えて `Faro.Runtime/Material3.axaml` が見た目を付ける(ほかの言語では無視される)
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
 - 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
@@ -46,7 +47,7 @@
 ## ブランチとバージョン
 
 - 開発は `canary`、`main` はリリース用(リリースまで空。PR #1 は打ち消し済み)
-- **PR ごとに `Directory.Build.props` の `<Version>` を 0.0.1 上げる**(`samples/HelloFaro/faro.json` の `runtime` も合わせる)。**作業中は `0.1.8-dev1` のように `-devN` を付け、Runtime を変えるたびに N を上げる**(同じ版の古い nupkg を NuGet キャッシュが使い回すため)。PR をマージできる状態になったら `-devN` を外す。末尾は 0〜9 で繰り上がる:0.1.8 → 0.1.9 → **0.2.0**(0.1.10 にはしない)。Faro.Runtime の nupkg はこの版で作られ、既存プロジェクトには開いたときに更新を案内する。**0.2.4 の次は 1.0.0**(最初の公開 `v1.0.0-beta.1`)。以降も PR ごとに 1.0.1 → 1.0.2 … と上げ、公開するときはタグでチャンネルの接尾辞を付ける
+- **PR ごとに `Directory.Build.props` の `<Version>` を 0.0.1 上げる**(`samples/HelloFaro/faro.json` の `runtime` も合わせる)。**作業中は `0.1.8-dev1` のように `-devN` を付け、Runtime を変えるたびに N を上げる**(同じ版の古い nupkg を NuGet キャッシュが使い回すため)。PR をマージできる状態になったら `-devN` を外す。末尾は 0〜9 で繰り上がる:0.1.8 → 0.1.9 → **0.2.0**(0.1.10 にはしない)。Faro.Runtime の nupkg はこの版で作られ、既存プロジェクトには開いたときに更新を案内する。**0.2.4 の次は 1.0.0**(最初の公開 `v1.0.0-beta.1`)。以降も PR ごとに 1.0.1 → 1.0.2 … と上げ、公開するときはタグでチャンネルの接尾辞を付ける。**例外:1.0.1 の次は `1.0.0-beta.2`**(Java 対応。ユーザーの指示で 1.0.0 の Beta を続ける)
 - **リリースはタグで**:`vX.Y.Z`(Stable、`main`)/ `vX.Y.Z-beta.N` / `vX.Y.Z-canary.N` を push すると `release.yml` がインストーラー等を GitHub Release に載せ、Faro の更新確認が各チャンネルで拾う。版の並びは dev < canary < beta < 正式版
 - リリースで `canary` を `main` にマージする前に、`main` の打ち消しコミット(f354289)を打ち消すこと。そのままマージすると、PR #1 の変更が「取り込み済み・打ち消し済み」と扱われて初期プロトタイプ分が入らない
 

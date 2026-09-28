@@ -12,6 +12,7 @@ public static partial class ProjectSetup
 {
     public const string ProjectFile = "faro.json";
     public static readonly string[] Templates = ["Empty", "Sample"];
+    public static readonly string[] Languages = ["CSharp", JavaProject.Language];
 
     /// <summary>Documents/Faro, where new projects go by default.</summary>
     // MyDocuments is empty on Linux without an XDG documents folder; fall back to ~/Documents.
@@ -30,22 +31,23 @@ public static partial class ProjectSetup
     private static partial System.Text.RegularExpressions.Regex NamePattern();
 
     /// <summary>Creates &lt;location&gt;/&lt;name&gt; from a template and returns its path.</summary>
-    public static string Create(string location, string name, string template, string? appDir = null)
+    public static string Create(string location, string name, string template, string? appDir = null, string language = "CSharp")
     {
         var dir = Target(location, name);
         Directory.CreateDirectory(dir);
         var startScreen = "MainScreen";
+        var sample = Path.Combine(appDir ?? AppDir, "templates", language == JavaProject.Language ? "SampleJava" : "Sample");
         if (template == "Sample")
-            foreach (var file in Directory.EnumerateFiles(Path.Combine(appDir ?? AppDir, "templates", "Sample"), "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.EnumerateFiles(sample, "*", SearchOption.AllDirectories))
             {
-                var target = Path.Combine(dir, Path.GetRelativePath(Path.Combine(appDir ?? AppDir, "templates", "Sample"), file));
+                var target = Path.Combine(dir, Path.GetRelativePath(sample, file));
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(file, target);
             }
         else
             foreach (var (path, text) in ProjectFiles.NewScreen(Faro.Runtime.FaroProject.Load(dir), startScreen))
                 WriteNew(path, text!);
-        Initialize(dir, name, startScreen, appDir);
+        Initialize(dir, name, startScreen, appDir, language);
         return dir;
     }
 
@@ -66,16 +68,16 @@ public static partial class ProjectSetup
     public static bool IsUntitled(string dir) =>
         Path.GetFullPath(dir).StartsWith(Path.GetFullPath(UntitledRoot) + Path.DirectorySeparatorChar);
 
-    public static string CreateUntitled(string template, string? appDir = null)
+    public static string CreateUntitled(string template, string? appDir = null, string language = "CSharp")
     {
         Directory.CreateDirectory(UntitledRoot);
         var n = 1;
         while (Directory.Exists(Path.Combine(UntitledRoot, $"Untitled{n}"))) n++;
-        return Create(UntitledRoot, $"Untitled{n}", template, appDir);
+        return Create(UntitledRoot, $"Untitled{n}", template, appDir, language);
     }
 
     /// <summary>
-    /// Save As: copies the project (without bin/ and obj/) to &lt;location&gt;/&lt;name&gt;, renaming it in faro.json and
+    /// Save As: copies the project (without the build outputs bin/, obj/, target/) to &lt;location&gt;/&lt;name&gt;, renaming it in faro.json and
     /// its generated .csproj. An untitled original is discarded. Returns the new folder, which the editor then opens.
     /// </summary>
     public static string SaveAs(string dir, string location, string name)
@@ -83,7 +85,7 @@ public static partial class ProjectSetup
         dir = Path.GetFullPath(dir);
         var target = Target(location, name);
         if (target.StartsWith(dir + Path.DirectorySeparatorChar)) throw new ArgumentException("Choose a location outside the project folder.");
-        bool Copied(string path) => Path.GetRelativePath(dir, path).Split(Path.DirectorySeparatorChar)[0] is not ("bin" or "obj");
+        bool Copied(string path) => Path.GetRelativePath(dir, path).Split(Path.DirectorySeparatorChar)[0] is not ("bin" or "obj" or "target");
         Directory.CreateDirectory(target);
         foreach (var folder in Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories).Where(Copied)) // empty ones too
             Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(dir, folder)));
@@ -129,10 +131,6 @@ public static partial class ProjectSetup
         settings.Save();
     }
 
-    /// <summary>
-    /// Makes a folder a Faro project: adds only what is missing and never overwrites existing files.
-    /// A folder that already has a .csproj keeps it (it then needs a Faro.Runtime reference of its own).
-    /// </summary>
     /// <summary>faro.json with the new "design" (left out when it's the Fluent default), for one UI history step.</summary>
     public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design)
     {
@@ -144,15 +142,23 @@ public static partial class ProjectSetup
         return new() { [path] = json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n" };
     }
 
-    public static void Initialize(string dir, string? name = null, string startScreen = "MainScreen", string? appDir = null)
+    /// <summary>
+    /// Makes a folder a Faro project: adds only what is missing and never overwrites existing files.
+    /// A folder that already has a .csproj keeps it (it then needs a Faro.Runtime reference of its own).
+    /// </summary>
+    public static void Initialize(string dir, string? name = null, string startScreen = "MainScreen", string? appDir = null, string language = "CSharp")
     {
         name ??= new string(Path.GetFileName(Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar)).Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray()) is { Length: > 0 } n && !char.IsDigit(n[0]) ? n : "FaroApp";
         foreach (var folder in new[] { "UI", "Source", "Bindings", "Assets" }) Directory.CreateDirectory(Path.Combine(dir, folder));
 
         var (package, version) = BundledRuntime(appDir);
+        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = language, ["runtime"] = version.ToString(), ["startScreen"] = startScreen }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        if (language == JavaProject.Language)
+        {
+            JavaProject.Initialize(dir, name, version, appDir ?? AppDir);
+            return;
+        }
         Vendor(dir, package);
-
-        WriteNew(Path.Combine(dir, ProjectFile), new JsonObject { ["name"] = name, ["language"] = "CSharp", ["runtime"] = version.ToString(), ["startScreen"] = startScreen }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         WriteNew(Path.Combine(dir, "nuget.config"), """
             <?xml version="1.0" encoding="utf-8"?>
             <configuration>
@@ -215,7 +221,7 @@ public static partial class ProjectSetup
     private static partial System.Text.RegularExpressions.Regex RuntimeReference();
 
     /// <summary>The Faro.Runtime version the project's .csproj references; null if it doesn't use the package (e.g. the in-repo sample).</summary>
-    public static string? ProjectRuntime(string dir) =>
+    public static string? ProjectRuntime(string dir) => JavaProject.Is(dir) ? JavaProject.ProjectRuntime(dir) :
         Directory.EnumerateFiles(dir, "*.csproj").Select(f => RuntimeReference().Match(File.ReadAllText(f)))
             .FirstOrDefault(m => m.Success) is { } m && VersionKey(m.Groups[2].Value) is not null ? m.Groups[2].Value : null;
 
@@ -227,11 +233,15 @@ public static partial class ProjectSetup
     public static void UpdateRuntime(string dir, string? appDir = null)
     {
         var (package, version) = BundledRuntime(appDir);
-        foreach (var old in Directory.EnumerateFiles(Path.Combine(dir, ".faro", "packages"), "Faro.Runtime.*.nupkg").Where(p => p != Path.Combine(dir, ".faro", "packages", Path.GetFileName(package))))
-            File.Delete(old);
-        Vendor(dir, package);
-        foreach (var csproj in Directory.EnumerateFiles(dir, "*.csproj"))
-            File.WriteAllText(csproj, RuntimeReference().Replace(File.ReadAllText(csproj), $"${{1}}{version}${{3}}"));
+        if (JavaProject.Is(dir)) JavaProject.Vendor(dir, appDir ?? AppDir); // Java: the runtime's sources
+        else
+        {
+            foreach (var old in Directory.EnumerateFiles(Path.Combine(dir, ".faro", "packages"), "Faro.Runtime.*.nupkg").Where(p => p != Path.Combine(dir, ".faro", "packages", Path.GetFileName(package))))
+                File.Delete(old);
+            Vendor(dir, package);
+            foreach (var csproj in Directory.EnumerateFiles(dir, "*.csproj"))
+                File.WriteAllText(csproj, RuntimeReference().Replace(File.ReadAllText(csproj), $"${{1}}{version}${{3}}"));
+        }
         var json = Path.Combine(dir, ProjectFile);
         if (File.Exists(json) && JsonNode.Parse(File.ReadAllText(json)) is JsonObject meta)
         {
@@ -247,7 +257,7 @@ public static partial class ProjectSetup
         if (!File.Exists(vendored)) File.Copy(package, vendored);
     }
 
-    static void WriteNew(string path, string text)
+    internal static void WriteNew(string path, string text)
     {
         if (File.Exists(path)) return;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

@@ -90,10 +90,13 @@ public sealed class ExplorerView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    static bool IsHidden(string path) => Path.GetRelativePath(Workspace.Root, path).Split(Path.DirectorySeparatorChar).Any(Hidden.Contains);
+    static bool IsHidden(string path) => Path.GetRelativePath(Workspace.Root, path).Split(Path.DirectorySeparatorChar).Any(HiddenName);
+
+    /// <summary>Build outputs and tool folders: bin/obj (C#), target (Java/Maven), .git, .vs.</summary>
+    static bool HiddenName(string name) => Hidden.Contains(name) || Workspace.IsJava && name == "target";
 
     static IEnumerable<string> Children(string dir) =>
-        Directory.EnumerateDirectories(dir).Where(d => !Hidden.Contains(Path.GetFileName(d))).Order()
+        Directory.EnumerateDirectories(dir).Where(d => !HiddenName(Path.GetFileName(d))).Order()
             .Concat(Directory.EnumerateFiles(dir).Order());
 
     void Build()
@@ -202,7 +205,7 @@ public sealed class ExplorerView : UserControl
             {
                 if (PlainFolder(target)) { Add("New File…", () => NewFile(target)); Add("New Folder…", () => NewFolder(target)); }
                 if (Area(target) == "UI" && path is not null) { Add("New Screen…", () => NewUi(screen: true)); Add("New Component…", () => NewUi(screen: false)); }
-                if (Area(target) == "Source" && path is not null) Add("New C# Class…", () => NewClass(target));
+                if (Area(target) == "Source" && path is not null) Add(Workspace.IsJava ? "New Java Class…" : "New C# Class…", () => NewClass(target));
             }
             else if (UiDoc(target) is not null || Path.GetExtension(target) == ".xml") Add("Open as Text", () => CodeView.Open(target));
             Separator();
@@ -351,15 +354,17 @@ public sealed class ExplorerView : UserControl
 
     async void NewClass(string folder)
     {
-        if (await Ask("New C# Class", "Class name:") is not { } name) return;
-        var path = Path.Combine(folder, name + ".cs");
+        var title = Workspace.IsJava ? "New Java Class" : "New C# Class";
+        if (await Ask(title, "Class name:") is not { } name) return;
+        var path = Path.Combine(folder, name + (Workspace.IsJava ? ".java" : ".cs"));
+        var relative = Path.GetRelativePath(Path.Combine(Workspace.Root, "Source"), folder).Replace(".", "");
         try
         {
-            if (File.Exists(path)) throw new ArgumentException($"{name}.cs already exists.");
-            File.WriteAllText(path, ProjectFiles.ClassFile(Path.Combine(Workspace.Root, "Source"), Path.GetRelativePath(Path.Combine(Workspace.Root, "Source"), folder).Replace(".", ""), name));
+            if (File.Exists(path)) throw new ArgumentException($"{Path.GetFileName(path)} already exists.");
+            File.WriteAllText(path, Workspace.IsJava ? JavaProject.ClassFile(relative, name) : ProjectFiles.ClassFile(Path.Combine(Workspace.Root, "Source"), relative, name));
             CodeView.Open(path);
         }
-        catch (ArgumentException e) { await Fail("New C# Class", e.Message); }
+        catch (ArgumentException e) { await Fail(title, e.Message); }
     }
 
     async void NewFile(string folder)

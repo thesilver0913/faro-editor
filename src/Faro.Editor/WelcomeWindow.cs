@@ -93,15 +93,15 @@ public sealed class WelcomeWindow : Window
     Control NewProjectForm()
     {
         var template = new ComboBox { ItemsSource = ProjectSetup.Templates, SelectedIndex = 0, MinWidth = 160 };
-        // Spec §2: the language is chosen when a project is created and can't change later; the prototype supports C# only.
-        var language = new ComboBox { ItemsSource = new[] { "C#" }, SelectedIndex = 0, IsEnabled = false, MinWidth = 160 };
+        // Spec §2: the language is chosen when a project is created and can't change later.
+        var language = new ComboBox { ItemsSource = new[] { "C# (Avalonia)", "Java (JavaFX)" }, SelectedIndex = 0, MinWidth = 160 };
         var error = new TextBlock { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
         var create = new Button { Content = L.T("Create"), IsDefault = true };
         var cancel = new Button { Content = L.T("Cancel") };
         cancel.Click += (_, _) => right.Content = Recent();
         create.Click += (_, _) =>
         {
-            try { ProjectChosen?.Invoke(ProjectSetup.CreateUntitled((string)template.SelectedItem!)); }
+            try { ProjectChosen?.Invoke(ProjectSetup.CreateUntitled((string)template.SelectedItem!, language: ProjectSetup.Languages[language.SelectedIndex])); }
             catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException) { error.Text = e.Message; }
         };
         var form = new StackPanel
@@ -128,7 +128,7 @@ public sealed class WelcomeWindow : Window
         {
             if (!await Dialogs.Confirm(owner, L.T("Open Folder"), L.F("{0} isn't a Faro project yet. Initialize it? Missing folders and files are added; existing files aren't changed.", dir), L.T("Initialize")))
                 return;
-            try { ProjectSetup.Initialize(dir); }
+            try { ProjectSetup.Initialize(dir, language: File.Exists(Path.Combine(dir, "pom.xml")) ? JavaProject.Language : "CSharp"); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 await Dialogs.Info(owner, L.T("Open Folder"), new TextBlock { Text = e.Message, TextWrapping = TextWrapping.Wrap });
