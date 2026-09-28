@@ -29,6 +29,8 @@
   </Application.Styles>
   <!-- AvaloniaEdit's Fluent theme expects these Avalonia FluentTheme keys, which FluentAvalonia doesn't define. -->
   <Application.Resources>
+    <!-- FluentAvalonia's controls read their font from this key: the bundled Noto Sans JP. -->
+    <FontFamily x:Key="ContentControlThemeFontFamily">avares://Faro.Editor/Assets/Fonts#Noto Sans JP</FontFamily>
     <SolidColorBrush x:Key="ToolTipBackground" Color="#2B2B2B" />
     <SolidColorBrush x:Key="ToolTipForeground" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#555555" />

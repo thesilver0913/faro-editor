@@ -428,7 +428,7 @@ public sealed class CanvasView : UserControl
             if (preview) Select([]);
             Render();
         };
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, previewToggle, run, status } };
+        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, previewToggle, run, status } });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         designScope.Child = zoomHost;
         viewport.Content = designScope;

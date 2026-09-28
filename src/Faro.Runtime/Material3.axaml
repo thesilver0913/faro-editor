@@ -6,7 +6,7 @@
     Text       m3.type DisplayLarge … LabelSmall, m3.emphasized true, m3.color Primary|OnSurfaceVariant|…
     Container  m3.surface Surface|Lowest|Low|Container|High|Highest|Primary|Secondary|Tertiary, m3.corner None|XS|S|M|L|XL|Full, m3.elevation 0-5
   Expressive: large rounded shapes, and buttons morph to a squarer corner while pressed on a spring.
-  ponytail: no Roboto Flex; the platform font is used. Ship the font with the app if the exact type matters.
+  Type: Google Sans Flex (M3 Expressive's typeface, OFL), bundled in Faro.Runtime.
 -->
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Styles.Resources>
@@ -100,6 +100,8 @@
 
   <!-- The app window and the editor's artboard are the surface -->
   <Style Selector="Window, Border.faro-screen">
+    <!-- Google Sans Flex (bundled); text it doesn't cover, e.g. Japanese, falls back to the default font. -->
+    <Setter Property="TextElement.FontFamily" Value="avares://Faro.Runtime/Assets/Fonts#Google Sans Flex, $Default" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource M3OnSurface}" />
     <Setter Property="TextElement.FontSize" Value="16" />
   </Style>
@@ -132,6 +134,7 @@
 
   <!-- Text fields: filled (default) or outlined; the indicator / outline turns primary and 2px on focus -->
   <Style Selector="TextBox">
+    <Setter Property="FontFamily" Value="avares://Faro.Runtime/Assets/Fonts#Google Sans Flex, $Default" />
     <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
     <Setter Property="MinHeight" Value="56" />
     <Setter Property="Padding" Value="16,16" />

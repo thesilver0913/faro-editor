@@ -20,6 +20,8 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | 名前 | 著作権表示 | ライセンス | 用途 |
 |---|---|---|---|
 | Inter 4.1 (Regular) | Copyright (c) 2016 The Inter Project Authors | SIL Open Font License 1.1(全文は `assets/fonts/Inter-LICENSE.txt`) | スプラッシュの版表示 |
+| Noto Sans JP(可変フォント) | Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source' | SIL Open Font License 1.1(全文は `assets/fonts/NotoSansJP-LICENSE.txt`) | エディター全体の UI フォント |
+| Google Sans Flex(可変フォント) | Copyright 2015 The Google Sans Flex Authors | SIL Open Font License 1.1(全文は `assets/fonts/GoogleSansFlex-LICENSE.txt`) | Material 3 Expressive の書体。Faro.Runtime(C# のアプリ)と Java プロジェクトの `.faro/fonts` に同梱 |
 
 ## 実行時にダウンロードするツール(配布物には含まれません)
 

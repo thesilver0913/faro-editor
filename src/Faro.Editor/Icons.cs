@@ -53,6 +53,21 @@ public static class Icons
         return button;
     }
 
+    /// <summary>Gives a toolbar's buttons, toggles and drop-downs (nested panels too) one height, so a row lines up.</summary>
+    public static T Toolbar<T>(T bar) where T : Panel
+    {
+        foreach (var control in bar.Children)
+            if (control is Panel inner) Toolbar(inner);
+            else if (control is Avalonia.Controls.Button or ComboBox or Avalonia.Controls.Primitives.ToggleButton or TextBox)
+            {
+                control.Height = 32;
+                control.MinWidth = 32;
+                control.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+                if (control is ContentControl content) content.VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center;
+            }
+        return bar;
+    }
+
     /// <summary>Readable name of a node type: "Stack", "TextInput"…</summary>
     public static string Name(string type) => type.Split('.')[^1];
 }

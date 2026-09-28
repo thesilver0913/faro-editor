@@ -5,3 +5,5 @@ obj/
 publish/
 dist/
 target/
+# Copied from assets/fonts by the editor when it opens the Java sample.
+samples/HelloFaroJava/.faro/fonts/

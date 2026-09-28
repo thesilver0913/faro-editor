@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 
 namespace Faro.Editor;
 
@@ -12,6 +13,12 @@ public partial class App : Application
     public static string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
 
     static string? root;
+
+    /// <summary>The bundled UI font, the same on every OS.</summary>
+    public const string UiFont = "avares://Faro.Editor/Assets/Fonts#Noto Sans JP";
+
+    /// <summary>Code and other monospaced text: the first installed of the usual programming fonts.</summary>
+    public const string CodeFont = "Cascadia Code,Consolas,Menlo,DejaVu Sans Mono,Liberation Mono,Noto Sans Mono,monospace";
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -101,6 +108,8 @@ public partial class App : Application
     {
         Log.Start();
         root = args.FirstOrDefault() is { } path ? Path.GetFullPath(path) : null; // no folder given: welcome screen
-        AppBuilder.Configure<App>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = UiFont })
+            .StartWithClassicDesktopLifetime(args);
     }
 }

@@ -47,7 +47,7 @@ public sealed class ExplorerView : UserControl
         tree.AddHandler(DragDrop.DropEvent, OnDrop);
 
         // Header buttons, as in VS Code's explorer title bar.
-        var bar = new WrapPanel
+        var bar = Icons.Toolbar(new WrapPanel
         {
             ItemSpacing = 4, LineSpacing = 4, Margin = new(4),
             Children =
@@ -57,7 +57,7 @@ public sealed class ExplorerView : UserControl
                 Icons.Button(FluentAvalonia.UI.Controls.FASymbol.Refresh, "Refresh", Build),
                 Icons.Button(FluentAvalonia.UI.Controls.FASymbol.ChevronUp, "Collapse All", () => { expanded.Clear(); Build(); }),
             },
-        };
+        });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, tree } };
     }
