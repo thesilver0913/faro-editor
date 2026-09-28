@@ -42,6 +42,11 @@ public partial class MainWindow : Window
         }
         AddHandler(PointerPressedEvent, (_, e) => Track(e.Source), RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(GotFocusEvent, (_, e) => Track(e.Source), RoutingStrategies.Bubble, handledEventsToo: true);
+        // F10 (Step Over): the menu bar takes F10 for itself before the menu's hot key sees it, so catch it on the way down.
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key == Key.F10 && e.KeyModifiers == KeyModifiers.None && Debugger.Stopped is not null) { Debugger.StepOver(); e.Handled = true; }
+        }, RoutingStrategies.Tunnel);
         UiHistory.Changed += UpdateHistory;
         CodeView.HistoryChanged += UpdateHistory;
         UpdateHistory();

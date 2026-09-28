@@ -28,6 +28,11 @@ public static class Components
     static string NetcoredbgAsset => OperatingSystem.IsWindows() ? "netcoredbg-win64.zip" : OperatingSystem.IsMacOS() ? "netcoredbg-osx-amd64.tar.gz"
         : Arch == "aarch64" ? "netcoredbg-linux-arm64.tar.gz" : "netcoredbg-linux-amd64.tar.gz";
 
+    const string JavaDebugUrl = "https://repo1.maven.org/maven2/com/microsoft/java/com.microsoft.java.debug.plugin/0.53.1/com.microsoft.java.debug.plugin-0.53.1.jar";
+
+    /// <summary>Microsoft's java-debug, a jdtls plugin (the Java debugger), once installed.</summary>
+    public static string? JavaDebug => Path.Combine(Dir("java-debug"), "java-debug.jar") is var jar && File.Exists(jar) ? jar : null;
+
     /// <summary>The Java language server's folder, once installed.</summary>
     public static string? Jdtls => Directory.Exists(Dir("jdtls")) ? Dir("jdtls") : null;
     const string GraalVmUrl = "https://github.com/gluonhq/graal/releases/download/gluon-23%2B25.1-dev-2409082136/graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz";
@@ -47,6 +52,25 @@ public static class Components
                 Dir("maven"), OperatingSystem.IsWindows(), log, cancel)),
         new("Java language server (jdtls)", "Completion and errors in Java code (installed on first use too)", () => Jdtls is not null,
             (log, cancel) => Fetch(JdtlsUrl, Dir("jdtls"), false, log, cancel)),
+        new("Java debugger (java-debug)", "Debugging Java code (a jdtls plugin, installed with it)", () => JavaDebug is not null,
+            async (log, cancel) =>
+            {
+                try
+                {
+                    log(L.F("Downloading {0}…", JavaDebugUrl));
+                    using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("Faro"); // Maven Central refuses requests without one (429)
+                    var bytes = await http.GetByteArrayAsync(JavaDebugUrl, cancel);
+                    Directory.CreateDirectory(Dir("java-debug"));
+                    await File.WriteAllBytesAsync(Path.Combine(Dir("java-debug"), "java-debug.jar"), bytes, cancel);
+                    return true;
+                }
+                catch (Exception e) when (e is HttpRequestException or IOException or OperationCanceledException)
+                {
+                    log(L.T("Couldn't install it: ") + e.Message);
+                    return false;
+                }
+            }),
         new("netcoredbg", "The C# debugger (installed on first use too)", () => Netcoredbg is not null,
             (log, cancel) => Fetch(NetcoredbgRelease + NetcoredbgAsset, Dir("netcoredbg"), OperatingSystem.IsWindows(), log, cancel), !(OperatingSystem.IsMacOS() && Arch == "aarch64")),
         new("Gluon GraalVM", "Android APKs of Java projects (Linux only)", () => Directory.Exists(Dir("graalvm")),

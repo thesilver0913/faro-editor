@@ -55,10 +55,9 @@ public sealed class DebugView : UserControl
     void Show()
     {
         var stopped = Debugger.Stopped is not null;
-        start.IsEnabled = !Debugger.Active && Workspace.Trusted && !Workspace.IsJava;
+        start.IsEnabled = !Debugger.Active && Workspace.Trusted;
         (resume.IsEnabled, over.IsEnabled, into.IsEnabled, stop.IsEnabled) = (stopped, stopped, stopped, Debugger.Active);
-        state.Text = Workspace.IsJava ? L.T("The debugger is for C# projects for now.")
-            : !Workspace.Trusted ? L.T("Restricted Mode: File › Trust Project… to debug.")
+        state.Text = !Workspace.Trusted ? L.T("Restricted Mode: File › Trust Project… to debug.")
             : Debugger.Stopped is { } at ? L.F("Paused at {0}:{1}", Path.GetFileName(at.Path), at.Line)
             : Debugger.Active ? L.T("Running…")
             : L.T("Click left of a line number in the code to set a breakpoint, then Debug.");

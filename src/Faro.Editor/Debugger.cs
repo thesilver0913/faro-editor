@@ -7,9 +7,10 @@ using Avalonia.Threading;
 namespace Faro.Editor;
 
 /// <summary>
-/// The C# debugger: Samsung's netcoredbg over the Debug Adapter Protocol (the one VS Code speaks). Debug builds the
-/// project, launches its dll under netcoredbg with the breakpoints set in the code view, and on a stop shows the
-/// call stack and the frame's variables (Console › Debug) and the line in the code view. Trusted C# projects only.
+/// The debugger over the Debug Adapter Protocol (the one VS Code speaks). C#: Samsung's netcoredbg, which launches the
+/// built dll. Java: Microsoft's java-debug inside jdtls, which compiles and launches the main class. Either way the
+/// breakpoints set in the code view are sent, and on a stop the line, the call stack and the frame's variables show
+/// (Console › Debug). Trusted projects only.
 /// </summary>
 public static class Debugger
 {
@@ -38,8 +39,8 @@ public static class Debugger
     public static async void Start()
     {
         if (session is not null || Workspace.Running || !Workspace.Trusted) return;
-        if (Workspace.IsJava) { Workspace.Add(L.T("The debugger is for C# projects for now.")); return; }
         ConsoleView.Show(ConsoleView.Tab.Debug);
+        if (Workspace.IsJava) { await StartJava(); return; }
         Workspace.Add(L.T("Building for debugging…"));
         if (await AndroidApk.Exec("dotnet", ["build", Workspace.Root], line => Dispatcher.UIThread.Post(() => Workspace.Add(line)), CancellationToken.None) != 0
             || ScriptPreview.LatestBuild(Workspace.Root) is not { } dll)
@@ -49,18 +50,63 @@ public static class Debugger
         }
         if (Components.Netcoredbg is null && !await Components.All.First(c => c.Name == "netcoredbg").Install(line => Dispatcher.UIThread.Post(() => Workspace.Add(line)), CancellationToken.None))
             return;
-        try { session = new Dap(Components.Netcoredbg!); }
+        Process adapter;
+        try { adapter = Process.Start(new ProcessStartInfo(Components.Netcoredbg!, ["--interpreter=vscode"]) { CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true })!; }
         catch (System.ComponentModel.Win32Exception e) { Workspace.Add(L.F("Couldn't start {0}: {1}", "netcoredbg", e.Message)); return; }
+        adapter.BeginErrorReadLine();
+        // The app reads its project files from its own folder (the build output), like `dotnet run`.
+        await Launch(new Dap(adapter.StandardOutput.BaseStream, adapter.StandardInput.BaseStream, () => { if (!adapter.HasExited) adapter.Kill(entireProcessTree: true); adapter.Dispose(); }),
+            "coreclr", new JsonObject { ["program"] = Dotnet(), ["args"] = new JsonArray(dll), ["cwd"] = Path.GetDirectoryName(dll), ["stopAtEntry"] = false });
+    }
+
+    /// <summary>
+    /// Java: jdtls compiles the project, java-debug (loaded into jdtls) opens a debug adapter on a local port, and the
+    /// main class runs with the classpath jdtls resolved from pom.xml, in the project folder (where FaroApp finds UI/).
+    /// </summary>
+    static async Task StartJava()
+    {
+        if (Components.JavaDebug is null) { Workspace.Add(L.T("The Java debugger (java-debug) isn't installed: Preferences › Tools, then restart Faro.")); return; }
+        try
+        {
+            var lsp = await CodeView.Lsp();
+            Task<JsonNode?> Command(string command, params JsonNode?[] args) => lsp.Request("workspace/executeCommand", new JsonObject { ["command"] = command, ["arguments"] = new JsonArray(args) });
+            Workspace.Add(L.T("Building for debugging…"));
+            await lsp.Request("java/buildWorkspace", JsonValue.Create(false)); // incremental build of the imported project
+            var mains = (await Command("vscode.java.resolveMainClass", Workspace.Root))?.AsArray() ?? [];
+            if ((mains.FirstOrDefault(m => (string?)m?["mainClass"] == "Main") ?? mains.FirstOrDefault()) is not { } main)
+            {
+                Workspace.Add(L.T("No main class found (is the language server still importing the project?)."));
+                return;
+            }
+            var paths = (await Command("vscode.java.resolveClasspath", (string?)main["mainClass"], (string?)main["projectName"]))?.AsArray();
+            var port = (int)(await Command("vscode.java.startDebugSession"))!;
+            var tcp = new System.Net.Sockets.TcpClient();
+            await tcp.ConnectAsync(System.Net.IPAddress.Loopback, port);
+            var stream = tcp.GetStream();
+            await Launch(new Dap(stream, stream, tcp.Dispose), "java", new JsonObject
+            {
+                ["mainClass"] = (string?)main["mainClass"], ["projectName"] = (string?)main["projectName"], ["cwd"] = Workspace.Root, ["console"] = "internalConsole",
+                ["modulePaths"] = paths?[0]?.DeepClone() ?? new JsonArray(), ["classPaths"] = paths?[1]?.DeepClone() ?? new JsonArray(),
+            });
+        }
+        catch (Exception e) when (e is InvalidOperationException or TaskCanceledException or System.Net.Sockets.SocketException or FormatException)
+        {
+            Workspace.Add(L.T("Couldn't start the Java debugger: ") + e.Message);
+        }
+    }
+
+    static async Task Launch(Dap dap, string adapterId, JsonObject launch)
+    {
+        session = dap;
         session.Event += (name, body) => Dispatcher.UIThread.Post(() => OnEvent(name, body));
         session.Exited += () => Dispatcher.UIThread.Post(End);
         Changed?.Invoke();
         try
         {
-            await session.Request("initialize", new JsonObject { ["clientID"] = "faro", ["adapterID"] = "coreclr", ["linesStartAt1"] = true, ["columnsStartAt1"] = true, ["pathFormat"] = "path" });
-            // The app reads its project files from its own folder (the build output), like `dotnet run`.
-            await session.Request("launch", new JsonObject { ["program"] = Dotnet(), ["args"] = new JsonArray(dll), ["cwd"] = Path.GetDirectoryName(dll), ["stopAtEntry"] = false });
+            await session.Request("initialize", new JsonObject { ["clientID"] = "faro", ["adapterID"] = adapterId, ["linesStartAt1"] = true, ["columnsStartAt1"] = true, ["pathFormat"] = "path" });
+            await session.Request("launch", launch);
         }
-        catch (InvalidOperationException e) { Workspace.Add("netcoredbg: " + e.Message); Stop(); }
+        catch (Exception e) when (e is InvalidOperationException or TaskCanceledException) { Workspace.Add($"{adapterId}: {e.Message}"); Stop(); }
     }
 
     static async void OnEvent(string name, JsonNode? body)
@@ -162,29 +208,18 @@ public static class Debugger
         return (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Select(d => Path.Combine(d, name)).FirstOrDefault(File.Exists) ?? name;
     }
 
-    /// <summary>A Debug Adapter Protocol connection over stdio (Content-Length framing, like LSP; requests, responses, events).</summary>
-    sealed class Dap : IDisposable
+    /// <summary>A Debug Adapter Protocol connection (Content-Length framing, like LSP): an adapter's stdio, or a socket.</summary>
+    sealed class Dap(Stream input, Stream output, Action close) : IDisposable
     {
-        readonly Process process;
         readonly ConcurrentDictionary<int, TaskCompletionSource<JsonNode?>> pending = new();
         int seq;
+        bool started;
         public event Action<string, JsonNode?>? Event;
         public event Action? Exited;
 
-        public Dap(string adapter)
-        {
-            process = Process.Start(new ProcessStartInfo(adapter, ["--interpreter=vscode"])
-            {
-                CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
-            })!;
-            process.EnableRaisingEvents = true;
-            process.Exited += (_, _) => { foreach (var p in pending.Values) p.TrySetCanceled(); Exited?.Invoke(); };
-            process.BeginErrorReadLine();
-            new Thread(Read) { IsBackground = true, Name = "dap-read" }.Start();
-        }
-
         public Task<JsonNode?> Request(string command, JsonNode arguments)
         {
+            if (!started) { started = true; new Thread(Read) { IsBackground = true, Name = "dap-read" }.Start(); }
             var id = Interlocked.Increment(ref seq);
             var tcs = new TaskCompletionSource<JsonNode?>(TaskCreationOptions.RunContinuationsAsynchronously);
             pending[id] = tcs;
@@ -195,20 +230,21 @@ public static class Debugger
         void Send(JsonObject message)
         {
             var body = Encoding.UTF8.GetBytes(message.ToJsonString());
-            lock (process)
+            lock (output)
             {
-                if (process.HasExited) return;
-                var stdin = process.StandardInput.BaseStream;
-                stdin.Write(Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n"));
-                stdin.Write(body);
-                stdin.Flush();
+                try
+                {
+                    output.Write(Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n"));
+                    output.Write(body);
+                    output.Flush();
+                }
+                catch (IOException) { } // the adapter is gone; Read ends the session
             }
         }
 
         void Read()
         {
-            var stdout = process.StandardOutput.BaseStream;
-            while (LspClient.ReadMessage(stdout) is { } message)
+            while (Next() is { } message)
                 switch ((string?)message["type"])
                 {
                     case "response" when pending.TryRemove((int)message["request_seq"]!, out var tcs):
@@ -222,12 +258,16 @@ public static class Debugger
                         Send(new JsonObject { ["seq"] = Interlocked.Increment(ref seq), ["type"] = "response", ["request_seq"] = message["seq"]!.DeepClone(), ["success"] = false, ["command"] = message["command"]!.DeepClone() });
                         break;
                 }
+            foreach (var p in pending.Values) p.TrySetCanceled(); // the adapter closed the connection
+            Exited?.Invoke();
         }
 
-        public void Dispose()
+        JsonNode? Next()
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-            process.Dispose();
+            try { return LspClient.ReadMessage(input); }
+            catch (IOException) { return null; }
         }
+
+        public void Dispose() => close();
     }
 }

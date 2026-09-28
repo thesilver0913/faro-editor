@@ -38,7 +38,8 @@ public sealed class LspClient : IDisposable
 
     public static async Task<LspClient> StartAsync(string root)
     {
-        var start = JavaProject.Is(root) ? await Jdtls(root) : await CSharpLs();
+        var java = JavaProject.Is(root);
+        var start = java ? await Jdtls(root) : await CSharpLs();
         start.WorkingDirectory = root;
         var client = new LspClient(Process.Start(start)!);
         client.process.BeginErrorReadLine(); // drain stderr so the server never blocks on it
@@ -48,7 +49,11 @@ public sealed class LspClient : IDisposable
             ["rootUri"] = new Uri(root).AbsoluteUri,
             ["capabilities"] = new JsonObject { ["textDocument"] = new JsonObject { ["publishDiagnostics"] = new JsonObject(), ["completion"] = new JsonObject() } },
             // jdtls: Eclipse's .project/.classpath/.settings go to its data folder, not into the user's project
-            ["initializationOptions"] = new JsonObject { ["settings"] = new JsonObject { ["java"] = new JsonObject { ["import"] = new JsonObject { ["generatesMetadataFilesAtProjectRoot"] = false } } } },
+            ["initializationOptions"] = new JsonObject
+            {
+                ["settings"] = new JsonObject { ["java"] = new JsonObject { ["import"] = new JsonObject { ["generatesMetadataFilesAtProjectRoot"] = false } } },
+                ["bundles"] = java && Components.JavaDebug is { } debug ? new JsonArray(debug) : new JsonArray(), // the Java debugger's plugin
+            },
         });
         client.Notify("initialized", new JsonObject());
         return client;
@@ -79,6 +84,7 @@ public sealed class LspClient : IDisposable
     {
         if (Components.Jdtls is null && !await Components.All.First(c => c.Name.StartsWith("Java language server")).Install(_ => { }, CancellationToken.None))
             throw new InvalidOperationException("Installing the Java language server (jdtls) failed: Preferences › Tools shows why.");
+        if (Components.JavaDebug is null) await Components.All.First(c => c.Name.StartsWith("Java debugger")).Install(_ => { }, CancellationToken.None); // best effort: debugging needs it
         var home = Components.Jdtls!;
         var launcher = Directory.GetFiles(Path.Combine(home, "plugins"), "org.eclipse.equinox.launcher_*.jar").Single();
         var config = OperatingSystem.IsWindows() ? "config_win" : (OperatingSystem.IsMacOS() ? "config_mac" : "config_linux")
