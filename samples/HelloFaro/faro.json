@@ -1,6 +1,6 @@
 {
   "name": "HelloFaro",
   "language": "CSharp",
-  "runtime": "0.2.3",
+  "runtime": "0.2.4-dev1",
   "startScreen": "MainScreen"
 }

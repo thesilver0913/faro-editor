@@ -42,6 +42,8 @@ public partial class App : Application
         desktop.MainWindow = welcome;
         welcome.Show();
         previous?.Close();
+        Updates.Offer(welcome, manual: false);
+        Log.OfferCrashReport(welcome);
     }
 
     /// <summary>Splash with loading progress, then the editor on the project (spec §4 folder).</summary>
@@ -89,11 +91,14 @@ public partial class App : Application
         desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? L.T(" (not saved)") : "")}{(Workspace.Trusted ? "" : L.T(" (Restricted Mode)"))}" };
         desktop.MainWindow.Show();
         splash.Close();
+        Updates.Offer(desktop.MainWindow, manual: false);
+        Log.OfferCrashReport(desktop.MainWindow);
     }
 
     [STAThread]
     public static void Main(string[] args)
     {
+        Log.Start();
         root = args.FirstOrDefault() is { } path ? Path.GetFullPath(path) : null; // no folder given: welcome screen
         AppBuilder.Configure<App>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
     }

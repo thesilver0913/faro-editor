@@ -137,6 +137,7 @@ public static class Workspace
         {
             // A half-written file: keep the last good state and show why.
             LoadError = e.Message;
+            Log.Error("Loading the project", e);
         }
         Changed?.Invoke();
     }
