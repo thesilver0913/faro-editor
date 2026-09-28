@@ -11,9 +11,25 @@
     <sty:FluentAvaloniaTheme PreferUserAccentColor="False" CustomAccentColor="#1473E6" />
     <dock:DockFluentTheme />
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
-    <!-- Thin light-gray separators between the docked panels. -->
+    <!-- 1px light-gray separators between the docked panels: the line is the middle pixel of a 5px grab area. -->
     <Style Selector="ProportionalStackPanelSplitter">
-      <Setter Property="Background" Value="#5C5C5C" />
+      <Setter Property="Thickness" Value="5" />
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter:horizontal">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+          <GradientStop Offset="0.4" Color="Transparent" /><GradientStop Offset="0.4" Color="#5C5C5C" />
+          <GradientStop Offset="0.6" Color="#5C5C5C" /><GradientStop Offset="0.6" Color="Transparent" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter:vertical">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+          <GradientStop Offset="0.4" Color="Transparent" /><GradientStop Offset="0.4" Color="#5C5C5C" />
+          <GradientStop Offset="0.6" Color="#5C5C5C" /><GradientStop Offset="0.6" Color="Transparent" />
+        </LinearGradientBrush>
+      </Setter>
     </Style>
     <!-- Inactive tool tabs (Layers | Parts) keep a readable label under FluentAvalonia. -->
     <Style Selector="dockc|ToolTabStripItem">

@@ -13,5 +13,7 @@
     <PackageReference Include="MaterialColorUtilities" Version="0.3.0" />
     <!-- Material 3 Expressive's typeface (OFL), used by Material3.axaml. -->
     <AvaloniaResource Include="../../assets/fonts/GoogleSansFlex-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
+    <!-- Japanese text in Material 3 apps (Google Sans Flex has no Japanese): Noto Sans JP, so both look alike everywhere. -->
+    <AvaloniaResource Include="../../assets/fonts/NotoSansJP-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
