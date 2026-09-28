@@ -152,11 +152,11 @@ public sealed class ChatView : UserControl
         foreach (var turn in history)
             transcript.Children.Add(new Border
             {
-                Background = new SolidColorBrush(turn.IsUser ? Color.Parse("#1473E6") : Color.Parse("#333333")),
+                [!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(turn.IsUser ? "AccentFillColorDefaultBrush" : "FaroBubble"),
                 CornerRadius = new(6),
                 Padding = new(10, 6),
                 HorizontalAlignment = turn.IsUser ? HorizontalAlignment.Right : HorizontalAlignment.Stretch,
-                Child = new SelectableTextBlock { Text = turn.Text.Length > 0 ? turn.Text : "…", TextWrapping = TextWrapping.Wrap },
+                Child = new SelectableTextBlock { Text = turn.Text.Length > 0 ? turn.Text : "…", TextWrapping = TextWrapping.Wrap, [!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(turn.IsUser ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush") },
             });
         foreach (var p in pending) transcript.Children.Add(ProposalCard(p));
         if (error is not null) transcript.Children.Add(new SelectableTextBlock { Text = error, Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap });
@@ -172,7 +172,7 @@ public sealed class ChatView : UserControl
 
         var diff = new SelectableTextBlock { FontFamily = FontFamily.Parse(App.CodeFont), FontSize = 12 };
         foreach (var (op, line) in VibeCoding.Diff(before, p.Code))
-            diff.Inlines!.Add(new Run($"{op} {line}\n") { Foreground = op switch { '+' => Brushes.LightGreen, '-' => Brushes.IndianRed, _ => Brushes.Gray } });
+            diff.Inlines!.Add(new Run($"{op} {line}\n") { Foreground = op switch { '+' => Brushes.MediumSeaGreen, '-' => Brushes.IndianRed, _ => Brushes.Gray } });
 
         var approve = new Button { Content = L.T("Approve"), IsEnabled = syntax.Count == 0 && locked is null };
         var reject = new Button { Content = L.T("Reject") };
