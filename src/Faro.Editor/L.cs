@@ -151,6 +151,15 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        // Debugger
+        ["_Debug"] = "デバッグ(_D)", ["_Start Debugging"] = "デバッグ開始(_S)", ["S_top Debugging"] = "デバッグ停止(_T)", ["_Continue"] = "続行(_C)", ["Step _Over"] = "ステップオーバー(_O)",
+        ["Step _Into"] = "ステップイン(_I)", ["Toggle _Breakpoint"] = "ブレークポイントの切り替え(_B)", ["Debug"] = "デバッグ",
+        ["Start Debugging (F6)"] = "デバッグ開始(F6)", ["Continue (F8)"] = "続行(F8)", ["Step Over (F10)"] = "ステップオーバー(F10)", ["Step Into (Shift+F10)"] = "ステップイン(Shift+F10)", ["Stop Debugging (Shift+F6)"] = "デバッグ停止(Shift+F6)",
+        ["Call stack"] = "呼び出し履歴", ["Variables"] = "変数", ["The debugger is for C# projects for now."] = "デバッガーは今のところ C# プロジェクトだけです。",
+        ["Restricted Mode: File › Trust Project… to debug."] = "制限モード: デバッグするには ファイル › プロジェクトを信頼… を選んでください。", ["Paused at {0}:{1}"] = "{0}:{1} で一時停止中", ["Running…"] = "実行中…",
+        ["Click left of a line number in the code to set a breakpoint, then Debug."] = "コードの行番号の左をクリックしてブレークポイントを置き、デバッグを押します。",
+        ["Building for debugging…"] = "デバッグ用にビルドしています…", ["The build failed (see above)."] = "ビルドに失敗しました(上の出力を参照)。", ["[Debugging stopped]"] = "[デバッグ終了]",
+        ["The C# debugger (installed on first use too)"] = "C# のデバッガー(初めて使うときにも自動で入ります)",
         // Tokens and variants
         ["Tokens"] = "トークン", ["One per line: name = number. Gap, padding, margin and sizes take \"$name\" (e.g. $space.m), so changing a token restyles every screen."] = "1 行に 1 つ: 名前 = 数値。間隔・内側/外側の余白・サイズに \"$名前\"(例: $space.m)と書くと、トークンを変えるだけで全画面に反映されます。",
         ["No token {0} (File › Project Design… › Tokens)."] = "トークン {0} がありません(ファイル › プロジェクトのデザイン… › トークン)。",

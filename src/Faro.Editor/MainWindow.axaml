@@ -44,6 +44,16 @@
       <MenuItem Header="Node by _ID…" Click="SelectById" />
       <MenuItem Header="Nodes with _Broken Bindings" Click="SelectBroken" />
     </MenuItem>
+    <MenuItem Header="_Debug">
+      <MenuItem Header="_Start Debugging" Click="StartDebugging" InputGesture="F6" HotKey="F6" />
+      <MenuItem Header="S_top Debugging" Click="StopDebugging" InputGesture="Shift+F6" HotKey="Shift+F6" />
+      <Separator />
+      <MenuItem Header="_Continue" Click="ContinueDebugging" InputGesture="F8" HotKey="F8" />
+      <MenuItem Header="Step _Over" Click="StepOver" InputGesture="F10" HotKey="F10" />
+      <MenuItem Header="Step _Into" Click="StepInto" InputGesture="Shift+F10" HotKey="Shift+F10" />
+      <Separator />
+      <MenuItem Header="Toggle _Breakpoint" Click="ToggleBreakpoint" InputGesture="F9" HotKey="F9" />
+    </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Explorer" Click="ShowExplorer" />
       <MenuItem Header="_Source Control" Click="ShowSourceControl" />

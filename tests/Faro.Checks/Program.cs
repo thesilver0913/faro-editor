@@ -97,6 +97,13 @@ Check(UiHistory.Labels.TakeLast(3).SequenceEqual(["Write one", "Write two", "Wri
 File.Delete(historyFile);
 UiHistory.Clear();
 
+// Debugger: breakpoints toggle per line; LSP and DAP share the Content-Length framing.
+Debugger.Toggle("/p/A.cs", 3); Debugger.Toggle("/p/A.cs", 5); Debugger.Toggle("/p/A.cs", 3);
+var dapBody = """{"type":"event","event":"stopped","body":{"threadId":1}}""";
+var framed = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"Content-Length: {System.Text.Encoding.UTF8.GetByteCount(dapBody)}\r\n\r\n{dapBody}"));
+Check(Debugger.Breakpoints["/p/A.cs"].SequenceEqual([5]) && (string?)LspClient.ReadMessage(framed)?["event"] == "stopped" && LspClient.ReadMessage(framed) is null, "breakpoints toggle; debug adapter messages are framed like LSP");
+Debugger.Breakpoints.Clear();
+
 // Source control: `git status --porcelain=v1 -b` lines.
 var (gitBranch, gitFiles) = GitView.ParseStatus(["## main...origin/main [ahead 1]", " M UI/MainScreen.xml", "?? Source/New.cs", "R  Old.cs -> Renamed.cs"]);
 Check(gitBranch == "main...origin/main [ahead 1]" && gitFiles.SequenceEqual([("M", "UI/MainScreen.xml"), ("??", "Source/New.cs"), ("R", "Renamed.cs")]), "git status parsed");

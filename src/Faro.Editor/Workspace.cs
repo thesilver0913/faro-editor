@@ -123,7 +123,8 @@ public static class Workspace
         }
     }
 
-    static void Add(string line)
+    /// <summary>A line of the Output tab (Run, the debugger); build errors in it go to Problems.</summary>
+    internal static void Add(string line)
     {
         if (Output.Count >= MaxOutputLines) Output.RemoveAt(0);
         Output.Add(line);

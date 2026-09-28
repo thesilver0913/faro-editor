@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace Faro.Editor;
 
 /// <summary>
-/// Tools Faro fetches on demand (Preferences › Components) instead of shipping them: a JDK 21, Maven and jdtls for Java projects,
+/// Tools Faro fetches on demand (Preferences › Components) instead of shipping them: a JDK 21, Maven and jdtls for Java projects, netcoredbg for debugging C#,
 /// Gluon's GraalVM for Java APKs, the .NET "android" workload for C# APKs. Downloads go to Faro's own tools folder and are
 /// used only by Faro: <see cref="Activate"/> puts their bin folders first on its PATH and sets JAVA_HOME / GRAALVM_HOME.
 /// </summary>
@@ -18,6 +18,15 @@ public static class Components
 
     const string MavenVersion = "3.9.9";
     const string JdtlsUrl = "https://download.eclipse.org/jdtls/milestones/1.50.0/jdt-language-server-1.50.0-202509041425.tar.gz";
+
+    const string NetcoredbgRelease = "https://github.com/Samsung/netcoredbg/releases/download/3.2.0-1092/";
+
+    /// <summary>netcoredbg's executable (the C# debugger), once installed.</summary>
+    public static string? Netcoredbg => Path.Combine(Dir("netcoredbg"), OperatingSystem.IsWindows() ? "netcoredbg.exe" : "netcoredbg") is var exe && File.Exists(exe) ? exe : null;
+
+    // Samsung builds it for Windows x64, Linux x64/arm64 and Intel macOS (none for Apple silicon).
+    static string NetcoredbgAsset => OperatingSystem.IsWindows() ? "netcoredbg-win64.zip" : OperatingSystem.IsMacOS() ? "netcoredbg-osx-amd64.tar.gz"
+        : Arch == "aarch64" ? "netcoredbg-linux-arm64.tar.gz" : "netcoredbg-linux-amd64.tar.gz";
 
     /// <summary>The Java language server's folder, once installed.</summary>
     public static string? Jdtls => Directory.Exists(Dir("jdtls")) ? Dir("jdtls") : null;
@@ -38,6 +47,8 @@ public static class Components
                 Dir("maven"), OperatingSystem.IsWindows(), log, cancel)),
         new("Java language server (jdtls)", "Completion and errors in Java code (installed on first use too)", () => Jdtls is not null,
             (log, cancel) => Fetch(JdtlsUrl, Dir("jdtls"), false, log, cancel)),
+        new("netcoredbg", "The C# debugger (installed on first use too)", () => Netcoredbg is not null,
+            (log, cancel) => Fetch(NetcoredbgRelease + NetcoredbgAsset, Dir("netcoredbg"), OperatingSystem.IsWindows(), log, cancel), !(OperatingSystem.IsMacOS() && Arch == "aarch64")),
         new("Gluon GraalVM", "Android APKs of Java projects (Linux only)", () => Directory.Exists(Dir("graalvm")),
             (log, cancel) => Fetch(GraalVmUrl, Dir("graalvm"), false, log, cancel), OperatingSystem.IsLinux()),
         new(".NET Android workload", "Android APKs of C# projects", AndroidWorkloadInstalled,

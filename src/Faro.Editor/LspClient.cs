@@ -134,7 +134,8 @@ public sealed class LspClient : IDisposable
         }
     }
 
-    static JsonNode? ReadMessage(Stream stream)
+    /// <summary>One Content-Length framed JSON message (LSP and the debugger's DAP use the same framing), or null at the end.</summary>
+    public static JsonNode? ReadMessage(Stream stream)
     {
         var length = 0;
         while (ReadLine(stream) is { } line && line.Length > 0)
