@@ -248,16 +248,67 @@ public sealed class CanvasView : UserControl
         designScope.Resources = new ResourceDictionary();
         design.Apply(designScope.Styles, designScope.Resources);
         designScope.RequestedThemeVariant = design.Theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
-        if (design.Language == "Fluent")
+        Surface(artboard, design.Language, design.Theme == "Dark");
+    }
+
+    static void Surface(Border board, string language, bool dark)
+    {
+        if (language == "Fluent")
         {
-            artboard.Background = design.Theme == "Dark" ? new SolidColorBrush(Color.Parse("#202020")) : Brushes.White;
-            artboard[TextElement.ForegroundProperty] = design.Theme == "Dark" ? Brushes.White : Brushes.Black;
+            board.Background = dark ? new SolidColorBrush(Color.Parse("#202020")) : Brushes.White;
+            board[TextElement.ForegroundProperty] = dark ? Brushes.White : Brushes.Black;
         }
         else
         {
-            artboard.ClearValue(Border.BackgroundProperty); // the language's surface (Border.faro-screen)
-            artboard.ClearValue(TextElement.ForegroundProperty);
+            board.ClearValue(Border.BackgroundProperty); // the language's surface (Border.faro-screen)
+            board.ClearValue(TextElement.ForegroundProperty);
         }
+    }
+
+    /// <summary>Compare: the screen side by side on every device size, or in light and dark (read-only copies; editing stays on one artboard).</summary>
+    static readonly string[] CompareModes = ["One artboard", "All sizes", "Light and dark"];
+    static int compareMode;
+
+    Control Compare(XElement node)
+    {
+        var dark = shownDesign?.Theme == "Dark";
+        var current = Sizes.GetValueOrDefault(FaroSettings.Current.ArtboardSize, Sizes["Phone"]);
+        var boards = compareMode == 1
+            ? Sizes.Select(s => (Label: L.T(s.Key), Size: s.Value, Dark: dark))
+            : new[] { (Label: L.T("Light"), Size: current, Dark: false), (Label: L.T("Dark"), Size: current, Dark: true) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 32, Margin = new(32), IsHitTestVisible = false };
+        foreach (var (label, (width, height), boardDark) in boards)
+        {
+            var board = new Border { Width = width, MinHeight = height, VerticalAlignment = VerticalAlignment.Top, Classes = { "faro-screen" }, Child = BuildScreen(node, []) };
+            Surface(board, shownDesign?.Language ?? "Fluent", boardDark);
+            row.Children.Add(new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock { Text = $"{label} · {width}×{height}", Opacity = 0.7 },
+                    new ThemeVariantScope { RequestedThemeVariant = boardDark ? ThemeVariant.Dark : ThemeVariant.Light, Child = board },
+                },
+            });
+        }
+        return row;
+    }
+
+    /// <summary>
+    /// Data: the canvas shows what the bindings bring from the project's last build (lists from their Items binding,
+    /// texts from bound properties), instead of the mock rows. Runs the user's code, like Script nodes: trusted C# projects only.
+    /// </summary>
+    static bool data;
+    static string dataNote = "";
+    static bool ShowsData => data && Workspace.Trusted && !Workspace.IsJava;
+
+    static Control BuildScreen(XElement node, Dictionary<string, Control> ids)
+    {
+        if (!ShowsData) return UiBuilder.Build(MockData.Expand(node), ids, Workspace.Root);
+        var built = UiBuilder.Build(node, ids, Workspace.Root);
+        var errors = ScriptPreview.Load(Workspace.Root) is { } assembly ? FaroApp.Preview(assembly, Workspace.Project!, CurrentScreen ?? "", ids) : [L.T("not built yet (Run builds it)")];
+        dataNote = errors.Count == 0 ? L.T(" · Data from the last build") : L.F(" · Data: {0}", errors[0].Split('→')[^1].Trim());
+        return built;
     }
 
     readonly Button run = new() { Classes = { "accent" }, Padding = new(8, 4), [ToolTip.TipProperty] = L.T("Run the app (F5) / Stop (Shift+F5)") };
@@ -411,7 +462,7 @@ public sealed class CanvasView : UserControl
         // Zoom: −/+, Fit (to the pane width), Ctrl+wheel. The artboard's own coordinates don't change, so selection and drops still line up.
         var zoomOut = Icons.Button(FASymbol.ZoomOut, "Zoom out (Ctrl+wheel)", () => SetZoom(zoom / 1.25));
         var zoomIn = Icons.Button(FASymbol.ZoomIn, "Zoom in (Ctrl+wheel)", () => SetZoom(zoom * 1.25));
-        var fit = Icons.Button(FASymbol.FullScreenMaximize, "Fit to the pane width", () => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (artboard.Width + artboard.Margin.Left + artboard.Margin.Right))));
+        var fit = Icons.Button(FASymbol.FullScreenMaximize, "Fit to the pane width", () => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (zoomHost.Child is { } shown ? shown.Bounds.Width + shown.Margin.Left + shown.Margin.Right : 1))));
         zoomLabel.PointerPressed += (_, _) => SetZoom(1); // click the percentage: back to 100%
         viewport.AddHandler(PointerWheelChangedEvent, (_, e) =>
         {
@@ -428,7 +479,20 @@ public sealed class CanvasView : UserControl
             if (preview) Select([]);
             Render();
         };
-        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, previewToggle, run, status } });
+        var compare = new ComboBox { ItemsSource = CompareModes.Select(m => L.T(m)).ToList(), SelectedIndex = compareMode, [ToolTip.TipProperty] = L.T("Compare the screen on every size, or in light and dark") };
+        compare.SelectionChanged += (_, _) => { compareMode = Math.Max(0, compare.SelectedIndex); Render(); };
+        var dataToggle = new Avalonia.Controls.Primitives.ToggleButton { Content = Icons.Label(FASymbol.Library, L.T("Data")), Padding = new(8, 4), IsChecked = data };
+        dataToggle.IsCheckedChanged += (_, _) => { data = dataToggle.IsChecked == true; Render(); DrawSelection(); };
+        void DataState()
+        {
+            dataToggle.IsEnabled = Workspace.Trusted && !Workspace.IsJava;
+            ToolTip.SetTip(dataToggle, L.T(!Workspace.Trusted ? "Restricted Mode: File › Trust Project… to show data from the code."
+                : Workspace.IsJava ? "Data preview is for C# projects (Java runs in its own JVM)."
+                : "Show the data the bindings bring from the last build (lists, texts) instead of the mock rows"));
+        }
+        DataState();
+        Workspace.Changed += DataState;
+        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, compare, zoomBar, add, delete, up, down, sync, previewToggle, dataToggle, run, status } });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         designScope.Child = zoomHost;
         viewport.Content = designScope;
@@ -505,13 +569,15 @@ public sealed class CanvasView : UserControl
         }
         ShowDesign(Workspace.Project.Design);
         byId = [];
-        var built = UiBuilder.Build(MockData.Expand(graph.Root!.Element("Node")!), byId, Workspace.Root);
+        dataNote = "";
+        var built = BuildScreen(graph.Root!.Element("Node")!, byId);
         // An instance selects as a whole; mock row copies ("id~2") aren't nodes of the file.
         idOf = byId.Where(p => !p.Key.Contains('/') && !p.Key.Contains('~')).ToDictionary(p => p.Value, p => p.Key);
         ScreenNodeIds = [.. idOf.Values];
         Selection.IntersectWith(ScreenNodeIds);
         (overlay.Parent as Panel)?.Children.Remove(overlay);
         artboard.Child = new Panel { Children = { built, overlay } };
+        zoomHost.Child = compareMode == 0 ? artboard : Compare(graph.Root!.Element("Node")!);
         if (preview) WirePreview(CurrentScreen ?? "");
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
         foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
@@ -632,6 +698,7 @@ public sealed class CanvasView : UserControl
             ?? (selected is not null ? L.F("Selected: {0} ({1}) · ", Selection.First(), (string?)selected.Attribute("type")) : Selection.Count > 1 ? L.F("{0} nodes selected · ", Selection.Count) : "")
             + editingComponent + L.F("{0} broken binding(s) · {1} registry members", Workspace.Issues.Count, Workspace.Registry.Count)
             + (Workspace.Unbuilt ? L.T(" · Unbuilt code changes: new members resolve after Run") : "") // spec §11.5
+            + dataNote
             + (Workspace.Trusted ? "" : L.T(" · Restricted Mode (File › Trust Project…)"));
     }
 

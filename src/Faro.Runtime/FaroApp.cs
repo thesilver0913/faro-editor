@@ -116,11 +116,28 @@ public static class FaroApp
         var byId = new Dictionary<string, Control>();
         host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
         if (window is not null) window.Title = screenId;
+        var errors = Bind(graph.Root!.Element("Node")!, screenId, byId, events: true);
+        if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
+    }
 
-        // Screen binds, then component-level binds (Bindings/<ComponentId>.xml) inside every instance of that component.
-        var node = graph.Root!.Element("Node")!;
+    /// <summary>
+    /// Design-time data (the editor's canvas): the screen's property bindings (not events) on controls built from it,
+    /// with new instances of the classes in <paramref name="assembly"/> (nothing is persisted). Returns the errors.
+    /// </summary>
+    public static List<string> Preview(Assembly assembly, FaroProject faroProject, string screenId, Dictionary<string, Control> byId)
+    {
+        (userAssembly, project) = (assembly, faroProject);
+        singletons.Clear();
+        screenScoped = [];
+        return project.Graph(screenId)?.Root?.Element("Node") is { } node ? Bind(node, screenId, byId, events: false) : [];
+    }
+
+    /// <summary>Screen binds, then component-level binds (Bindings/&lt;ComponentId&gt;.xml) inside every instance of that component.</summary>
+    static List<string> Bind(XElement node, string screenId, Dictionary<string, Control> byId, bool events)
+    {
         var binds = project.BindsFor(screenId).Select(b => (Key: (string?)b.Attribute("nodeId") ?? "", Bind: b))
             .Concat(UiBuilder.InstancePaths(node).SelectMany(p => project.BindsFor(p.Component).Select(b => (Key: p.Prefix + ((string?)b.Attribute("nodeId") ?? ""), Bind: b))))
+            .Where(b => events || b.Bind.Attribute("event") is null)
             .ToList();
         var lists = byId.Where(p => p.Value is RepeatHost).Select(p => p.Key + "/").ToList();
         var errors = new List<string>();
@@ -128,10 +145,10 @@ public static class FaroApp
             if (!lists.Any(key.StartsWith) && byId.TryGetValue(key, out var control)) // binds inside a list apply per row (BindItems)
                 Try(errors, bind, () =>
                 {
-                    if (control is RepeatHost list && (string?)bind.Attribute("prop") == "Items") BindItems(list, bind, key, binds);
+                    if (control is RepeatHost list && (string?)bind.Attribute("prop") == "Items") BindItems(list, bind, key, binds, errors);
                     else Apply(bind, control, null);
                 });
-        if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
+        return errors;
     }
 
     /// <summary>"Navigate:Screen.Detail" → "Detail" (the "Screen." prefix is optional).</summary>
@@ -162,7 +179,7 @@ public static class FaroApp
     /// list changes (INotifyCollectionChanged) or is replaced (PropertyChanged). Binds inside a row use the
     /// row's item when the target's class is the item's type.
     /// </summary>
-    static void BindItems(RepeatHost list, XElement bind, string key, List<(string Key, XElement Bind)> binds)
+    static void BindItems(RepeatHost list, XElement bind, string key, List<(string Key, XElement Bind)> binds, List<string>? firstErrors)
     {
         var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
         var prop = Resolve(userAssembly, target) as PropertyInfo ?? throw new InvalidOperationException($"'{target}' is not a property.");
@@ -171,11 +188,11 @@ public static class FaroApp
         var prefix = key[..^((string?)list.Node.Attribute("id") ?? "").Length];
         System.Collections.Specialized.INotifyCollectionChanged? watched = null;
         System.Collections.Specialized.NotifyCollectionChangedEventHandler changed = null!;
-        var screen = host.Content;
+        var screen = host?.Content; // the editor's preview has no host
         void Render()
         {
             if (watched is not null) watched.CollectionChanged -= changed;
-            if (host.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
+            if (host?.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
             var items = prop.GetValue(owner) as System.Collections.IEnumerable;
             watched = items as System.Collections.Specialized.INotifyCollectionChanged;
             if (watched is not null) watched.CollectionChanged += changed;
@@ -188,11 +205,14 @@ public static class FaroApp
                 foreach (var (k, b) in binds)
                     if (k.StartsWith(key + "/") && row.TryGetValue(k, out var control)) Try(errors, b, () => Apply(b, control, item));
             }
-            if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
+            if (errors.Count == 0) return;
+            if (firstErrors is not null) firstErrors.AddRange(errors); // the first rows: reported with the screen's other errors
+            else if (host is not null) ShowError(string.Join("\n\n", errors));
         }
         changed = (_, _) => Render();
         if (owner is INotifyPropertyChanged notify) notify.PropertyChanged += (_, e) => { if (e.PropertyName == prop.Name) Render(); };
         Render();
+        firstErrors = null;
     }
 
     static void Apply(XElement bind, Control control, object? item)

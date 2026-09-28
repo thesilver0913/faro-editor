@@ -501,6 +501,12 @@ Check(FaroApp.Resolve(asm, "MyApp.Services.OrderService.Submit") is MethodInfo, 
 Check(FaroApp.Resolve(asm, "MyApp.Models.UserProfile.Name") is PropertyInfo, "runtime resolves property");
 Check(Throws<InvalidOperationException>(() => FaroApp.Resolve(asm, "MyApp.Nope.Submit")), "runtime rejects unknown class");
 Check(FaroApp.NavigateScreenId("Navigate:Screen.Detail", ["Detail"]) == "Detail", "navigate id");
+// Canvas data preview: the screen's property bindings from the built classes (the list from OrderService.Orders), no events.
+var previewProject = FaroProject.Load(sample);
+var previewIds = new Dictionary<string, Avalonia.Controls.Control>();
+UiBuilder.Build(previewProject.Screens["MainScreen"].Root!.Element("Node")!, previewIds, sample);
+var previewErrors = FaroApp.Preview(asm, previewProject, "MainScreen", previewIds);
+Check(previewErrors.Count == 0 && previewIds["orderList"] is RepeatHost { Children.Count: 1 }, "data preview fills the list from the code");
 
 // Android APK head: a valid application id, Source/ compiled, the project's references re-rooted to .faro/android.
 Check(AndroidApk.ApplicationId("Hello Faro!") == "io.faro.hellofaro" && AndroidApk.ApplicationId("123") == "io.faro.app", "android application id");

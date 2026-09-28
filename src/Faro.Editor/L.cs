@@ -151,6 +151,14 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        // Compare and data preview (canvas)
+        ["One artboard"] = "1 枚で表示", ["All sizes"] = "全サイズを並べる", ["Light and dark"] = "ライトとダークを並べる",
+        ["Compare the screen on every size, or in light and dark"] = "画面を全サイズ、またはライトとダークで並べて比べる",
+        ["Data"] = "データ", ["not built yet (Run builds it)"] = "まだビルドされていません(実行でビルドされます)",
+        [" · Data from the last build"] = " · 最後のビルドのデータを表示中", [" · Data: {0}"] = " · データ: {0}",
+        ["Restricted Mode: File › Trust Project… to show data from the code."] = "制限モード: コードのデータを表示するには ファイル › プロジェクトを信頼… を選んでください。",
+        ["Data preview is for C# projects (Java runs in its own JVM)."] = "データのプレビューは C# プロジェクトのみです(Java は別の JVM で動くため)。",
+        ["Show the data the bindings bring from the last build (lists, texts) instead of the mock rows"] = "モック行の代わりに、紐付けが最後のビルドから持ってくるデータ(リスト・テキスト)を表示",
         // Command palette, history list, source control
         ["Command _Palette…"] = "コマンドパレット(_P)…", ["Command Palette"] = "コマンドパレット", ["Type a command"] = "コマンドを入力",
         ["_History"] = "履歴(_H)", ["History"] = "履歴", ["Opened"] = "開いたとき",
