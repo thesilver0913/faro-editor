@@ -148,7 +148,7 @@ innerFile.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/pr
 var innerIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
 Check(innerIssues.Count == 1 && innerIssues[0].NodeId == "orderList/nope", "a bind inside an instance is checked like any other (and Items on a list)");
 CanvasEdit.Rename(project, mainGraph, "orderList", "items");
-Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 4 && !project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("orderList") == true), "renaming an instance follows binds inside it");
+Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 5 && !project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("orderList") == true), "renaming an instance follows binds inside it");
 CanvasEdit.Delete(project, mainGraph, ["items"]);
 Check(!project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true), "deleting an instance removes binds inside it");
 project = FaroProject.Load(root);
@@ -190,7 +190,7 @@ Check(form.ColumnDefinitions.Count == 2 && form.RowDefinitions.Count == 3 && Cel
 Check(StackGrid("""<Node id="g" type="Container.Grid" columns="2"><Node id="a" type="Control.Text" column="9" columnSpan="5" row="x" /></Node>""") is { Children: [var clamped] } && Avalonia.Controls.Grid.GetColumn(clamped) == 1 && Avalonia.Controls.Grid.GetColumnSpan(clamped) == 1, "out-of-range cells are clamped, bad numbers ignored");
 // Copy / paste / duplicate: fresh ids where taken, binds follow the copies (inner paths too), other screens keep ids.
 var clip = CanvasEdit.Copy(project, project.Screens["MainScreen"], ["btn1", "orderList", "actions"]);
-Check(clip.Nodes.Select(n => (string?)n.Attribute("id")).SequenceEqual(["actions", "orderList"]) && clip.Binds.Count == 5, "copy takes whole subtrees (a selected child goes with its parent) and their binds");
+Check(clip.Nodes.Select(n => (string?)n.Attribute("id")).SequenceEqual(["actions", "orderList"]) && clip.Binds.Count == 6, "copy takes whole subtrees (a selected child goes with its parent) and their binds");
 var (pasted, pasteChanged) = CanvasEdit.Paste(project, project.Screens["MainScreen"], "orderList", clip, after: true);
 var pastedIds = pasted.SelectMany(n => n.DescendantsAndSelf("Node")).Where(n => n.Parent?.Attribute("type")?.Value != "Instance").Select(n => (string?)n.Attribute("id")).ToList();
 Check(pastedIds.Contains("actions2") && pastedIds.Contains("btn2") && pastedIds.Contains("orderList2") && pasted[0].ElementsBeforeSelf("Node").Last().Attribute("id")!.Value == "orderList"
@@ -411,7 +411,7 @@ Check(Registry.Renames(code, renamed.Replace("class OrderService", "class Orders
 Check(Registry.Renames(code, code.Replace("public void Submit() => SubmitCount++;", "public void A() { }\n    public void B() { }")).Count == 0, "ambiguous change is not a rename");
 project = FaroProject.Load(root);
 Check(Registry.FollowRenames(project, [("MyApp.Services.OrderService", "MyApp.Services.Orders")]).Count == 2, "class rename rewrites both binding files");
-Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 3, "targets follow class rename");
+Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 4, "targets follow class rename");
 
 // Vibe coding: parse generated files, keep writes inside Source/, block broken syntax, diff.
 var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";
@@ -507,6 +507,11 @@ var previewIds = new Dictionary<string, Avalonia.Controls.Control>();
 UiBuilder.Build(previewProject.Screens["MainScreen"].Root!.Element("Node")!, previewIds, sample);
 var previewErrors = FaroApp.Preview(asm, previewProject, "MainScreen", previewIds);
 Check(previewErrors.Count == 0 && previewIds["orderList"] is RepeatHost { Children.Count: 1 }, "data preview fills the list from the code");
+// Navigation parameter: the Detail screen's binds to Order members resolve against the order it was opened with (values need a
+// window to show, so the app itself is the visual check).
+var detailIds = new Dictionary<string, Avalonia.Controls.Control>();
+UiBuilder.Build(previewProject.Screens["Detail"].Root!.Element("Node")!, detailIds, sample);
+Check(FaroApp.Preview(asm, previewProject, "Detail", detailIds, new MyApp.Models.Order { Name = "みかん", Price = 1234 }).Count == 0 && FaroApp.Parameter is MyApp.Models.Order { Name: "みかん" }, "a screen opened with a parameter binds to it");
 
 // Android APK head: a valid application id, Source/ compiled, the project's references re-rooted to .faro/android.
 Check(AndroidApk.ApplicationId("Hello Faro!") == "io.faro.hellofaro" && AndroidApk.ApplicationId("123") == "io.faro.app", "android application id");

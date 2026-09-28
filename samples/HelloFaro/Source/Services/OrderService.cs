@@ -14,5 +14,8 @@ public class OrderService : FaroObject
 
     public ObservableCollection<Order> Orders { get; set; } = [new() { Name = "りんご", Price = 120 }];
 
+    /// <summary>A tapped row (its item comes in): the detail screen shows that order.</summary>
+    public void Open(Order order) => FaroApp.Navigate("Detail", order);
+
     public void Submit() => Orders.Add(new() { Name = $"注文 {++SubmitCount}", Price = 100 * SubmitCount });
 }

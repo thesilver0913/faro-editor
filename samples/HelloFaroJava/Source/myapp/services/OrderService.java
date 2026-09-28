@@ -1,5 +1,6 @@
 package myapp.services;
 
+import faro.runtime.FaroApp;
 import faro.runtime.FaroLifetime;
 import faro.runtime.FaroObject;
 import faro.runtime.Lifetime;
@@ -22,6 +23,9 @@ public class OrderService extends FaroObject {
     public String getSummary() { return "送信回数: " + submitCount; }
 
     public List<Order> getOrders() { return orders; }
+
+    /** A tapped row (its item comes in): the detail screen shows that order. */
+    public void open(Order order) { FaroApp.navigate("Detail", order); }
 
     public void submit() {
         setSubmitCount(submitCount + 1);

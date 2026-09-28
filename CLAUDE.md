@@ -35,6 +35,7 @@
 - 新規プロジェクトは**名前なし(Untitled)で始め**、File › Save / Save As… で名前と場所(既定 `ドキュメント/Faro`)を決める
 - インスタンスの中の Node にも紐付けられる(`nodeId="orderList/price"`)
 - **リストの実データ**は repeatable なインスタンスへの `prop="Items"`(一覧のプロパティ)。中の Node への紐付けは、対象のクラスが要素の型ならその行の要素に付く
+- 紐付けの**表示形式**は `format="¥{0:N0}"`(`{0}`・`N<桁>`・`F<桁>` は両言語で同じ)。イベントのメソッドは引数なしか 1 つ(行の要素か遷移で渡した値)。**遷移の値渡し**は `FaroApp.Navigate("画面ID", 値)` で、遷移先の紐付けは値のクラスのメンバーならその値を使う
 - **ワークスペースの信頼**:初めて開くフォルダは Trust か Restricted Mode を選ぶ(Restricted では restore・言語サーバー・Script プレビュー・Run を止める)
 - Grid は行・列のトラック指定(`columns="Auto, *, 2*, 120px"`、子は `row`/`column`/`rowSpan`/`columnSpan`)
 - **Script 部品**(`Control.Script` + `class`):`FaroScript` を継承したクラスの `Build()` が見た目も動作もコードで作る。キャンバスは最後のビルド結果で実物を表示

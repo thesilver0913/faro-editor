@@ -429,7 +429,7 @@ public static class CanvasEdit
     /// <summary>The nodes of an instance's snapshot one level deep (a nested instance counts as one node).</summary>
     public static IEnumerable<XElement> InnerNodes(XElement instance) =>
         (string?)instance.Attribute("type") == "Instance" && instance.Element("Node") is { } root
-            ? root.DescendantsAndSelf("Node").Where(n => !n.Ancestors("Node").TakeWhile(a => a != root).Any(a => (string?)a.Attribute("type") == "Instance"))
+            ? root.DescendantsAndSelf("Node").Where(n => n == root || !n.Ancestors("Node").TakeWhile(a => a != root).Any(a => (string?)a.Attribute("type") == "Instance"))
             : [];
 
     /// <summary>A node authored in the screen (not inside an instance's master snapshot).</summary>
