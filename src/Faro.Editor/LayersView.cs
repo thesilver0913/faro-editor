@@ -44,7 +44,7 @@ public sealed class LayersView : UserControl
         tree.AddHandler(DragDrop.DropEvent, (_, e) =>
         {
             if (e.DataTransfer.TryGetValue(NodeFormat) is { } id && Target(e) is { } t)
-                CanvasView.Edit("Move", (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
+                CanvasView.Edit("Move " + id, (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
         });
         DockPanel.SetDock(title, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { title, tree } };

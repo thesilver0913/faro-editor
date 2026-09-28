@@ -77,6 +77,18 @@ File.AppendAllText(screenFile, "<!-- edited elsewhere -->");
 Check(UiHistory.Undo() is { } refused && refused.Contains("changed outside Faro") && File.ReadAllText(screenFile).Contains("edited elsewhere") && UiHistory.UndoLabel is null, "UI undo never overwrites an external edit");
 File.WriteAllText(screenFile, afterSync);
 
+// History list: jump to any step (undo or redo several at once).
+var historyFile = Path.Combine(root, "UI", "HistoryCheck.xml");
+foreach (var n in new[] { "one", "two", "three" }) UiHistory.CommitFiles("Write " + n, new Dictionary<string, string?> { [historyFile] = n });
+Check(UiHistory.Labels.TakeLast(3).SequenceEqual(["Write one", "Write two", "Write three"]) && UiHistory.GoTo(UiHistory.Applied - 2) is null && File.ReadAllText(historyFile) == "one"
+    && UiHistory.Labels.Count == UiHistory.Applied + 2 && UiHistory.GoTo(UiHistory.Applied + 2) is null && File.ReadAllText(historyFile) == "three", "history list jumps back and forward");
+File.Delete(historyFile);
+UiHistory.Clear();
+
+// Source control: `git status --porcelain=v1 -b` lines.
+var (gitBranch, gitFiles) = GitView.ParseStatus(["## main...origin/main [ahead 1]", " M UI/MainScreen.xml", "?? Source/New.cs", "R  Old.cs -> Renamed.cs"]);
+Check(gitBranch == "main...origin/main [ahead 1]" && gitFiles.SequenceEqual([("M", "UI/MainScreen.xml"), ("??", "Source/New.cs"), ("R", "Renamed.cs")]), "git status parsed");
+
 // Component masters (spec §5): edited like screens; their own bindings apply inside every instance.
 project = FaroProject.Load(root);
 var paths = UiBuilder.InstancePaths(project.Screens["MainScreen"].Root!.Element("Node")!).ToList();
