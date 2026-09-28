@@ -41,6 +41,9 @@ public final class UiBuilder {
     /** Builds a Script node's class by name (the app resolves it in the user's classes). */
     public static Function<String, Node> scriptFactory;
 
+    /** Project file → URL, set by the app (the project folder, or the resources bundled in an Android APK). */
+    public static Function<String, java.net.URL> files;
+
     public static Node build(Element node, Map<String, Node> byId, File root, String prefix) {
         var type = node.getAttribute("type");
         Node control = switch (type) {
@@ -396,7 +399,8 @@ public final class UiBuilder {
     private static Node image(File root, String path) {
         var view = new ImageView();
         view.setPreserveRatio(true);
-        if (path != null && new File(root, path).isFile()) view.setImage(new Image(new File(root, path).toURI().toString()));
+        var url = path == null ? null : files.apply(path);
+        if (url != null) view.setImage(new Image(url.toExternalForm()));
         return view;
     }
 

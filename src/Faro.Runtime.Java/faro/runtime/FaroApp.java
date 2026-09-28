@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.nio.file.Files;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -54,7 +54,12 @@ public final class FaroApp {
     public static void run(String[] args, Class<?> main) {
         mainClass = main;
         root = new File(System.getProperty("faro.root", ".")).getAbsoluteFile();
-        var meta = read(new File(root, "faro.json"));
+        var bundled = FaroApp.class.getResource("/faro/index.txt");
+        if (bundled != null && !new File(root, "faro.json").isFile()) // an Android APK built by Faro
+            try (var in = bundled.openStream()) { index = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).lines().filter(l -> !l.isBlank()).toList(); }
+            catch (IOException e) { throw new IllegalStateException("Faro: can't read the bundled project: " + e.getMessage(), e); }
+        UiBuilder.files = FaroApp::url;
+        var meta = read("faro.json");
         appName = value(meta, "name", "FaroApp");
         start = value(meta, "startScreen", "MainScreen");
         load();
@@ -80,8 +85,7 @@ public final class FaroApp {
         public void start(Stage primary) {
             stage = primary;
             var scene = new Scene(new StackPane(), 480, 720);
-            var css = new File(root, ".faro/design.css");
-            if (css.isFile()) scene.getStylesheets().add(css.toURI().toString());
+            if (url(".faro/design.css") instanceof URL css) scene.getStylesheets().add(css.toExternalForm());
             stage.setScene(scene);
             stage.show();
             navigate(start);
@@ -348,28 +352,44 @@ public final class FaroApp {
     private static void load() {
         try {
             var factory = DocumentBuilderFactory.newInstance();
-            for (var file : xml(new File(root, "UI"))) {
-                var doc = factory.newDocumentBuilder().parse(file).getDocumentElement();
-                (doc.getTagName().equals("ComponentDef") ? components : screens).put(doc.getAttribute("id"), doc);
-            }
-            for (var file : xml(new File(root, "Bindings"))) {
-                var id = file.getName().substring(0, file.getName().length() - 4);
-                binds.put(id, UiBuilder.children(factory.newDocumentBuilder().parse(file).getDocumentElement(), "Bind"));
-            }
+            for (var name : xml("UI"))
+                try (var in = url("UI/" + name).openStream()) {
+                    var doc = factory.newDocumentBuilder().parse(in).getDocumentElement();
+                    (doc.getTagName().equals("ComponentDef") ? components : screens).put(doc.getAttribute("id"), doc);
+                }
+            for (var name : xml("Bindings"))
+                try (var in = url("Bindings/" + name).openStream()) {
+                    binds.put(name.substring(0, name.length() - 4), UiBuilder.children(factory.newDocumentBuilder().parse(in).getDocumentElement(), "Bind"));
+                }
         } catch (Exception e) {
             throw new IllegalStateException("Faro: can't load the project in " + root + ": " + e.getMessage(), e);
         }
     }
 
-    private static File[] xml(File dir) {
-        var files = dir.listFiles((d, n) -> n.endsWith(".xml"));
-        if (files == null) return new File[0];
-        java.util.Arrays.sort(files);
-        return files;
+    /**
+     * Project files (faro.json, UI/, Bindings/, Assets/, .faro/design.css): from the project folder, or, in an Android APK
+     * (no folder), from the resources Faro packs under /faro/ with an index.txt listing them. Null when missing.
+     */
+    static URL url(String path) {
+        if (index != null) return FaroApp.class.getResource("/faro/" + path);
+        var file = new File(root, path);
+        try { return file.isFile() ? file.toURI().toURL() : null; } catch (java.net.MalformedURLException e) { return null; }
     }
 
-    private static String read(File file) {
-        try { return Files.readString(file.toPath()); } catch (IOException e) { return ""; }
+    private static List<String> index; // bundled project files (Android), null for a project folder
+
+    private static List<String> xml(String dir) {
+        if (index != null)
+            return index.stream().filter(p -> p.startsWith(dir + "/") && p.endsWith(".xml")).map(p -> p.substring(dir.length() + 1)).sorted().toList();
+        var names = new File(root, dir).list((d, n) -> n.endsWith(".xml"));
+        return names == null ? List.of() : java.util.Arrays.stream(names).sorted().toList();
+    }
+
+    private static String read(String path) {
+        var url = url(path);
+        if (url == null) return "";
+        try (var in = url.openStream()) { return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8); }
+        catch (IOException e) { return ""; }
     }
 
     /** ponytail: a flat "key": "value" lookup; faro.json is Faro-written and simple. Use a JSON library if it grows. */

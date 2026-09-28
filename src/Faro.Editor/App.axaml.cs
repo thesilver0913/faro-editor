@@ -84,7 +84,7 @@ public partial class App : Application
             splash.Report("Restoring packages…", 70);
             try
             {
-                using var restore = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("dotnet", ["restore"]) { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true })!;
+                using var restore = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("dotnet", ["restore"]) { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true })!;
                 await restore.StandardOutput.ReadToEndAsync();
                 await restore.WaitForExitAsync();
             }

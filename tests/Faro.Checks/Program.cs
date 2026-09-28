@@ -496,6 +496,13 @@ var headProject = System.Xml.Linq.XDocument.Load(AndroidApk.Write(sample));
 Check(headProject.Descendants("ProjectReference").Any(r => Path.GetFullPath(Path.Combine(AndroidApk.Head(sample), (string)r.Attribute("Include")!)) == Path.GetFullPath(Path.Combine(sample, "../../src/Faro.Runtime/Faro.Runtime.csproj")))
     && headProject.Descendants("Compile").Any(c => (string?)c.Attribute("Include") == "../../Source/**/*.cs"), "android head compiles Source/ with the project's references");
 Directory.Delete(AndroidApk.Head(sample), true);
+// Java (GluonFX): user classes listed for reflection, the runtime path re-rooted, project files indexed as resources.
+var javaPom = File.ReadAllText(JavaProject.WriteAndroid(javaSample));
+var javaIndex = File.ReadAllLines(Path.Combine(AndroidApk.Head(javaSample), "resources", "faro", "index.txt"));
+Check(javaPom.Contains("<list>myapp.services.OrderService</list>") && javaPom.Contains("<faro.runtime>../../../../src/Faro.Runtime.Java</faro.runtime>")
+    && System.Xml.Linq.XDocument.Parse(javaPom).Root is not null
+    && javaIndex.Contains("faro.json") && javaIndex.Contains("UI/MainScreen.xml") && javaIndex.Contains("Bindings/MainScreen.xml"), "java android pom and bundled project files");
+Directory.Delete(AndroidApk.Head(javaSample), true);
 
 Directory.Delete(root, true);
 Console.WriteLine("All checks passed.");
