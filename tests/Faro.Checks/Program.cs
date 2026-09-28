@@ -184,6 +184,10 @@ var cards = System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack
 var shownCards = MockData.Expand(cards).Elements("Node").ToList();
 Check(MockData.Fields(cards.Element("Node")!).SequenceEqual(["pic", "t"]) && shownCards.Count == 2
     && UiBuilder.Prop(shownCards[1].Element("Node")!, "Source") == "Assets/b.png" && UiBuilder.Prop(shownCards[1].Elements("Node").Last(), "Text") == "B", "mock rows fill image sources and texts");
+var wrapped = CanvasEdit.Wrap(project.Screens["MainScreen"], ["greeting", "txt1"], "Container.Stack");
+Check(wrapped is not null && wrapped.Elements("Node").Select(n => (string?)n.Attribute("id")).SequenceEqual(["txt1", "greeting"]) && wrapped.ElementsBeforeSelf("Node").Last().Attribute("id")!.Value == "header"
+    && CanvasEdit.Wrap(project.Screens["MainScreen"], ["txt1", "btn1"], "Container.Stack") is null, "wrap siblings in a container at their place; non-siblings refused");
+project = FaroProject.Load(root);
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

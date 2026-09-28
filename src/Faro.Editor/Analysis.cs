@@ -475,6 +475,18 @@ public static class CanvasEdit
         return node;
     }
 
+    /// <summary>Wraps sibling nodes in a new container at the first one's place; their ids and binds stay. Null if they aren't siblings.</summary>
+    public static XElement? Wrap(XDocument screen, IEnumerable<string> ids, string type)
+    {
+        var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").OrderBy(n => n.ElementsBeforeSelf().Count()).ToList();
+        if (nodes.Count == 0 || nodes.Select(n => n.Parent).Distinct().Count() != 1) return null;
+        var container = new XElement("Node", new XAttribute("id", NewId(screen, type)), new XAttribute("type", type));
+        if (type != "Container.Overlay") container.SetAttributeValue("gap", "8");
+        nodes[0].AddBeforeSelf(container);
+        foreach (var n in nodes) { n.Remove(); container.Add(n); }
+        return container;
+    }
+
     /// <summary>Copied nodes (deep) and the binds that point into them, pasteable on any screen.</summary>
     public sealed record Clip(List<XElement> Nodes, List<XElement> Binds);
 

@@ -20,7 +20,7 @@ public static class L
         ["_File"] = "ファイル(_F)", ["_Edit"] = "編集(_E)", ["_Select"] = "選択(_S)", ["_Window"] = "ウィンドウ(_W)", ["_Help"] = "ヘルプ(_H)",
         ["_Open Folder…"] = "フォルダを開く(_O)…", ["_Close Project"] = "プロジェクトを閉じる(_C)", ["_Trust Project…"] = "プロジェクトを信頼(_T)…",
         ["_Save"] = "保存(_S)", ["Save _As…"] = "名前を付けて保存(_A)…", ["_Run"] = "実行(_R)", ["S_top"] = "停止(_T)", ["E_xit"] = "終了(_X)",
-        ["_Undo"] = "元に戻す(_U)", ["_Redo"] = "やり直し(_R)", ["_Copy"] = "コピー(_C)", ["_Paste"] = "貼り付け(_P)", ["D_uplicate"] = "複製(_U)",
+        ["_Undo"] = "元に戻す(_U)", ["_Redo"] = "やり直し(_R)", ["Cu_t"] = "切り取り(_T)", ["_Copy"] = "コピー(_C)", ["_Paste"] = "貼り付け(_P)", ["D_uplicate"] = "複製(_U)",
         ["_Delete"] = "削除(_D)", ["_Sync Components"] = "コンポーネントを同期(_S)", ["_Preferences…"] = "環境設定(_P)…",
         ["_All Nodes"] = "すべての Node(_A)", ["_None"] = "選択解除(_N)", ["Node by _ID…"] = "ID で Node を選択(_I)…", ["Nodes with _Broken Bindings"] = "紐付けが壊れた Node(_B)",
         ["_Explorer"] = "エクスプローラー(_E)", ["_Canvas"] = "キャンバス(_C)", ["_Inspector"] = "インスペクター(_I)", ["C_ode"] = "コード(_O)", ["Co_nsole"] = "コンソール(_N)",
@@ -118,7 +118,8 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
-        ["Fit"] = "全体表示",
+        ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
+        ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }
