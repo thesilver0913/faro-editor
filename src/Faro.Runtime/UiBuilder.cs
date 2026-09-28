@@ -166,6 +166,7 @@ public static class UiBuilder
                 if (vertical) c.HorizontalAlignment = fill ? HorizontalAlignment.Stretch : self switch { "Center" => HorizontalAlignment.Center, "End" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
                 else c.VerticalAlignment = fill ? VerticalAlignment.Stretch : self switch { "Center" => VerticalAlignment.Center, "End" => VerticalAlignment.Bottom, _ => VerticalAlignment.Top };
             }
+            if (c is RepeatHost list) (list.Orientation, list.Spacing) = (vertical ? Orientation.Vertical : Orientation.Horizontal, gap); // rows sit like siblings
             panel.Children.Add(c);
         }
         return new Border { Padding = Sides((string?)node.Attribute("padding")), Child = panel };
@@ -244,7 +245,13 @@ public static class UiBuilder
     /// Instances render the master snapshot stored inside them (updated only by the explicit
     /// component sync, see ComponentSync) with their &lt;Override&gt;s applied.
     /// </summary>
-    static Control Instance(XElement node, IDictionary<string, Control> byId, string root, string prefix)
+    static Control Instance(XElement node, IDictionary<string, Control> byId, string root, string prefix) =>
+        (string?)node.Attribute("repeatable") == "true"
+            ? new RepeatHost { Node = node, Children = { Copy(node, byId, root, prefix) } }
+            : Copy(node, byId, root, prefix);
+
+    /// <summary>One copy of an instance (a list item's row, for a repeatable one).</summary>
+    public static Control Copy(XElement node, IDictionary<string, Control> byId, string root, string prefix)
     {
         if (node.Element("Node") is not { } snapshot)
             return new TextBlock { Text = $"[not synced: {(string?)node.Attribute("component")}]", Foreground = Brushes.OrangeRed };
@@ -262,4 +269,13 @@ public static class UiBuilder
         var full = path is null ? null : Path.Combine(root, path);
         return File.Exists(full) ? new Bitmap(full) : null;
     }
+}
+
+/// <summary>
+/// A repeatable instance (a list): shows its snapshot until its Items are bound, then one copy per item
+/// (FaroApp). The canvas shows mock rows instead (MockData), so this is the app's side of repeatable.
+/// </summary>
+public sealed class RepeatHost : StackPanel
+{
+    public required XElement Node { get; init; }
 }

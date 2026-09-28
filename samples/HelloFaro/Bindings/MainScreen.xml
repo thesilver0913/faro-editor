@@ -3,5 +3,7 @@
   <Bind nodeId="txt1" prop="Text" target="MyApp.Models.UserProfile.Name" mode="TwoWay" />
   <Bind nodeId="greeting" prop="Text" target="MyApp.Models.UserProfile.Greeting" mode="OneWay" />
   <Bind nodeId="btnDetail" event="Click" target="Navigate:Screen.Detail" />
-  <Bind nodeId="orderList/price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" />
+  <Bind nodeId="orderList" prop="Items" target="MyApp.Services.OrderService.Orders" mode="OneWay" />
+  <Bind nodeId="orderList/name" prop="Text" target="MyApp.Models.Order.Name" mode="OneWay" />
+  <Bind nodeId="orderList/price" prop="Text" target="MyApp.Models.Order.PriceText" mode="OneWay" />
 </Bindings>

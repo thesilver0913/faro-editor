@@ -106,18 +106,22 @@ public final class FaroApp {
         stage.getScene().setRoot(pane);
         stage.setTitle(screenId);
 
-        var errors = new ArrayList<String>();
-        Consumer<Object[]> bind = pair -> {
-            var b = (Element) pair[0];
-            var control = byId.get(pair[1] + b.getAttribute("nodeId"));
-            if (control == null) return;
-            try { apply(b, control); }
-            catch (RuntimeException | ReflectiveOperationException e) { errors.add(describe(b) + "\n  → " + e.getMessage()); }
-        };
-        for (var b : binds.getOrDefault(screenId, List.of())) bind.accept(new Object[] { b, "" });
-        // Component-level bindings (Bindings/<ComponentId>.xml) apply inside every instance of that component.
+        // Screen binds, then component-level binds (Bindings/<ComponentId>.xml) inside every instance of that component: {key, bind}.
+        var all = new ArrayList<Object[]>();
+        for (var b : binds.getOrDefault(screenId, List.of())) all.add(new Object[] { b.getAttribute("nodeId"), b });
         for (var path : UiBuilder.instancePaths(rootNode, ""))
-            for (var b : binds.getOrDefault(path[1], List.of())) bind.accept(new Object[] { b, path[0] });
+            for (var b : binds.getOrDefault(path[1], List.of())) all.add(new Object[] { path[0] + b.getAttribute("nodeId"), b });
+        var lists = byId.entrySet().stream().filter(e -> e.getValue() instanceof UiBuilder.RepeatHost).map(e -> e.getKey() + "/").toList();
+        var errors = new ArrayList<String>();
+        for (var pair : all) {
+            var key = (String) pair[0];
+            var b = (Element) pair[1];
+            var control = byId.get(key);
+            if (control == null || lists.stream().anyMatch(key::startsWith)) continue; // binds inside a list apply per row (bindItems)
+            if (control instanceof UiBuilder.RepeatHost list && "Items".equals(b.getAttribute("prop")))
+                tryApply(errors, b, () -> bindItems(list, b, key, all));
+            else tryApply(errors, b, () -> apply(b, control, null));
+        }
         if (!errors.isEmpty()) showError(String.join("\n\n", errors));
     }
 
@@ -127,7 +131,50 @@ public final class FaroApp {
         return !screens.containsKey(id) && id.startsWith("Screen.") ? id.substring("Screen.".length()) : id;
     }
 
-    private static void apply(Element bind, Node control) throws ReflectiveOperationException {
+    private interface Binding { void run() throws ReflectiveOperationException; }
+
+    private static void tryApply(List<String> errors, Element bind, Binding binding) {
+        try { binding.run(); }
+        catch (RuntimeException | ReflectiveOperationException e) { errors.add(describe(bind) + "\n  → " + e.getMessage()); }
+    }
+
+    /**
+     * prop="Items" on a repeatable instance: one copy of it per item of a list property (Iterable), redrawn when
+     * the owner calls changed("&lt;property&gt;"). Binds inside a row use the row's item when the target's class is the item's type.
+     */
+    private static void bindItems(UiBuilder.RepeatHost list, Element bind, String key, List<Object[]> all) throws ReflectiveOperationException {
+        var target = bind.getAttribute("target");
+        var name = memberOf(target);
+        var getter = getter(classOf(target), name);
+        if (!Iterable.class.isAssignableFrom(getter.getReturnType())) throw new IllegalStateException("'" + target + "' is not a list.");
+        var owner = Modifier.isStatic(getter.getModifiers()) ? null : instanceOf(getter.getDeclaringClass());
+        var prefix = key.substring(0, key.length() - list.node.getAttribute("id").length());
+        var screen = stage.getScene().getRoot();
+        Runnable render = () -> {
+            if (stage.getScene().getRoot() != screen) return; // a singleton owner outlives the screen: stop once it is left
+            var errors = new ArrayList<String>();
+            list.rows().clear();
+            try {
+                var items = (Iterable<?>) getter.invoke(owner);
+                if (items != null) for (var item : items) {
+                    var row = new HashMap<String, Node>();
+                    list.rows().add(UiBuilder.copy(list.node, row, root, prefix));
+                    for (var pair : all) {
+                        var control = row.get((String) pair[0]);
+                        if (((String) pair[0]).startsWith(key + "/") && control != null) tryApply(errors, (Element) pair[1], () -> apply((Element) pair[1], control, item));
+                    }
+                }
+            } catch (ReflectiveOperationException e) { errors.add(target + ": " + e.getCause()); }
+            if (!errors.isEmpty()) showError(String.join("\n\n", errors));
+        };
+        render.run();
+        if (owner instanceof FaroObject observable) observable.addChangeListener(changed -> { if (changed.equals(name)) render.run(); });
+    }
+
+    /** Inside a list row, members of the item's class bind to that row's item. */
+    private static Object source(Class<?> type, Object item) { return item != null && type.isInstance(item) ? item : instanceOf(type); }
+
+    private static void apply(Element bind, Node control, Object item) throws ReflectiveOperationException {
         var target = bind.getAttribute("target");
         if (target.isEmpty()) throw new IllegalStateException("Bind has no target.");
         if (bind.hasAttribute("event")) {
@@ -141,7 +188,7 @@ public final class FaroApp {
             // ponytail: parameterless methods only; pass event data when a use case needs it
             var method = classOf(target).getMethod(memberOf(target));
             hook.accept(() -> {
-                try { method.invoke(Modifier.isStatic(method.getModifiers()) ? null : instanceOf(method.getDeclaringClass())); }
+                try { method.invoke(Modifier.isStatic(method.getModifiers()) ? null : source(method.getDeclaringClass(), item)); }
                 catch (InvocationTargetException e) { showError(target + " threw:\n" + e.getCause()); }
                 catch (IllegalAccessException e) { showError(target + ": " + e.getMessage()); }
             });
@@ -151,7 +198,7 @@ public final class FaroApp {
             var type = classOf(target);
             var name = memberOf(target);
             var getter = getter(type, name);
-            var source = instanceOf(type);
+            var source = source(type, item);
             Runnable pull = () -> {
                 try { fx.setValue(convert(getter.invoke(source), fx.getValue())); }
                 catch (ReflectiveOperationException e) { showError(target + ": " + e.getCause()); }

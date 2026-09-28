@@ -170,7 +170,7 @@ public sealed class InspectorView : UserControl
         // An instance also lists the bindings of its inner nodes ("orderList/price").
         foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
-        body.Children.Add(AddBindRow(id, [id, .. InnerPaths(node, id)]));
+        body.Children.Add(AddBindRow(id, [id, .. InnerPaths(node, id)], (string?)node.Attribute("repeatable") == "true"));
         GroupSections();
     }
 
@@ -293,7 +293,7 @@ public sealed class InspectorView : UserControl
             mode.SelectionChanged += (_, _) => EditBind(bind, "Set binding mode", b => b.SetAttributeValue("mode", (string)mode.SelectedItem!));
             row.Children.Add(mode);
         }
-        var remove = new Button { Content = L.T("✕"), [ToolTip.TipProperty] = "Remove binding" };
+        var remove = new Button { Content = L.T("✕"), [ToolTip.TipProperty] = L.T("Remove binding") };
         remove.Click += (_, _) => EditBind(bind, "Remove binding", b => b.Remove());
         row.Children.Add(remove);
 
@@ -325,7 +325,7 @@ public sealed class InspectorView : UserControl
     }
 
     /// <summary>Adds a binding: event or property of the node's control (or, on an instance, of a node inside it), bound to a registry member.</summary>
-    Control AddBindRow(string id, List<string> nodes)
+    Control AddBindRow(string id, List<string> nodes, bool list = false)
     {
         var at = new ComboBox { ItemsSource = nodes, SelectedIndex = 0, IsVisible = nodes.Count > 1 };
         var kind = new ComboBox { ItemsSource = new[] { L.T("Event"), L.T("Property") }, SelectedIndex = 0 };
@@ -335,6 +335,7 @@ public sealed class InspectorView : UserControl
             // Framework-neutral names only (Faro.Runtime.Bindable), so binding files don't depend on Avalonia.
             var bindable = CanvasView.ControlOf((string)at.SelectedItem!) is { } control ? Faro.Runtime.Bindable.For(control) : null;
             var names = (kind.SelectedIndex == 0 ? bindable?.Events.Keys.ToArray() : bindable?.Props.Keys.ToArray()) ?? [];
+            if (list && kind.SelectedIndex == 1 && (string)at.SelectedItem! == id) names = ["Items", .. names]; // a list's rows: one per item
             name.ItemsSource = names;
             name.PlaceholderText = names.FirstOrDefault() ?? "";
         }
