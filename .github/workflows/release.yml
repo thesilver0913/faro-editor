@@ -74,7 +74,9 @@ jobs:
         shell: pwsh
         run: |
           $setup = (Get-ChildItem dist\*-setup.exe)[0].FullName
-          Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$env:RUNNER_TEMP\Faro" -Wait
+          # WaitForExit, not -Wait: -Wait also waits for the Faro window the installer starts afterwards.
+          (Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$env:RUNNER_TEMP\Faro" -PassThru).WaitForExit()
+          Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue
           $faro = Start-Process "$env:RUNNER_TEMP\Faro\Faro.Editor.exe" -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\version.txt"
           Get-Content "$env:RUNNER_TEMP\version.txt"
           if ($faro.ExitCode -ne 0) { exit 1 }
