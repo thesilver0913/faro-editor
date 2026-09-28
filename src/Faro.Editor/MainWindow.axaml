@@ -49,7 +49,7 @@
       <MenuItem Header="Co_nsole">
         <MenuItem Header="_Problems" Click="ShowProblems" />
         <MenuItem Header="_Output" Click="ShowOutput" />
-        <MenuItem Header="_Vibe Coding" Click="ShowChat" />
+        <MenuItem Header="_AI Chat" Click="ShowChat" />
       </MenuItem>
       <Separator />
       <MenuItem Header="_Reset Layout" Click="ResetLayout" />

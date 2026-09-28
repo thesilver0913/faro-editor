@@ -24,10 +24,10 @@ public static class L
         ["_Delete"] = "削除(_D)", ["_Sync Components"] = "コンポーネントを同期(_S)", ["_Preferences…"] = "環境設定(_P)…",
         ["_All Nodes"] = "すべての Node(_A)", ["_None"] = "選択解除(_N)", ["Node by _ID…"] = "ID で Node を選択(_I)…", ["Nodes with _Broken Bindings"] = "紐付けが壊れた Node(_B)",
         ["_Explorer"] = "エクスプローラー(_E)", ["_Canvas"] = "キャンバス(_C)", ["_Inspector"] = "インスペクター(_I)", ["C_ode"] = "コード(_O)", ["Co_nsole"] = "コンソール(_N)",
-        ["_Problems"] = "問題(_P)", ["_Output"] = "出力(_O)", ["_Vibe Coding"] = "バイブコーディング(_V)", ["_Reset Layout"] = "レイアウトを初期化(_R)",
+        ["_Problems"] = "問題(_P)", ["_Output"] = "出力(_O)", ["_AI Chat"] = "AI チャット(_A)", ["_Reset Layout"] = "レイアウトを初期化(_R)",
         ["_Full Screen"] = "全画面(_F)", ["_About Faro"] = "Faro について(_A)",
         ["Explorer"] = "エクスプローラー", ["Canvas"] = "キャンバス", ["Inspector"] = "インスペクター", ["Code"] = "コード", ["Console"] = "コンソール",
-        ["Problems"] = "問題", ["Output"] = "出力", ["Vibe Coding"] = "バイブコーディング",
+        ["Problems"] = "問題", ["Output"] = "出力", ["AI Chat"] = "AI チャット",
 
         // Welcome, wizard, projects
         ["Welcome to Faro"] = "Faro へようこそ", ["Recent"] = "最近のプロジェクト", ["New Project…"] = "新規プロジェクト…", ["New Project"] = "新規プロジェクト",
@@ -76,7 +76,7 @@ public static class L
         ["Justify has no effect while a child fills the main axis: it takes the free space."] = "Fill の子がいると並べ方は効きません(その子が空きを使うため)。",
         ["Properties"] = "プロパティ", ["Overrides"] = "上書き", ["Script"] = "Script", ["Class"] = "クラス", ["Repeatable (list)"] = "繰り返し(リスト)",
         ["Mock rows (canvas only): {0}"] = "モック行(キャンバスのみ): {0}", ["Bindings"] = "紐付け", ["+ Add binding"] = "+ 紐付けを追加",
-        ["Create with vibe coding"] = "バイブコーディングで作る", ["Did you mean"] = "もしかして",
+        ["Create with AI Chat"] = "AI チャットで作る", ["Did you mean"] = "もしかして",
         ["Numbers only."] = "数値だけを入力してください。", ["One number."] = "数値は1つだけです。", ["A whole number (0 or more)."] = "0 以上の整数を入力してください。",
         ["1, 2 or 4 numbers (top right bottom left)."] = "数値を 1・2・4 個(上 右 下 左)で入力してください。",
         ["Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\"."] = "\"Auto, *, 2*, 120px\" のような指定か、\"3\" のような数を入力してください。",
