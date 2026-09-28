@@ -38,6 +38,9 @@ public static class UiBuilder
         if ((double?)node.Attribute("minHeight") is { } minH) control.MinHeight = minH;
         if ((double?)node.Attribute("maxHeight") is { } maxH) control.MaxHeight = maxH;
         if (node.Attribute("margin") is { } margin) control.Margin = Sides(margin.Value);
+        // Design-language options ("m3.variant"="Tonal") become style classes ("m3-variant-tonal") that only that language styles.
+        foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.')))
+            control.Classes.Add($"{option.Name.LocalName.Replace('.', '-')}-{option.Value}".ToLowerInvariant());
         byId[prefix + (string?)node.Attribute("id")] = control;
         return control;
     }

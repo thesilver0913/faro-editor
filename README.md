@@ -100,11 +100,22 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - プラグイン:今後対応(仕様§12 のとおりプロトタイプ範囲外)
   - 更新:チャンネル(Stable / Beta / Canary)、起動時の確認(1日1回、`-dev` 版では確認しない)、今すぐ確認
 
+## デザイン言語(Material 3 Expressive)
+
+- File › Project Design… で、アプリの見た目を **Fluent**(Avalonia 標準)か **Material 3 Expressive** から選ぶ。`faro.json` の `design` に保存し(元に戻せる)、キャンバスと実行中のアプリの両方に反映する
+- Material 3 は**シードカラー**から色の役割(Primary、Surface、コンテナなど。ライト・ダーク両方)を作る([MaterialColorUtilities](https://github.com/albi005/MaterialColorUtilities))。テーマは System / Light / Dark(キャンバスでは System をライトで表示)
+- **Node ごとの設定**(インスペクターの「Material 3」欄。属性は `m3.〜`)
+  - Button:種類(Filled / Tonal / Outlined / Text / Elevated)、サイズ(XS〜XL)、形(Round / Square)。押している間は角が小さくなり、離すとバネのように戻る(Expressive の形の変化)
+  - TextInput:Filled / Outlined
+  - Text:文字スタイル(Display〜Label)、強調、色
+  - コンテナ:面の色(Surface、コンテナの濃さ、Primary など)、角丸、影の高さ
+- 既知の制限:フォントは OS 標準(Roboto Flex は同梱しない)。無効状態は全体を薄くするだけ
+
 ## インストールと更新、ログ
 
 - **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `tar.gz`(展開して `Faro.Editor` を実行)。どちらも .NET 10 SDK が必要(Faro 自体とプロジェクトのビルドに使う)
 - **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux はリリースページを開く
-- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う
+- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる
 - **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。次の起動時に「予期せず終了しました」と知らせ、レポートを開くか GitHub の Issue を作れる。どこにも自動送信はしない
 - **コード署名**:未対応(Windows で SmartScreen の警告が出る)
 

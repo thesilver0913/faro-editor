@@ -54,7 +54,7 @@ public static class Dialogs
             okButton.Click += (_, _) => { result = (content as TextBox)?.Text ?? ""; window.Close(); };
             buttons.Children.Add(okButton);
         }
-        var close = new Button { Content = ok is null ? "Close" : "Cancel", IsCancel = true };
+        var close = new Button { Content = L.T(ok is null ? "Close" : "Cancel"), IsCancel = true };
         close.Click += (_, _) => window.Close();
         buttons.Children.Add(close);
         var body = new StackPanel { Spacing = 12, Margin = new(20) };

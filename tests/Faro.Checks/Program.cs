@@ -111,6 +111,17 @@ Check(copies.Select(n => (string?)n.Attribute("id")).SequenceEqual(["orderList",
 var mockBuilt = new Dictionary<string, Avalonia.Controls.Control>();
 UiBuilder.Build(project.Screens["MainScreen"].Root!.Element("Node")!, mockBuilt, root);
 Check(!mockBuilt.Keys.Any(k => k.Contains('~')) && mockBuilt.ContainsKey("orderList/name"), "the runtime ignores mock rows");
+// Design language: faro.json "design", per-node options as style classes, M3 colors from the seed.
+Check(FaroProject.Load(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))).Design is { Language: "Material3", Theme: "Light" } && AppDesign.Read(null) == new AppDesign()
+    && AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse("""{"language":"Nope","seedColor":"red?","theme":"Dim"}""")) == new AppDesign(), "design read, unknown values fall back");
+Check(mockBuilt["btnDetail"].Classes.Contains("m3-variant-tonal") && mockBuilt["header"].Classes.Contains("m3-corner-xl") && !mockBuilt["btn1"].Classes.Any(), "m3.* attributes become style classes");
+var scheme = AppDesign.Scheme(MaterialColorUtilities.Palettes.CorePalette.Of(0xFF6750A4), dark: false);
+Check(scheme["M3Primary"] is Avalonia.Media.ISolidColorBrush { Color: var primary } && primary == Avalonia.Media.Color.Parse("#65558F")
+    && scheme["M3Surface"] is Avalonia.Media.ISolidColorBrush { Color.R: > 250 }, "M3 color roles from the seed");
+var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
+var designed = ProjectSetup.DesignChange(sampleDir, new AppDesign("Material3", "#006A6A", "Dark")).Single();
+Check(AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse(designed.Value!)!["design"]) == new AppDesign("Material3", "#006A6A", "Dark")
+    && !ProjectSetup.DesignChange(sampleDir, new AppDesign()).Single().Value!.Contains("design") && designed.Value!.Contains("startScreen"), "design written to faro.json");
 var mockCopy = new System.Xml.Linq.XElement(orderList);
 MockData.SetRows(mockCopy, [["a", "1"], ["b", ""]]);
 Check(MockData.Rows(mockCopy).Count == 2 && MockData.Rows(mockCopy)[1].SequenceEqual(["b", ""]) && mockCopy.Elements("MockRow").Last().Elements("Set").Count() == 1, "mock rows written back");
@@ -140,7 +151,6 @@ Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Cont
 UiBuilder.ScriptFactory = _ => throw new InvalidOperationException("boom");
 Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border { Child: Avalonia.Controls.TextBlock { Text: var failed } } } && failed!.Contains("boom"), "a failing script shows its error in place");
 UiBuilder.ScriptFactory = null;
-var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
 Check(ScriptPreview.Build(sampleDir, "MyApp.Views.Stamp") is Avalonia.Controls.Border && Throws<InvalidOperationException>(() => ScriptPreview.Build(sampleDir, "MyApp.Views.Nope")), "the canvas previews scripts from the last build");
 CanvasEdit.Find(project.Screens["Detail"], "stamp")!.SetAttributeValue("class", "MyApp.Views.Stmp");
 Check(BindingCheck.Check(project, registry, Registry.ScriptClasses(Path.Combine(root, "Source"))).Any(i => i.NodeId == "stamp" && i.Suggestions[0] == "MyApp.Views.Stamp"), "a script node naming a missing class is a problem");

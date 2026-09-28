@@ -200,7 +200,12 @@ public static class FaroApp
 
     sealed class RuntimeApp(string startScreen) : Application
     {
-        public override void Initialize() => Styles.Add(new FluentTheme());
+        public override void Initialize()
+        {
+            Styles.Add(new FluentTheme());
+            project.Design.Apply(Styles, Resources);
+            RequestedThemeVariant = project.Design.Variant;
+        }
 
         public override void OnFrameworkInitializationCompleted()
         {

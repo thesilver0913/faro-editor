@@ -149,6 +149,14 @@ public sealed class InspectorView : UserControl
                 body.Children.Add(create);
             }
         }
+        // Design-language options (faro.json "design"): Material 3 Expressive per node, first value = the default (unset).
+        var styled = type == "Instance" ? (string?)node.Element("Node")?.Attribute("type") ?? "" : type;
+        if (Workspace.Project?.Design.Language == "Material3" && (M3Options.GetValueOrDefault(styled) ?? (styled.StartsWith("Container.") ? M3Options["Container"] : null)) is { } options)
+        {
+            body.Children.Add(Section(L.T("Material 3")));
+            foreach (var (attribute, values) in options)
+                body.Children.Add(Row(L.T(char.ToUpperInvariant(attribute[3]) + attribute[4..]), Choice(node, attribute, values, unset: values[0])));
+        }
         if (type == "Instance")
         {
             var repeatable = new CheckBox { Content = L.T("Repeatable (list)"), IsChecked = (string?)node.Attribute("repeatable") == "true" };
@@ -181,6 +189,17 @@ public sealed class InspectorView : UserControl
         size.IsVisible = UiBuilder.Sizing(node, axis) == "Fixed";
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
+
+    static readonly Dictionary<string, (string Attribute, string[] Values)[]> M3Options = new()
+    {
+        ["Control.Button"] = [("m3.variant", ["Filled", "Tonal", "Outlined", "Text", "Elevated"]), ("m3.size", ["S", "XS", "M", "L", "XL"]), ("m3.shape", ["Round", "Square"])],
+        ["Control.TextInput"] = [("m3.variant", ["Filled", "Outlined"])],
+        ["Control.Text"] = [("m3.type", ["BodyLarge", "DisplayLarge", "DisplayMedium", "DisplaySmall", "HeadlineLarge", "HeadlineMedium", "HeadlineSmall",
+                "TitleLarge", "TitleMedium", "TitleSmall", "BodyMedium", "BodySmall", "LabelLarge", "LabelMedium", "LabelSmall"]),
+            ("m3.emphasized", ["false", "true"]), ("m3.color", ["OnSurface", "OnSurfaceVariant", "Primary", "Secondary", "Tertiary", "Error"])],
+        ["Container"] = [("m3.surface", ["None", "Surface", "Lowest", "Low", "Container", "High", "Highest", "Primary", "Secondary", "Tertiary"]),
+            ("m3.corner", ["None", "XS", "S", "M", "L", "XL", "Full"]), ("m3.elevation", ["0", "1", "2", "3", "4", "5"])],
+    };
 
     /// <param name="unset">A choice that removes the attribute (e.g. "Auto": follow the container).</param>
     Control Choice(XElement node, string attribute, string[] values, string? unset = null)

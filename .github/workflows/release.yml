@@ -1,6 +1,7 @@
 # Builds the Windows installer and the Linux archive. A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
 # "v0.2.4-canary.1" (Canary) publishes them as a GitHub Release, which Faro's update check reads.
 # PRs that touch the installer or this workflow build them as a dry run (artifacts only, no release).
+# Run it by hand (Actions › Release › Run workflow) with a tag to release the chosen branch's head under that tag.
 name: Release
 
 on:
@@ -9,6 +10,10 @@ on:
   pull_request:
     paths: ['installer/**', '.github/workflows/release.yml']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create, e.g. v1.0.0-beta.1 (empty: build only)'
+        required: false
 
 jobs:
   build:
@@ -25,8 +30,11 @@ jobs:
           dotnet-version: 10.0.x
       - name: Version
         shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
+          if [[ -n "$INPUT_TAG" ]]; then v="${INPUT_TAG#v}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
           else v="$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"; fi
           echo "VERSION=$v" >> "$GITHUB_ENV"
       - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
@@ -47,7 +55,7 @@ jobs:
           path: dist/*
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +67,8 @@ jobs:
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          flags=(--generate-notes)
-          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          flags=(--generate-notes --target "$GITHUB_SHA") # a new tag (manual run) is created on the built commit
+          [[ "$TAG" == *-* ]] && flags+=(--prerelease)
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"
