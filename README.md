@@ -138,10 +138,20 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **レジストリ**:.java の宣言をソースから読み取る(未ビルドでも可)。コメント・文字列・入れ子のクラスは除外
 - 既知の制限:Java の言語サーバー(補完・参照追従)は未対応で色分けのみ。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
 
+## Android APK(C# プロジェクト)
+
+- **File › Android APK をビルド** で、プロジェクトを Android アプリ(`dist/<名前>.apk`)にする。出力は Console の Output に出る。Stop で中止できる
+- 仕組み:`.faro/android/` に Android 用のプロジェクトを生成する(毎回作り直す)。これは `Source/` のコードを Avalonia.Android と一緒にビルドし、`faro.json`・`UI/`・`Bindings/`・`Assets/` を APK に入れる。アプリは起動時にそれらを展開して、デスクトップと同じランタイムバインダーで画面を出す
+- 必要なもの:.NET の android workload(`dotnet workload install android`)。Android SDK と JDK は初回のビルドで Faro の設定フォルダ(`Faro/android`)に自動で入る(`ANDROID_HOME`・`JAVA_HOME` があればそちらを使う)
+- 署名はデバッグ用の鍵。端末やエミュレーターにそのまま入れて試せる(`adb install dist/<名前>.apk`)。Google Play に出すには自分の鍵で署名し直す
+- コマンドラインからも作れる:`Faro.Editor --build-apk <プロジェクトのフォルダ>`(CI では C# サンプルの APK をこれで作っている)
+- 制限:Java(JavaFX)プロジェクトはまだ対象外(Android で動かすには Gluon と GraalVM での変換が必要)。Android では `Persistent` なクラスの保存はまだ行わない。バインディングエラーは画面の下に重ねて表示する
+
 ## インストールと更新、ログ
 
-- **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `tar.gz`(展開して `Faro.Editor` を実行)。どちらも .NET 10 SDK が必要(Faro 自体とプロジェクトのビルドに使う)
-- **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux はリリースページを開く
+- **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `.deb`(`sudo apt install ./Faro-…-linux-x64.deb` で入り、`faro` コマンドとメニューから起動)と `tar.gz`(展開して `Faro.Editor` を実行)、macOS は `.dmg`(Apple Silicon は `osx-arm64`、Intel は `osx-x64`。Faro.app を「アプリケーション」へドラッグ)。どれも .NET 10 SDK が必要(Faro 自体とプロジェクトのビルドに使う)
+- **macOS で初めて開くとき**:Apple の Developer ID 署名・公証はまだないため(簡易署名のみ)、初回は「開けません」と表示される。「システム設定 › プライバシーとセキュリティ」の「このまま開く」を押すか、ターミナルで `xattr -dr com.apple.quarantine /Applications/Faro.app` を実行すると、以降は普通に開ける
+- **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux と macOS はリリースページを開く
 - **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる
 - **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。次の起動時に「予期せず終了しました」と知らせ、レポートを開くか GitHub の Issue を作れる。どこにも自動送信はしない
 - **コード署名**:未対応(Windows で SmartScreen の警告が出る)

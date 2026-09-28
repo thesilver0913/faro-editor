@@ -7,7 +7,7 @@ namespace Faro.Editor;
 /// <summary>
 /// Update check against GitHub Releases. Channels (Preferences): Stable = releases (main), Beta = + "-beta.N",
 /// Canary = + "-canary.N" pre-releases. Windows installs by running the new Setup (Inno Setup upgrades in place and
-/// restarts Faro); on Linux the release page opens for the archive. Only reads public release data; sends nothing.
+/// restarts Faro); on Linux and macOS the release page opens for the .deb / archive / disk image. Only reads public release data; sends nothing.
 /// </summary>
 public static class Updates
 {

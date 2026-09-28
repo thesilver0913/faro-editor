@@ -320,8 +320,9 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **キャンバスの便利機能**:コピー・貼り付け・複製(紐付けも複製)、プレビューの大きさ(Phone / Tablet / Desktop)、Assets からの画像の選択とドラッグでの追加
 - **Runtime の同梱と更新**:Faro.Runtime を各プロジェクトの `.faro/packages/` に nupkg で置き、Faro に新しい版があれば開くときに更新を案内する
 - **バイブコーディングの LLM** はプロバイダを差し替え可能(Claude／OpenAI 互換)
-- **インストーラーと更新**:Windows は Inno Setup、Linux は tar.gz を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
+- **インストーラーと更新**:Windows は Inno Setup、Linux は .deb と tar.gz、macOS は .dmg(簡易署名のみ・公証なし)を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
 - **デザイン言語**:`faro.json` の `design`(`language` Fluent / Material3、`seedColor`、`theme` System / Light / Dark)。Material 3 Expressive はシードカラーから色の役割を作り、形・文字スタイル・押したときの形の変化を付ける。Node ごとの設定は `m3.variant` などの属性で、インスペクターの「Material 3」欄で編集する
 - **Java(JavaFX)プロジェクト**:新規作成時に C# か Java を選ぶ。Java 版ランタイムバインダー(`src/Faro.Runtime.Java`)をソースのまま `.faro/runtime-java` に同梱し、Maven(`mvn javafx:run`)でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか、getName()/isName() を持つ Bean プロパティ `name`)。Material 3 は JavaFX 用 CSS(`.faro/design.css`)をエディターが生成する
 - **レイヤー・パーツ・プレビュー**:Node の木(選択連動・ドラッグで並べ替え)、パーツのパレット(クリックかドラッグで追加)、選択 Node のサイズ変更ハンドル、キャンバス内プレビュー(入力・クリック・Navigate)
+- **Android APK**(C# プロジェクト):File › Android APK をビルド。`.faro/android` に生成した Android 用プロジェクトで `Source/` と UI・紐付け・アセットをまとめ、デバッグ鍵で署名した APK を `dist/` に出す。Java プロジェクトは今後
 - **ログとクラッシュレポート**:設定フォルダの `logs/` に保存し、次回起動時に Issue での報告を案内(自動送信なし)

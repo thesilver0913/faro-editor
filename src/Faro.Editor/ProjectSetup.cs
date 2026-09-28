@@ -188,7 +188,7 @@ public static partial class ProjectSetup
 
                 """);
         WriteNew(Path.Combine(dir, "Program.cs"), "Faro.Runtime.FaroApp.Run(args, typeof(Program).Assembly); // start screen: faro.json\n");
-        WriteNew(Path.Combine(dir, ".gitignore"), "bin/\nobj/\n");
+        WriteNew(Path.Combine(dir, ".gitignore"), "bin/\nobj/\ndist/\n.faro/android/\n");
     }
 
     /// <summary>

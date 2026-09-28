@@ -107,6 +107,15 @@ public partial class App : Application
     public static void Main(string[] args)
     {
         Log.Start();
+        if (OperatingSystem.IsMacOS()) // started from Finder, PATH is only /usr/bin:/bin:…: add where dotnet, Maven and Homebrew install
+            Environment.SetEnvironmentVariable("PATH", string.Join(':', Environment.GetEnvironmentVariable("PATH"), "/usr/local/share/dotnet", "/usr/local/bin", "/opt/homebrew/bin",
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet")));
+        if (args is ["--build-apk", var folder]) // headless, e.g. CI: `Faro.Editor --build-apk <project folder>`
+        {
+            var apk = AndroidApk.BuildAsync(Path.GetFullPath(folder), Console.WriteLine).GetAwaiter().GetResult();
+            Console.WriteLine(apk is null ? "APK build failed." : $"APK: {apk}");
+            Environment.Exit(apk is null ? 1 : 0);
+        }
         root = args.FirstOrDefault() is { } path ? Path.GetFullPath(path) : null; // no folder given: welcome screen
         AppBuilder.Configure<App>().UsePlatformDetect()
             .With(new FontManagerOptions { DefaultFamilyName = UiFont })

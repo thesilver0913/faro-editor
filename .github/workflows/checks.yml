@@ -1,5 +1,5 @@
 # Runs the self-checks (tests/Faro.Checks) on every PR and push, on the three desktop platforms Faro targets,
-# and compiles the Java runtime.
+# compiles the Java runtime, and builds the C# sample's Android APK the way File › Build Android APK does.
 name: Checks
 
 on:
@@ -31,3 +31,18 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: mvn -B -q -f samples/HelloFaroJava/pom.xml compile
+
+  # Android APK of the C# sample through Faro's own build (Faro.Editor --build-apk); the APK is kept as an artifact.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet workload install android
+      - run: dotnet run --project src/Faro.Editor -- --build-apk samples/HelloFaro
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HelloFaro-apk
+          path: samples/HelloFaro/dist/*.apk
