@@ -45,7 +45,7 @@ public partial class MainWindow : Window
         UiHistory.Changed += UpdateHistory;
         CodeView.HistoryChanged += UpdateHistory;
         UpdateHistory();
-        Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
+        Closed += (_, _) => { Workspace.Stop(); Debugger.Stop(); }; // the app started with Run or Debug goes with the editor
         RestoreLayout();
         TrustItem.IsVisible = !Workspace.Trusted;
         Closed += (_, _) => SaveLayout();
@@ -291,6 +291,15 @@ public partial class MainWindow : Window
     void DuplicateNodes(object? sender, RoutedEventArgs e) => CanvasView.DuplicateSelection();
     void SyncComponents(object? sender, RoutedEventArgs e) => CanvasView.SyncComponents();
     void Preferences(object? sender, RoutedEventArgs e) => new PreferencesWindow().ShowDialog(this);
+
+    // Debug (C#: netcoredbg)
+
+    void StartDebugging(object? sender, RoutedEventArgs e) => Debugger.Start();
+    void StopDebugging(object? sender, RoutedEventArgs e) => Debugger.Stop();
+    void ContinueDebugging(object? sender, RoutedEventArgs e) => Debugger.Continue();
+    void StepOver(object? sender, RoutedEventArgs e) => Debugger.StepOver();
+    void StepInto(object? sender, RoutedEventArgs e) => Debugger.StepInto();
+    void ToggleBreakpoint(object? sender, RoutedEventArgs e) => CodeView.ToggleBreakpoint();
 
     // Select
 

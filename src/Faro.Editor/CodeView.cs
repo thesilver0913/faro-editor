@@ -62,6 +62,9 @@ public sealed class CodeView : UserControl
     public CodeView()
     {
         editor.TextArea.TextView.BackgroundRenderers.Add(new Squiggles(() => Current is { } p ? diagnostics.GetValueOrDefault(Uri(p)) : null));
+        // Debugging (C#): a breakpoint gutter left of the line numbers (click: toggle, F9 too) and the stopped line highlighted.
+        editor.TextArea.TextView.BackgroundRenderers.Add(new StoppedLine(() => Current));
+        editor.TextArea.LeftMargins.Insert(0, new BreakpointMargin(() => Current));
         editor.TextArea.TextEntered += (_, e) => { if (e.Text == ".") Complete(); };
         editor.TextArea.Caret.PositionChanged += (_, _) => ShowStatus();
         files.SelectionChanged += (_, _) => Show();
@@ -126,6 +129,8 @@ public sealed class CodeView : UserControl
         StateChanged += Redraw;
         FaroSettings.ThemeChanged += ApplyTheme;
         OpenRequested += Show;
+        ToggleRequested += ToggleHere;
+        Debugger.Changed += RedrawStopped;
         ApplyTheme();
         Refresh();
     }
@@ -136,6 +141,8 @@ public sealed class CodeView : UserControl
         StateChanged -= Redraw;
         FaroSettings.ThemeChanged -= ApplyTheme;
         OpenRequested -= Show;
+        ToggleRequested -= ToggleHere;
+        Debugger.Changed -= RedrawStopped;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -164,6 +171,10 @@ public sealed class CodeView : UserControl
         files.SelectedItem = selected ?? (files.ItemsSource as List<string>)?.FirstOrDefault();
         Show();
     }
+
+    void ToggleHere() { if (Current is { } path) Debugger.Toggle(path, editor.TextArea.Caret.Line); }
+
+    void RedrawStopped() => editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
 
     void Show(string path, int line, int column)
     {
@@ -360,6 +371,61 @@ public sealed class CodeView : UserControl
     }
 
     /// <summary>Wavy underlines for LSP diagnostics: red for errors, orange for the rest.</summary>
+    /// <summary>F9: toggles a breakpoint on the caret's line.</summary>
+    public static void ToggleBreakpoint() => ToggleRequested?.Invoke();
+    static event Action? ToggleRequested;
+
+    sealed class StoppedLine(Func<string?> current) : IBackgroundRenderer
+    {
+        public KnownLayer Layer => KnownLayer.Background;
+
+        public void Draw(TextView view, DrawingContext dc)
+        {
+            if (Debugger.Stopped is not { } at || at.Path != current() || view.Document is not { } doc || at.Line < 1 || at.Line > doc.LineCount) return;
+            foreach (var r in BackgroundGeometryBuilder.GetRectsForSegment(view, doc.GetLineByNumber(at.Line), true))
+                dc.FillRectangle(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xD0, 0x00)), new Avalonia.Rect(0, r.Top, view.Bounds.Width, r.Height));
+        }
+    }
+
+    sealed class BreakpointMargin : AbstractMargin
+    {
+        readonly Func<string?> current;
+
+        public BreakpointMargin(Func<string?> current)
+        {
+            this.current = current;
+            Cursor = new Cursor(StandardCursorType.Hand);
+            Debugger.Changed += InvalidateVisual;
+        }
+
+        protected override Avalonia.Size MeasureOverride(Avalonia.Size availableSize) => new(16, 0);
+
+        protected override void OnTextViewChanged(TextView? oldTextView, TextView? newTextView)
+        {
+            if (oldTextView is not null) oldTextView.VisualLinesChanged -= Redraw;
+            base.OnTextViewChanged(oldTextView, newTextView);
+            if (newTextView is not null) newTextView.VisualLinesChanged += Redraw;
+        }
+
+        void Redraw(object? sender, EventArgs e) => InvalidateVisual();
+
+        public override void Render(DrawingContext dc)
+        {
+            dc.FillRectangle(Brushes.Transparent, new Avalonia.Rect(Bounds.Size)); // clickable everywhere
+            if (TextView is not { VisualLinesValid: true } view || current() is not { } path || !Debugger.Breakpoints.TryGetValue(path, out var lines)) return;
+            foreach (var line in view.VisualLines.Where(l => lines.Contains(l.FirstDocumentLine.LineNumber)))
+                dc.DrawEllipse(Brushes.IndianRed, null, new Avalonia.Point(8, line.VisualTop - view.VerticalOffset + line.Height / 2), 5, 5);
+        }
+
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            base.OnPointerPressed(e);
+            if (TextView is not { } view || current() is not { } path) return;
+            if (view.GetVisualLineFromVisualTop(e.GetPosition(view).Y + view.VerticalOffset) is { } line) Debugger.Toggle(path, line.FirstDocumentLine.LineNumber);
+            e.Handled = true;
+        }
+    }
+
     sealed class Squiggles(Func<JsonArray?> current) : IBackgroundRenderer
     {
         public KnownLayer Layer => KnownLayer.Selection;

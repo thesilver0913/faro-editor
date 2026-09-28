@@ -3,10 +3,10 @@ using Avalonia.Media;
 
 namespace Faro.Editor;
 
-/// <summary>VS Code-style panel: Problems, Output (the running app), AI Chat and History as tabs side by side in one pane.</summary>
+/// <summary>VS Code-style panel: Problems, Output (the running app), AI Chat, History and Debug as tabs side by side in one pane.</summary>
 public sealed class ConsoleView : UserControl
 {
-    public enum Tab { Problems, Output, VibeCoding, History }
+    public enum Tab { Problems, Output, VibeCoding, History, Debug }
 
     static event Action<Tab>? Requested;
 
@@ -27,7 +27,7 @@ public sealed class ConsoleView : UserControl
 
     public ConsoleView()
     {
-        tabs.ItemsSource = new[] { problems, Item(L.T("Output"), output), Item(L.T("AI Chat"), new ChatView()), Item(L.T("History"), new HistoryView()) };
+        tabs.ItemsSource = new[] { problems, Item(L.T("Output"), output), Item(L.T("AI Chat"), new ChatView()), Item(L.T("History"), new HistoryView()), Item(L.T("Debug"), new DebugView()) };
         tabs.SelectedIndex = (int)Tab.VibeCoding;
         Content = tabs;
     }

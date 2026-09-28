@@ -25,6 +25,9 @@ public static class ScriptPreview
                 .Select(dll => (dll, File.GetLastWriteTimeUtc(dll))).MaxBy(d => d.Item2);
     }
 
+    /// <summary>The newest built project dll (the debugger launches it), or null before the first build.</summary>
+    public static string? LatestBuild(string root) => Latest(root).Path;
+
     /// <summary>The build changed since the canvas last loaded it (redraw).</summary>
     public static bool Outdated(string root) => assembly is not null && Latest(root) != loaded;
 
