@@ -22,5 +22,6 @@
     <None Include="../../samples/HelloFaro/UI/**" LinkBase="templates/Sample/UI" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/Source/**" LinkBase="templates/Sample/Source" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/Bindings/**" LinkBase="templates/Sample/Bindings" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Assets/**" LinkBase="templates/Sample/Assets" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

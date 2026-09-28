@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -14,7 +16,6 @@ namespace Faro.Editor;
 public sealed class ExplorerView : UserControl
 {
     static readonly string[] Folders = ["UI", "Source", "Bindings", "Assets"];
-    static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
     static readonly HashSet<string> expanded = [];
 
     readonly TreeView tree = new();
@@ -65,8 +66,22 @@ public sealed class ExplorerView : UserControl
         if (isDir)
             item.ItemsSource = Directory.EnumerateDirectories(path).Where(d => Path.GetFileName(d) is not ("bin" or "obj")).Order()
                 .Concat(Directory.EnumerateFiles(path).Order()).Select(Item).ToList();
-        else if (ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+        else if (ProjectFiles.ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+        {
             ToolTip.SetTip(item, new Image { Source = TryBitmap(path), MaxWidth = 240, MaxHeight = 240 });
+            // Drag an image onto the canvas to add an Image node showing it.
+            PointerPressedEventArgs? pressed = null;
+            item.AddHandler(PointerPressedEvent, (_, e) => pressed = e.GetCurrentPoint(item).Properties.IsLeftButtonPressed ? e : null, RoutingStrategies.Tunnel);
+            item.AddHandler(PointerMovedEvent, async (_, e) =>
+            {
+                if (pressed is not { } start || Point.Distance(start.GetPosition(item), e.GetPosition(item)) < 6) return;
+                pressed = null;
+                var data = new DataTransfer();
+                data.Add(DataTransferItem.Create(CanvasView.AssetFormat, Path.GetRelativePath(Workspace.Root, path).Replace('\\', '/')));
+                await DragDrop.DoDragDropAsync(start, data, DragDropEffects.Copy);
+            }, RoutingStrategies.Tunnel);
+            item.AddHandler(PointerReleasedEvent, (_, _) => pressed = null, RoutingStrategies.Tunnel);
+        }
         item.ContextFlyout = Menu(path, isDir);
         return item;
     }

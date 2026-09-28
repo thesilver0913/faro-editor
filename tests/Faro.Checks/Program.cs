@@ -178,6 +178,12 @@ var (onDetail, _) = CanvasEdit.Paste(project, project.Screens["Detail"], null, C
 Check((string?)onDetail[0].Attribute("id") == "txt1" && project.BindsFor("Detail").Any(b => (string?)b.Attribute("nodeId") == "txt1"), "pasting on another screen keeps free ids");
 Check(BindingCheck.Check(project, registry).Where(i => i.Screen is "MainScreen" or "Detail").All(i => i.NodeId is not ("btn2" or "orderList2/price" or "txt1")), "pasted binds resolve");
 project = FaroProject.Load(root);
+// Images: Assets/ paths for Source pickers, and mock rows can swap an image's Source too.
+Check(ProjectFiles.Images(sample).SequenceEqual(["Assets/logo.png"]), "asset images listed as project-relative paths");
+var cards = System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack"><Node id="card" type="Container.Stack" repeatable="true"><Node id="pic" type="Control.Image" /><Node id="t" type="Control.Text" /><MockRow><Set node="pic" value="Assets/a.png" /><Set node="t" value="A" /></MockRow><MockRow><Set node="pic" value="Assets/b.png" /><Set node="t" value="B" /></MockRow></Node></Node>""");
+var shownCards = MockData.Expand(cards).Elements("Node").ToList();
+Check(MockData.Fields(cards.Element("Node")!).SequenceEqual(["pic", "t"]) && shownCards.Count == 2
+    && UiBuilder.Prop(shownCards[1].Element("Node")!, "Source") == "Assets/b.png" && UiBuilder.Prop(shownCards[1].Elements("Node").Last(), "Text") == "B", "mock rows fill image sources and texts");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

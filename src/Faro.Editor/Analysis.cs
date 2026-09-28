@@ -610,6 +610,15 @@ public static class CanvasEdit
 /// </summary>
 public static partial class ProjectFiles
 {
+    public static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
+
+    /// <summary>Images under Assets/ as the project-relative paths a Source prop holds ("Assets/logo.png").</summary>
+    public static List<string> Images(string root) =>
+        !Directory.Exists(Path.Combine(root, "Assets")) ? [] :
+        [.. Directory.EnumerateFiles(Path.Combine(root, "Assets"), "*", SearchOption.AllDirectories)
+            .Where(f => ImageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/')).Order()];
+
     [System.Text.RegularExpressions.GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_.]*$")]
     private static partial System.Text.RegularExpressions.Regex IdPattern();
 
@@ -722,13 +731,17 @@ public static partial class ProjectFiles
 /// <summary>
 /// Design-time mock rows for repeatable nodes (spec §10.5), stored under the node as
 /// &lt;MockRow&gt;&lt;Set node="name" value="りんご" /&gt;&lt;/MockRow&gt;. The canvas shows one copy per row;
-/// the runtime ignores them (wiring real data is deferred, spec §5). ponytail: Text only; images when needed.
+/// the runtime ignores them (wiring real data is deferred, spec §5). Values fill Text, or an image's Source.
 /// </summary>
 public static class MockData
 {
     /// <summary>Nodes a row fills: those with a Text inside the repeatable node (an instance's synced snapshot).</summary>
     public static List<string> Fields(XElement node) =>
-        [.. Inner(node).DescendantsAndSelf("Node").Where(n => Bindable.For(Bindable.TypeOf(n))?.Props.ContainsKey("Text") == true).Select(n => (string)n.Attribute("id")!).Distinct()];
+        [.. Inner(node).DescendantsAndSelf("Node").Where(n => Bindable.TypeOf(n) == "Control.Image" || Bindable.For(Bindable.TypeOf(n))?.Props.ContainsKey("Text") == true)
+            .Select(n => (string)n.Attribute("id")!).Distinct()];
+
+    /// <summary>What a row value fills: an image's Source (an Assets/ path), otherwise the Text.</summary>
+    static string PropOf(XElement node) => Bindable.TypeOf(node) == "Control.Image" ? "Source" : "Text";
 
     public static List<List<string>> Rows(XElement node) =>
         [.. node.Elements("MockRow").Select(row => Fields(node).Select(f => (string?)row.Elements("Set").FirstOrDefault(s => (string?)s.Attribute("node") == f)?.Attribute("value") ?? "").ToList())];
@@ -756,7 +769,7 @@ public static class MockData
                 if (i > 0) { shown.SetAttributeValue("id", $"{(string?)node.Attribute("id")}~{i + 1}"); last.AddAfterSelf(shown); last = shown; }
                 foreach (var set in rows[i].Elements("Set"))
                     if (Inner(shown).DescendantsAndSelf("Node").FirstOrDefault(n => (string?)n.Attribute("id") == (string?)set.Attribute("node")) is { } target)
-                        CanvasEdit.SetProp(target == Inner(shown) && shown != target ? shown : target, "Text", (string?)set.Attribute("value")); // an instance's root text is an Override
+                        CanvasEdit.SetProp(target == Inner(shown) && shown != target ? shown : target, PropOf(target), (string?)set.Attribute("value")); // an instance's root prop is an Override
             }
         }
         return copy;

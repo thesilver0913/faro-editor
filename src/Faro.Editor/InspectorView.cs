@@ -130,7 +130,9 @@ public sealed class InspectorView : UserControl
         {
             body.Children.Add(Section(type == "Instance" ? "Overrides" : "Properties"));
             foreach (var prop in props)
-                body.Children.Add(Row(prop, Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
+                body.Children.Add(Row(prop, prop is "Source" or "BackgroundTexture"
+                    ? AssetField(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))
+                    : Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
         if (type == "Control.Script")
         {
@@ -371,6 +373,14 @@ public sealed class InspectorView : UserControl
     static IEnumerable<string> InnerPaths(XElement instance, string prefix) =>
         CanvasEdit.InnerNodes(instance).Where(n => n != instance.Element("Node"))
             .SelectMany(n => InnerPaths(n, $"{prefix}/{(string?)n.Attribute("id")}").Prepend($"{prefix}/{(string?)n.Attribute("id")}"));
+
+    /// <summary>An image path picked from Assets/ (typing a path still works).</summary>
+    static Control AssetField(string value, Action<string> commit)
+    {
+        var box = new AutoCompleteBox { Text = value, ItemsSource = ProjectFiles.Images(Workspace.Root), FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = "Assets/…", MinimumPrefixLength = 0 };
+        Commit(box, () => box.Text ?? "", commit);
+        return box;
+    }
 
     static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 

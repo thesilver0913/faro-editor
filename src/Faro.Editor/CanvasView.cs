@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -60,6 +61,9 @@ public sealed class CanvasView : UserControl
     });
 
     static CanvasEdit.Clip? clipboard;
+
+    /// <summary>An Assets/ image path dragged from the explorer (in-process drag and drop).</summary>
+    public static readonly DataFormat<string> AssetFormat = DataFormat.CreateInProcessFormat<string>("faro-asset");
 
     public static void CopySelection()
     {
@@ -199,6 +203,23 @@ public sealed class CanvasView : UserControl
             if (id is not null && target is { } t) Edit("Move", (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
             else DrawSelection();
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        // Images dropped from the explorer become Image nodes (in the container under the pointer, or after the node there).
+        DragDrop.SetAllowDrop(artboard, true);
+        artboard.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(AssetFormat) ? DragDropEffects.Copy : DragDropEffects.None);
+        artboard.AddHandler(DragDrop.DropEvent, (_, e) =>
+        {
+            if (e.DataTransfer.TryGetValue(AssetFormat) is not { } asset) return;
+            var at = NodeAt(e.GetPosition(artboard), new HashSet<string?>());
+            Edit("Add image", (project, screen) =>
+            {
+                var node = CanvasEdit.Add(project, screen, at, "Control.Image");
+                CanvasEdit.SetProp(node, "Source", asset);
+                Selection.Clear();
+                Selection.Add((string)node.Attribute("id")!);
+                return [screen];
+            });
+        });
 
         // Preview sizes: check how Fill / Grid / Overlay layouts stretch on other devices.
         var size = new ComboBox { ItemsSource = Sizes.Keys, SelectedItem = Sizes.ContainsKey(FaroSettings.Current.ArtboardSize) ? FaroSettings.Current.ArtboardSize : "Phone" };
