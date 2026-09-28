@@ -1,0 +1,8 @@
+﻿Faro needs the .NET 10 SDK (https://dotnet.microsoft.com/download/dotnet/10.0).
+Faro itself runs on it, and it builds, restores and runs your projects with it.
+
+Faro には .NET 10 SDK が必要です(https://dotnet.microsoft.com/download/dotnet/10.0)。
+Faro 自体がこの上で動き、プロジェクトの復元・ビルド・実行にも使います。
+
+Settings, logs and crash reports: %APPDATA%\Faro
+設定・ログ・クラッシュレポート: %APPDATA%\Faro

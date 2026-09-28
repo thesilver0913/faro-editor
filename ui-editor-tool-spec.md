@@ -300,7 +300,7 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **インスペクター**:選択 Node の ID・サイジング・コンテナ設定・Prop/Override・紐付けの編集。赤バッジから開く再紐づけパネル(候補をワンクリックで適用、「Create with AI Chat」)
 - **キャンバス編集**:Node の追加・削除・並べ替え、ドラッグ＆ドロップ(コンテナ間の移動を含む)、コンポーネントのマスター編集
 - **エクスプローラー**:VSCode 風のファイルツリー。画面・コンポーネント・C# クラス・フォルダの新規作成、名前変更(参照も追従)、削除
-- **Console**:Problems／Output(Run の出力)／Vibe Coding のタブ
+- **Console**:Problems／Output(Run の出力)／AI Chat のタブ
 - **Run / Stop**:`dotnet watch run` を起動・停止し、出力とビルドエラーを Console に表示
 - **メニューバー**:File／Edit／Select／Window／Help
 - **環境設定**:API キー用の環境変数の状態表示(Faro はキーを保存しない)、テーマ、プラグインタブ(中身は範囲外)
@@ -314,3 +314,5 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **キャンバスの便利機能**:コピー・貼り付け・複製(紐付けも複製)、プレビューの大きさ(Phone / Tablet / Desktop)、Assets からの画像の選択とドラッグでの追加
 - **Runtime の同梱と更新**:Faro.Runtime を各プロジェクトの `.faro/packages/` に nupkg で置き、Faro に新しい版があれば開くときに更新を案内する
 - **バイブコーディングの LLM** はプロバイダを差し替え可能(Claude／OpenAI 互換)
+- **インストーラーと更新**:Windows は Inno Setup、Linux は tar.gz を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
+- **ログとクラッシュレポート**:設定フォルダの `logs/` に保存し、次回起動時に Issue での報告を案内(自動送信なし)
