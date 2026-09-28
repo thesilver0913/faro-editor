@@ -28,8 +28,9 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## プロジェクトの作成と配布
 
+- **ワークスペースの信頼(Workspace Trust)**:初めて開くフォルダでは「Trust / Restricted Mode」を確認する。開くと restore(MSBuild)・言語サーバー・Script のプレビュー(ビルド済み DLL の実行)でプロジェクトのコードが動くため。Restricted Mode では表示と編集だけで、それらと Run は止まり、Script は枠表示。File › Trust Project… で信頼して開き直せる。Faro が作った Untitled と、その Save As 先は最初から信頼済み
 - 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(テンプレートは Empty か Sample、言語は C# 固定)。File メニューの「Open Folder…」「Close Project」も同じ流れ
-- **新規プロジェクトは名前なし(Untitled)で始まる**:設定フォルダの `Faro/Untitled/UntitledN` に作られ、最初の **File › Save**(Ctrl+S)か **Save As…**(Ctrl+Shift+S)で名前と場所(既定は `ドキュメント/Faro`)を決める。Save As はプロジェクトを `bin/`・`obj/` 抜きで複製し、`faro.json` と `.csproj` の名前を付け替えて開き直す。保存せずに閉じようとすると「Save As… / Don't Save / Cancel」を確認し、捨てた Untitled は次の起動時に削除(削除するのは Untitled フォルダだけ)
+- **新規プロジェクトは名前なし(Untitled)で始まる**:設定フォルダの `Faro/Untitled/UntitledN` に作られ、最初の **File › Save**(Ctrl+S)か **Save As…**(Ctrl+Shift+S)で名前と場所(既定は `ドキュメント/Faro`)を決める。Save As はプロジェクトを `bin/`・`obj/` 抜きで複製し、`faro.json` と `.csproj` の名前を付け替えて開き直す。保存せずに閉じようとすると「Save As… / Don't Save / Cancel」を確認し、捨てた Untitled は次の起動時に削除(削除するのは Untitled フォルダだけ)。Faro が落ちるなどして残った Untitled は、ウェルカム画面に「(not saved)」として出て、開き直すか Discard できる
 - **Save** はコードの未保存分をすべて保存する(キャンバスの編集は操作のたびにファイルへ書かれる)。保存済みのプロジェクトでの Save As は別名の複製を作って開く
 - Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン・開始画面 `startScreen`)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
 - **Faro.Runtime はプロジェクト内に同梱**:エディターのビルド時に `Faro.Runtime.<版>.nupkg` を作り、新規プロジェクトの `.faro/packages/` にコピーして `nuget.config` から参照する。フォルダごと別の場所・PC に移してもビルドできる(Avalonia 本体は nuget.org から取得)。`.faro/` はプロジェクトと一緒にバージョン管理する
@@ -112,7 +113,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - インスタンスはマスターのスナップショット(`<Node>`)を内部に保持し、エディターの「Sync components」を押すまで更新されない
 - 生存期間・永続化はC#属性で指定: `[FaroLifetime(Lifetime.Singleton, Persistent = true)]`(未指定はScreenScoped)。永続化データは `ApplicationData/Faro/<アプリ名>/<クラス名>.json`
 - `Navigate:Screen.Detail` の `Screen.` は省略可能な接頭辞で、UIGraphの `id="Detail"` を指す
-- `Container.Grid` は `columns` 属性を持つ均等グリッド
+- `Container.Grid` は行・列のトラックを持つグリッド(CSS grid 相当):`columns="Auto, *, 2*, 120px"`(数だけなら `"3"` で3等分)、`rows` も同様(省略時は必要な数の Auto 行)。子は `row`/`column`(0始まり)と `rowSpan`/`columnSpan` で置き、指定のない子は空いたセルを左上から順に埋める。セル内の揃えは Fill で伸ばすか、`alignment`/`alignSelf`
 - **絶対座標を使わないレイアウトの追加オプション**(Figma の Auto Layout／Constraints、Android の ConstraintLayout・Box、CSS flexbox に相当):
   - Stack:`justify`(主軸の Start/Center/End/SpaceBetween)、子の `alignSelf`(交差軸の揃えを上書き)、Fill の比率 `weight`
   - 全 Node:`minWidth`/`maxWidth`/`minHeight`/`maxHeight`、`margin`

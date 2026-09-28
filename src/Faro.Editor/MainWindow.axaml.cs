@@ -216,7 +216,7 @@ public partial class MainWindow : Window
     async Task<bool> LeaveUntitled()
     {
         if (savedAs || !ProjectSetup.IsUntitled(Workspace.Root)) return true;
-        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", "Save As…", "Don't Save"))
+        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", ["Save As…", "Don't Save"]))
         {
             case 0: return savedAs = await SaveProjectAs() is not null;
             case 1: ProjectSetup.Discard(Workspace.Root); return true;

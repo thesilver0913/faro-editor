@@ -18,8 +18,8 @@ public static class Dialogs
     /// <summary>A form of controls with OK/Cancel: true on OK.</summary>
     public static async Task<bool> Form(Window owner, string title, Control content, string ok) => await Show(owner, title, null, content, ok) is not null;
 
-    /// <summary>A message with several choices (plus Cancel): the index chosen, or -1 on Cancel/close.</summary>
-    public static async Task<int> Choose(Window owner, string title, string message, params string[] choices)
+    /// <summary>A message with several choices (plus Cancel unless <paramref name="cancel"/> is false): the index chosen, or -1 on Cancel/close.</summary>
+    public static async Task<int> Choose(Window owner, string title, string message, string[] choices, bool cancel = true)
     {
         var result = -1;
         var window = new Window { Title = title, SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 360, MaxWidth = 640, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -31,9 +31,12 @@ public static class Dialogs
             button.Click += (_, _) => { result = index; window.Close(); };
             buttons.Children.Add(button);
         }
-        var cancel = new Button { Content = "Cancel", IsCancel = true };
-        cancel.Click += (_, _) => window.Close();
-        buttons.Children.Add(cancel);
+        if (cancel)
+        {
+            var cancelButton = new Button { Content = "Cancel", IsCancel = true };
+            cancelButton.Click += (_, _) => window.Close();
+            buttons.Children.Add(cancelButton);
+        }
         window.Content = new StackPanel { Spacing = 12, Margin = new(20), Children = { new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap }, buttons } };
         await window.ShowDialog(owner);
         return result;

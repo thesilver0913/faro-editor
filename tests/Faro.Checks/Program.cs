@@ -158,6 +158,14 @@ var overlay = StackGrid("""<Node id="o" type="Container.Overlay"><Node id="bg" t
 Check(overlay.RowDefinitions.Count == 0 && overlay.Children[0] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Stretch, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Stretch }
     && overlay.Children[1] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Top }
     && overlay.Children[2] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Center, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "Overlay layers children at their anchors");
+// Grid with explicit tracks: sizes, explicit cells with spans, reading-order fill of the rest, Auto rows as needed.
+Check(UiBuilder.Tracks("Auto, *, 2*, 120px") is [{ IsAuto: true }, { IsStar: true, Value: 1 }, { IsStar: true, Value: 2 }, { IsAbsolute: true, Value: 120 }]
+    && UiBuilder.Tracks("3")!.Count == 3 && UiBuilder.Tracks("wide") is null && UiBuilder.Tracks("") is null, "grid track syntax");
+var form = StackGrid("""<Node id="g" type="Container.Grid" columns="Auto, *" gap="4"><Node id="title" type="Control.Text" row="0" column="0" columnSpan="2" /><Node id="l1" type="Control.Text" /><Node id="v1" type="Control.TextInput" widthSizing="Fill" /><Node id="l2" type="Control.Text" alignSelf="End" /></Node>""");
+int[] Cell(int i) => [Avalonia.Controls.Grid.GetRow(form.Children[i]), Avalonia.Controls.Grid.GetColumn(form.Children[i]), Avalonia.Controls.Grid.GetColumnSpan(form.Children[i])];
+Check(form.ColumnDefinitions.Count == 2 && form.RowDefinitions.Count == 3 && Cell(0).SequenceEqual([0, 0, 2]) && Cell(1).SequenceEqual([1, 0, 1]) && Cell(2).SequenceEqual([1, 1, 1]) && Cell(3).SequenceEqual([2, 0, 1])
+    && form.Children[2].HorizontalAlignment == Avalonia.Layout.HorizontalAlignment.Stretch && form.Children[3] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "grid places children by cell, span and reading order");
+Check(StackGrid("""<Node id="g" type="Container.Grid" columns="2"><Node id="a" type="Control.Text" column="9" columnSpan="5" row="x" /></Node>""") is { Children: [var clamped] } && Avalonia.Controls.Grid.GetColumn(clamped) == 1 && Avalonia.Controls.Grid.GetColumnSpan(clamped) == 1, "out-of-range cells are clamped, bad numbers ignored");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

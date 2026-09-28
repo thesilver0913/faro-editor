@@ -87,6 +87,12 @@ public sealed class InspectorView : UserControl
             body.Children.Add(Row("Anchor X", Choice(node, "anchorX", ["Left", "Center", "Right"])));
             body.Children.Add(Row("Anchor Y", Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
         }
+        else if (parentType == "Container.Grid")
+        {
+            body.Children.Add(Row("Row / Col", Pair(AttributeField(node, "row", integer: true), AttributeField(node, "column", integer: true))));
+            body.Children.Add(Row("Span R / C", Pair(AttributeField(node, "rowSpan", integer: true), AttributeField(node, "columnSpan", integer: true))));
+            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+        }
         else if (parentType == "Container.Stack")
         {
             body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
@@ -99,7 +105,12 @@ public sealed class InspectorView : UserControl
         if (CanvasEdit.IsContainer(node))
         {
             if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
-            if (type == "Container.Grid") body.Children.Add(Row("Columns", AttributeField(node, "columns")));
+            if (type == "Container.Grid")
+            {
+                string? TrackError(string v) => UiBuilder.Tracks(v) is null ? "Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\"." : null;
+                body.Children.Add(Row("Columns", CheckedField(node, "columns", 160, TrackError)));
+                body.Children.Add(Row("Rows", CheckedField(node, "rows", 160, TrackError)));
+            }
             if (type != "Container.Overlay") body.Children.Add(Row("Gap", AttributeField(node, "gap")));
             body.Children.Add(Row("Padding", AttributeField(node, "padding", sides: true)));
             if (type != "Container.Overlay") body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
@@ -179,20 +190,26 @@ public sealed class InspectorView : UserControl
     }
 
     /// <param name="sides">Padding/margin: 1, 2 or 4 numbers ("8", "8 16", "8 16 8 16": top right bottom left).</param>
-    Control AttributeField(XElement node, string attribute, bool sides = false)
+    Control AttributeField(XElement node, string attribute, bool sides = false, bool integer = false) =>
+        CheckedField(node, attribute, 80, value =>
+        {
+            var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+            return numbers.Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? (integer ? "A whole number (0 or more)." : "Numbers only.")
+                : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? (sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
+                : null;
+        });
+
+    /// <summary>An attribute field that rejects invalid values with the reason (red outline) instead of breaking the canvas.</summary>
+    Control CheckedField(XElement node, string attribute, double width, Func<string, string?> validate)
     {
         var id = (string)node.Attribute("id")!;
         TextBox? box = null;
         box = Field((string?)node.Attribute(attribute) ?? "", value =>
         {
-            // Rejected values stay in the box with the reason (red outline); the canvas would fail to build otherwise.
-            var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
-            var error = numbers.Any(v => !double.TryParse(v, out _)) ? "Numbers only."
-                : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? (sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
-                : null;
+            var error = value.Length == 0 ? null : validate(value);
             DataValidationErrors.SetError(box!, error is null ? null : new InvalidDataException(error));
             if (error is null) EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value));
-        }, 80);
+        }, width);
         return box;
     }
 

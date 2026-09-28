@@ -41,7 +41,7 @@ public partial class App : Application
         // Workspace trust, before anything runs the project's code (restore, language server, Script previews).
         if (!ProjectSetup.IsTrusted(dir) && await Dialogs.Choose(splash, "Trust this project?",
                 $"{dir}\n\nFaro restores, builds and runs a project's code (language server, Script previews, Run). Trust it only if you know where it comes from. In restricted mode you can still view and edit it.",
-                "Trust", "Restricted Mode") == 0)
+                ["Trust", "Restricted Mode"], cancel: false) == 0)
             ProjectSetup.Trust(dir);
         await Task.Run(() => Workspace.Open(dir, splash.Report));
         var updated = false;
