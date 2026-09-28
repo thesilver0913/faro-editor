@@ -191,7 +191,7 @@ public sealed class CanvasView : UserControl
         });
     }
 
-    public static void DeleteSelection() => Edit("Delete", (project, screen) => CanvasEdit.Delete(project, screen, Selection.ToList()));
+    public static void DeleteSelection() => Edit("Delete " + string.Join(", ", Selection), (project, screen) => CanvasEdit.Delete(project, screen, Selection.ToList()));
 
     public static void MoveSelection(int delta) => Edit(delta < 0 ? "Move up" : "Move down", (_, screen) =>
         Selection.Count == 1 && CanvasEdit.Move(screen, Selection.First(), delta) ? [screen] : []);
@@ -356,7 +356,7 @@ public sealed class CanvasView : UserControl
                 resizeId = null;
                 e.Pointer.Capture(null);
                 var (w, h, axes) = (sized.Width, sized.Height, resizeAxes);
-                Edit("Resize", (_, screen) =>
+                Edit("Resize " + rid, (_, screen) =>
                 {
                     if (CanvasEdit.Find(screen, rid) is not { } n) return [];
                     if (axes.W) { CanvasEdit.SetAttribute(n, "widthSizing", "Fixed"); CanvasEdit.SetAttribute(n, "width", w.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
@@ -371,7 +371,7 @@ public sealed class CanvasView : UserControl
             drop = null;
             artboard.Cursor = null;
             e.Pointer.Capture(null);
-            if (id is not null && target is { } t) Edit("Move", (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
+            if (id is not null && target is { } t) Edit("Move " + id, (_, screen) => CanvasEdit.MoveTo(screen, id, t.Parent, t.Index) ? [screen] : []);
             else DrawSelection();
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
 

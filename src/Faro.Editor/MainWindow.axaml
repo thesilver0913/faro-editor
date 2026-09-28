@@ -46,6 +46,7 @@
     </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Explorer" Click="ShowExplorer" />
+      <MenuItem Header="_Source Control" Click="ShowSourceControl" />
       <MenuItem Header="_Layers" Click="ShowLayers" />
       <MenuItem Header="_Parts" Click="ShowPalette" />
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
@@ -55,8 +56,10 @@
         <MenuItem Header="_Problems" Click="ShowProblems" />
         <MenuItem Header="_Output" Click="ShowOutput" />
         <MenuItem Header="_AI Chat" Click="ShowChat" />
+        <MenuItem Header="_History" Click="ShowHistory" />
       </MenuItem>
       <Separator />
+      <MenuItem x:Name="PaletteItem" Header="Command _Palette…" Click="CommandPalette" InputGesture="Ctrl+Shift+P" HotKey="Ctrl+Shift+P" />
       <MenuItem Header="_Reset Layout" Click="ResetLayout" />
       <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
     </MenuItem>
@@ -78,6 +81,9 @@
           <ToolDock Id="ExplorerPane" Alignment="Left" Proportion="0.5">
             <Tool Id="Explorer" Title="Explorer" CanClose="False">
               <local:ExplorerView />
+            </Tool>
+            <Tool Id="SourceControl" Title="Source Control" CanClose="False">
+              <local:GitView />
             </Tool>
           </ToolDock>
           <ProportionalDockSplitter />

@@ -43,7 +43,7 @@
 - **デザイン言語**は `faro.json` の `design`(Fluent / Material3、`seedColor`、`theme`)。Node ごとの言語固有の設定は `m3.variant="Tonal"` のような `<言語>.<名前>` 属性で持ち、UiBuilder がスタイルクラス(`m3-variant-tonal`)に変えて `Faro.Runtime/Material3.axaml` が見た目を付ける(ほかの言語では無視される)
 - **Android** は APK の出力まで(エミュレーター連携はしない)。C# は `src/Faro.Editor/AndroidApk.cs` が `.faro/android` に Android 用プロジェクトを生成して `dotnet publish` する。ランタイムは `FaroApplication` がデスクトップ(Window)と Android(`IActivityApplicationLifetime`)の両方を扱う。Java は `JavaProject.WriteAndroid` が `.faro/android/pom.xml`(GluonFX、Linux のみ、`GRAALVM_HOME` 必須)を生成し、プロジェクトのファイルを `faro/` のリソースと `index.txt` で APK に入れる(Java ランタイムの `FaroApp.url` がフォルダかリソースかを切り替える)
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
-- 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
+- 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat・History をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
 - 詳細はREADMEを参照。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある
 
 ## ブランチとバージョン

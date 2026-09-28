@@ -26,7 +26,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         // UI language (L): menu headers from the XAML, panel titles once the dock layout exists.
         foreach (var item in this.GetLogicalDescendants().OfType<MenuItem>())
-            if (item.Header is string header) item.Header = L.T(header);
+            if (item.Header is string header) (item.Tag, item.Header) = (header, L.T(header)); // Tag: the English name, for the command palette
         Opened += (_, _) =>
         {
             if (Dock.Layout is null) return;
@@ -300,6 +300,7 @@ public partial class MainWindow : Window
     // Window
 
     void ShowExplorer(object? sender, RoutedEventArgs e) => Activate("Explorer");
+    void ShowSourceControl(object? sender, RoutedEventArgs e) => Activate("SourceControl");
     void ShowProblems(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Problems); }
     void ShowCanvas(object? sender, RoutedEventArgs e) => Activate("Canvas");
     void ShowInspector(object? sender, RoutedEventArgs e) => Activate("Inspector");
@@ -308,6 +309,61 @@ public partial class MainWindow : Window
     void ShowCode(object? sender, RoutedEventArgs e) => Activate("Code");
     void ShowChat(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.VibeCoding); }
     void ShowOutput(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Output); }
+    void ShowHistory(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.History); }
+    /// <summary>
+    /// Command palette (Ctrl+Shift+P, as in VS Code): every menu command by name ("File › Run"), filtered as you type
+    /// (all words, any order, in the UI language or English), Enter runs the selected one. The menus stay the single list of commands.
+    /// </summary>
+    async void CommandPalette(object? sender, RoutedEventArgs e)
+    {
+        static string Plain(object? header) => System.Text.RegularExpressions.Regex.Replace(header as string ?? "", @"\(_.\)|_|…", ""); // "ファイル(_F)" → "ファイル"
+        IEnumerable<(string Name, string English, MenuItem Item)> Commands(IEnumerable<MenuItem> items, string path, string english) => items.SelectMany(item =>
+        {
+            var (name, en) = (path + Plain(item.Header), english + Plain(item.Tag));
+            var children = item.Items.OfType<MenuItem>().ToList();
+            return children.Count > 0 ? Commands(children, name + " › ", en + " ")
+                : item.IsVisible && item.IsEffectivelyEnabled && item.Header is string ? [(name, en, item)] : [];
+        });
+        var commands = Commands(this.GetLogicalDescendants().OfType<Menu>().First().Items.OfType<MenuItem>(), "", "")
+            .Where(c => c.Item != PaletteItem).ToList();
+        var filter = new TextBox { PlaceholderText = L.T("Type a command"), MinWidth = 480 };
+        var list = new ListBox { MaxHeight = 360 };
+        void Filter()
+        {
+            var words = (filter.Text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            list.ItemsSource = commands.Where(c => words.All(w => c.Name.Contains(w, StringComparison.OrdinalIgnoreCase) || c.English.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                .Select(c => new ListBoxItem { Tag = c.Item, Content = new DockPanel { Children =
+                {
+                    new TextBlock { Text = c.Item.InputGesture?.ToString() ?? "", Opacity = 0.6, [DockPanel.DockProperty] = Avalonia.Controls.Dock.Right },
+                    new TextBlock { Text = c.Name },
+                } } }).ToList();
+            list.SelectedIndex = 0;
+        }
+        filter.TextChanged += (_, _) => Filter();
+        Filter();
+        var window = new Window
+        {
+            Title = L.T("Command Palette"), SizeToContent = SizeToContent.WidthAndHeight, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel { Spacing = 8, Margin = new(12), Children = { filter, list } },
+        };
+        MenuItem? chosen = null;
+        void Run() { chosen = (list.SelectedItem as ListBoxItem)?.Tag as MenuItem; window.Close(); }
+        filter.KeyDown += (_, k) =>
+        {
+            var count = list.ItemCount;
+            if (k.Key == Key.Down && count > 0) list.SelectedIndex = (list.SelectedIndex + 1) % count;
+            else if (k.Key == Key.Up && count > 0) list.SelectedIndex = (list.SelectedIndex + count - 1) % count;
+            else if (k.Key == Key.Enter) Run();
+            else if (k.Key == Key.Escape) window.Close();
+            else return;
+            k.Handled = true;
+        };
+        list.DoubleTapped += (_, _) => Run();
+        window.Opened += (_, _) => filter.Focus();
+        await window.ShowDialog(this);
+        chosen?.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+    }
+
     void ToggleFullScreen(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
     void Activate(string id)

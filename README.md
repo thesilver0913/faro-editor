@@ -108,7 +108,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Output・AI Chat タブ)の各パネルを前面に／全画面(F11)
+  - Console の **History(履歴)タブ**:UI グラフ履歴の一覧(削除・移動・サイズ変更は対象の Node ID 付き)。行をクリックするとその時点まで戻る・進む(戻した手は薄く表示され、新しい編集で消える)
+- **Window**:Explorer／Source Control／Canvas／Inspector／Code／Console(Problems・Output・AI Chat・History タブ)の各パネルを前面に／**コマンドパレット(Ctrl+Shift+P)**:メニューのすべての操作を名前で絞り込み(単語をスペース区切り、順不同。日本語 UI でも英語名で引ける)、Enter で実行／全画面(F11)
+- **ソース管理(Source Control、エクスプローラーの隣のタブ)**:`git` コマンドでブランチ、変更ファイル(クリックで差分)、すべてコミット(`git add -A` + コミットメッセージ)、プル・プッシュ、Git リポジトリでないフォルダは「リポジトリを作成」。パスワードの入力が要る場合は失敗して表示する(資格情報マネージャーか SSH 鍵を使う)。制限モードでは止める(リポジトリの設定がコマンドを動かせるため)
 - **Help**:更新の確認／ログフォルダーを開く／Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)

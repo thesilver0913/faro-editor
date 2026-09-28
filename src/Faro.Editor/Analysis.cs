@@ -327,6 +327,18 @@ public static class UiHistory
     public static string? UndoLabel => undo.LastOrDefault()?.Label;
     public static string? RedoLabel => redo.LastOrDefault()?.Label;
 
+    /// <summary>Every step, oldest first; the first <see cref="Applied"/> are done, the rest were undone.</summary>
+    public static List<string> Labels => [.. undo.Select(s => s.Label), .. Enumerable.Reverse(redo).Select(s => s.Label)];
+    public static int Applied => undo.Count;
+
+    /// <summary>Undoes or redoes until <paramref name="applied"/> steps are done (the history list); the first error stops it.</summary>
+    public static string? GoTo(int applied)
+    {
+        while (undo.Count > applied) if (Undo() is { } error) return error;
+        while (undo.Count < applied && redo.Count > 0) if (Redo() is { } error) return error;
+        return null;
+    }
+
     /// <summary>Saves the documents as one undoable step (no step if nothing changed on disk).</summary>
     public static void Commit(string label, IEnumerable<XDocument> docs)
     {

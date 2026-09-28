@@ -151,6 +151,13 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        // Command palette, history list, source control
+        ["Command _Palette…"] = "コマンドパレット(_P)…", ["Command Palette"] = "コマンドパレット", ["Type a command"] = "コマンドを入力",
+        ["_History"] = "履歴(_H)", ["History"] = "履歴", ["Opened"] = "開いたとき",
+        ["_Source Control"] = "ソース管理(_S)", ["Source Control"] = "ソース管理", ["Commit message"] = "コミットメッセージ", ["Commit All"] = "すべてコミット",
+        ["Pull"] = "プル", ["Push"] = "プッシュ", ["Initialize Repository"] = "リポジトリを作成", ["Write a commit message first."] = "先にコミットメッセージを書いてください。",
+        ["Git is off in Restricted Mode."] = "制限モードでは Git は使えません。", ["Git isn't installed (git-scm.com)."] = "Git が入っていません(git-scm.com)。",
+        ["This folder isn't a Git repository."] = "このフォルダは Git リポジトリではありません。", ["Branch: {0}"] = "ブランチ: {0}", ["No changes."] = "変更はありません。", ["Done."] = "完了しました。",
         ["Close"] = "閉じる", ["Project _Design…"] = "プロジェクトのデザイン(_D)…", ["Project Design"] = "プロジェクトのデザイン", ["Design language"] = "デザイン言語", ["Seed color"] = "シードカラー", ["Apply"] = "適用",
         ["Material 3 generates its color roles (light and dark) from the seed color. Nodes get Material 3 options in the inspector."] = "Material 3 はシードカラーから色の役割(ライト・ダーク)を作ります。各 Node の Material 3 の設定はインスペクターにあります。",
         ["Material 3"] = "Material 3", ["Variant"] = "種類", ["Size"] = "サイズ", ["Shape"] = "形", ["Type"] = "文字スタイル", ["Emphasized"] = "強調", ["Color"] = "色", ["Surface"] = "面の色", ["Corner"] = "角丸", ["Elevation"] = "影の高さ",
