@@ -28,6 +28,7 @@ public sealed class PreferencesWindow : Window
             {
                 new TabItem { Header = L.T("Language"), Content = Page(LanguageChoice(null), new TextBlock { Text = L.T("Language changes apply to windows opened from now on; restart Faro to update the menus."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
                 new TabItem { Header = L.T("Environment"), Content = EnvironmentPage() },
+                new TabItem { Header = L.T("Tools"), Content = ComponentsPage() },
                 new TabItem { Header = L.T("Updates"), Content = UpdatesPage() },
                 new TabItem { Header = L.T("Theme"), Content = ThemePage() },
                 new TabItem { Header = L.T("Plugins"), Content = Page(new TextBlock { Text = L.T("Plugins are planned for a later version (spec §12: outside the prototype scope)."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
@@ -62,6 +63,41 @@ public sealed class PreferencesWindow : Window
             new TextBlock { Text = L.T("Stable: releases. Beta: previews of the next release. Canary: the latest development builds."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
             onStart, now,
             new TextBlock { Text = L.F("Current version: {0}. Releases come from github.com/{1}; the check only reads public release data.", App.Version, Updates.Repository), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
+    }
+
+    /// <summary>On-demand tools (JDK, Maven, GraalVM, Android workload): status and an Install button each; the last output line below.</summary>
+    static Control ComponentsPage()
+    {
+        var log = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, FontFamily = FontFamily.Parse(App.CodeFont), FontSize = 12, Opacity = 0.8 };
+        var grid = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12, RowSpacing = 10 };
+        foreach (var component in Components.All.Where(c => c.Available))
+        {
+            var row = grid.RowDefinitions.Count;
+            grid.RowDefinitions.Add(new(GridLength.Auto));
+            var status = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            var install = new Button { Content = L.T("Install") };
+            void Show()
+            {
+                var installed = component.Installed();
+                status.Text = L.T(installed ? "Installed" : "Not installed");
+                install.IsEnabled = !installed;
+            }
+            Show();
+            install.Click += async (_, _) =>
+            {
+                install.IsEnabled = false;
+                if (await component.Install(line => Avalonia.Threading.Dispatcher.UIThread.Post(() => log.Text = line), CancellationToken.None)) Components.Activate();
+                Show();
+            };
+            var name = new StackPanel { Children = { new TextBlock { Text = component.Name, FontWeight = FontWeight.SemiBold }, new TextBlock { Text = L.T(component.Purpose), Opacity = 0.7, TextWrapping = TextWrapping.Wrap } } };
+            Grid.SetRow(name, row);
+            Grid.SetRow(status, row);
+            Grid.SetColumn(status, 1);
+            Grid.SetRow(install, row);
+            Grid.SetColumn(install, 2);
+            grid.Children.AddRange([name, status, install]);
+        }
+        return Page(new TextBlock { Text = L.T("Tools Faro downloads when you need them. They go into Faro's own folder and are used only by Faro."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }, grid, log);
     }
 
     static Control Page(params Control[] children)

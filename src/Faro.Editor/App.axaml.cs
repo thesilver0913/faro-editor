@@ -107,7 +107,16 @@ public partial class App : Application
     public static void Main(string[] args)
     {
         Log.Start();
-        if (OperatingSystem.IsMacOS()) // started from Finder, PATH is only /usr/bin:/bin:…: add where dotnet, Maven and Homebrew install
+        if (!OperatingSystem.IsWindows()) ImportShellPath();
+        // The .NET SDK the installer put next to Faro also builds and runs the projects (dotnet restore / watch run).
+        var bundled = Path.Combine(AppContext.BaseDirectory, "dotnet");
+        if (File.Exists(Path.Combine(bundled, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet")))
+        {
+            Environment.SetEnvironmentVariable("DOTNET_ROOT", bundled);
+            Environment.SetEnvironmentVariable("PATH", bundled + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
+        }
+        Components.Activate(); // JDK, Maven, GraalVM installed from Preferences › Components
+        if (OperatingSystem.IsMacOS()) // Finder's PATH is only /usr/bin:/bin:…: also where dotnet, Maven and Homebrew install, in case the shell didn't say
             Environment.SetEnvironmentVariable("PATH", string.Join(':', Environment.GetEnvironmentVariable("PATH"), "/usr/local/share/dotnet", "/usr/local/bin", "/opt/homebrew/bin",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet")));
         if (args is ["--build-apk", var folder]) // headless, e.g. CI: `Faro.Editor --build-apk <project folder>`
@@ -120,5 +129,29 @@ public partial class App : Application
         AppBuilder.Configure<App>().UsePlatformDetect()
             .With(new FontManagerOptions { DefaultFamilyName = UiFont })
             .StartWithClassicDesktopLifetime(args);
+    }
+
+    /// <summary>
+    /// Linux / macOS: an app started from the menu, dock or Finder doesn't get the PATH set in shell profiles (SDKMAN's Maven
+    /// and JDK, ~/.dotnet, Homebrew…), so `mvn` or `dotnet` "can't be started". Asks the login shell for its PATH, like VS Code.
+    /// </summary>
+    static void ImportShellPath()
+    {
+        const string marker = "__FARO_PATH__";
+        try
+        {
+            var path = Environment.GetEnvironmentVariable("SHELL") ?? "/bin/sh";
+            var print = path.EndsWith("fish") ? $"printf '{marker}%s' (string join : $PATH)" : $"printf '{marker}%s' \"$PATH\""; // fish's PATH is a list
+            using var shell = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path, ["-ilc", print])
+                { RedirectStandardOutput = true, RedirectStandardInput = true, CreateNoWindow = true })!;
+            var output = shell.StandardOutput.ReadToEndAsync();
+            if (!output.Wait(TimeSpan.FromSeconds(3))) { shell.Kill(entireProcessTree: true); return; } // a slow or waiting profile: keep ours
+            var at = output.Result.LastIndexOf(marker, StringComparison.Ordinal);
+            if (at < 0) return;
+            var ours = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries);
+            var theirs = output.Result[(at + marker.Length)..].Trim().Split(':', StringSplitOptions.RemoveEmptyEntries);
+            Environment.SetEnvironmentVariable("PATH", string.Join(':', theirs.Concat(ours).Distinct()));
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { Log.Error("Shell PATH", e); }
     }
 }

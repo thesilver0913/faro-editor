@@ -3,6 +3,10 @@
     <OutputType>WinExe</OutputType>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>../../assets/faro.ico</ApplicationIcon>
+    <!-- The launcher first looks for .NET in dotnet/ next to Faro, where the Windows installer and the .deb put the
+         .NET 10 SDK when none is installed; then DOTNET_ROOT and the usual system-wide install. -->
+    <AppHostDotNetSearch>AppRelative;EnvironmentVariable;Global</AppHostDotNetSearch>
+    <AppHostRelativeDotNet>dotnet</AppHostRelativeDotNet>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Faro.Runtime/Faro.Runtime.csproj" />

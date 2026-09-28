@@ -78,7 +78,16 @@ public static class L
         ["Move"] = "移動", ["{0} has unsaved changes. Save it first."] = "{0} に未保存の変更があります。先に保存してください。",
         ["Rename…"] = "名前の変更…", ["Delete"] = "削除", ["New Screen"] = "新しい画面", ["New Component"] = "新しいコンポーネント", ["ID:"] = "ID:",
         ["New C# Class"] = "新しい C# クラス", ["New Java Class"] = "新しい Java クラス", ["New Java Class…"] = "新しい Java クラス…",
-        ["Java: syntax colors only (no language server yet)"] = "Java:色分けのみ(言語サーバーは未対応)", ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}", ["Class name:"] = "クラス名:", ["New Folder"] = "新しいフォルダ", ["Folder name:"] = "フォルダ名:",
+        ["Java: syntax colors only (no language server yet)"] = "Java:色分けのみ(言語サーバーは未対応)", ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}",
+        ["Maven isn't installed, or `mvn` isn't on the PATH Faro sees. Install the JDK 21 and Maven from Preferences › Tools, or install them yourself (Ubuntu: sudo apt install maven openjdk-21-jdk) and restart Faro."]
+            = "Maven が入っていないか、Faro から `mvn` が見えません。環境設定 › 部品 から JDK 21 と Maven を入れるか、自分で入れて(Ubuntu:sudo apt install maven openjdk-21-jdk)Faro を起動し直してください。",
+        ["Tools"] = "部品", ["Installed"] = "導入済み", ["Not installed"] = "未導入",
+        ["Tools Faro downloads when you need them. They go into Faro's own folder and are used only by Faro."] = "必要になったときに Faro がダウンロードする道具です。Faro 専用のフォルダに入り、Faro の中だけで使います。",
+        ["Java projects (Run, builds)"] = "Java プロジェクト(実行・ビルド)", ["Android APKs of Java projects (Linux only)"] = "Java プロジェクトの Android APK(Linux のみ)",
+        ["Android APKs of C# projects"] = "C# プロジェクトの Android APK",
+        ["Downloading {0}…"] = "{0} をダウンロードしています…", ["Unpacking…"] = "展開しています…", ["Installed in {0}."] = "{0} に入れました。", ["Couldn't install it: "] = "入れられませんでした: ",
+        ["The .NET 10 SDK isn't installed, or `dotnet` isn't on the PATH Faro sees. Install it (https://dotnet.microsoft.com/download/dotnet/10.0), check `dotnet --version` in a terminal, then restart Faro."]
+            = ".NET 10 SDK が入っていないか、Faro から `dotnet` が見えません。入れて(https://dotnet.microsoft.com/download/dotnet/10.0)、ターミナルで `dotnet --version` が動くことを確かめてから Faro を起動し直してください。", ["Class name:"] = "クラス名:", ["New Folder"] = "新しいフォルダ", ["Folder name:"] = "フォルダ名:",
         ["Rename Screen"] = "画面の名前変更", ["Rename Component"] = "コンポーネントの名前変更", ["New ID (references follow):"] = "新しい ID(参照も追従):",
         ["Rename"] = "名前の変更", ["New name:"] = "新しい名前:",
         ["Delete {0}? Bindings of its nodes are removed too. You can undo this with Ctrl+Z on the canvas."] = "{0} を削除しますか？その Node の紐付けも削除されます。キャンバスで Ctrl+Z を押すと元に戻せます。",
