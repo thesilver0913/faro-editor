@@ -114,6 +114,9 @@ public sealed class CodeView : UserControl
     /// <summary>C# files get the language server, completion and rename following; other text files are plain edits.</summary>
     static bool IsCSharp(string path) => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Files the language server knows: C# in C# projects (csharp-ls), Java in Java projects (jdtls).</summary>
+    static bool Served(string path) => path.EndsWith(Workspace.IsJava ? ".java" : ".cs", StringComparison.OrdinalIgnoreCase);
+
     string? Current => files.SelectedItem is string rel ? Path.Combine(Workspace.Root, rel) : null;
 
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
@@ -197,7 +200,7 @@ public sealed class CodeView : UserControl
         var here = Current is { } p && editor.Document is { } doc
             ? diagnostics.GetValueOrDefault(Uri(p))?.FirstOrDefault(d => Squiggles.Offset(doc, d!["range"]!["start"]!) <= caret && caret <= Squiggles.Offset(doc, d!["range"]!["end"]!))
             : null;
-        status.Text = here is not null ? $"{here["code"]}: {here["message"]}"
+        status.Text = here is not null ? (here["code"]?.ToString() is { } code && !code.All(char.IsDigit) ? $"{code}: " : "") + here["message"] // jdtls codes are bare numbers
             : Current is { } path && IsDirty(path) && ChangedOnDisk(path) ? L.T("Changed on disk too: saving will ask before overwriting.") : lspState;
     }
 
@@ -213,14 +216,14 @@ public sealed class CodeView : UserControl
         buffers[path] = doc = new TextDocument(saved[path] = File.Exists(path) ? File.ReadAllText(path) : "");
         doc.TextChanged += (_, _) =>
         {
-            if (IsCSharp(path)) WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
+            if (Served(path)) WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
             {
                 ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["version"] = ++version },
                 ["contentChanges"] = new JsonArray(new JsonObject { ["text"] = doc.Text }),
             }));
             StateChanged?.Invoke();
         };
-        if (IsCSharp(path)) DidOpen(path, doc);
+        if (Served(path)) DidOpen(path, doc);
         return doc;
     }
 
@@ -278,14 +281,14 @@ public sealed class CodeView : UserControl
         saved[path] = text;
         doc.UndoStack.MarkAsOriginalFile();
         if (Workspace.Project is { } project) Registry.FollowRenames(project, renames).ForEach(FaroProject.Save);
-        if (IsCSharp(path)) WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
+        if (Served(path)) WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
         lspState = renames.Count == 0 ? $"Saved {Path.GetFileName(path)}." : "Saved. Bindings followed: " + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
         StateChanged?.Invoke();
     }
 
     async void Complete()
     {
-        if (Current is not { } path || !IsCSharp(path)) return;
+        if (Current is not { } path || !Served(path)) return;
         var doc = editor.Document;
         var caret = editor.CaretOffset;
         var start = caret;
@@ -323,7 +326,7 @@ public sealed class CodeView : UserControl
             // ponytail: up to 3 automatic restarts per session; add a manual restart button if crashes turn out common
             lsp = null;
             lspState = L.T(++restarts <= 3 ? "Language server crashed, restarting…" : "Language server stopped (crashed 3 times).");
-            if (restarts <= 3) foreach (var (path, doc) in buffers.Where(b => IsCSharp(b.Key))) DidOpen(path, doc);
+            if (restarts <= 3) foreach (var (path, doc) in buffers.Where(b => Served(b.Key))) DidOpen(path, doc);
             StateChanged?.Invoke();
         });
         lspState = L.T("Language server: ready");
@@ -333,7 +336,7 @@ public sealed class CodeView : UserControl
 
     static void DidOpen(string path, TextDocument doc) => WithLsp(c => c.Notify("textDocument/didOpen", new JsonObject
     {
-        ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["languageId"] = "csharp", ["version"] = ++version, ["text"] = doc.Text },
+        ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["languageId"] = Workspace.IsJava ? "java" : "csharp", ["version"] = ++version, ["text"] = doc.Text },
     }));
 
     static async void WithLsp(Action<LspClient> use)

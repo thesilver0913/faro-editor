@@ -83,7 +83,7 @@ public static class L
             = "Maven が入っていないか、Faro から `mvn` が見えません。環境設定 › 部品 から JDK 21 と Maven を入れるか、自分で入れて(Ubuntu:sudo apt install maven openjdk-21-jdk)Faro を起動し直してください。",
         ["Tools"] = "部品", ["Installed"] = "導入済み", ["Not installed"] = "未導入",
         ["Tools Faro downloads when you need them. They go into Faro's own folder and are used only by Faro."] = "必要になったときに Faro がダウンロードする道具です。Faro 専用のフォルダに入り、Faro の中だけで使います。",
-        ["Java projects (Run, builds)"] = "Java プロジェクト(実行・ビルド)", ["Android APKs of Java projects (Linux only)"] = "Java プロジェクトの Android APK(Linux のみ)",
+        ["Java projects (Run, builds)"] = "Java プロジェクト(実行・ビルド)", ["Completion and errors in Java code (installed on first use too)"] = "Java のコードの補完とエラー表示(初めて使うときにも自動で入ります)", ["Android APKs of Java projects (Linux only)"] = "Java プロジェクトの Android APK(Linux のみ)",
         ["Android APKs of C# projects"] = "C# プロジェクトの Android APK",
         ["Downloading {0}…"] = "{0} をダウンロードしています…", ["Unpacking…"] = "展開しています…", ["Installed in {0}."] = "{0} に入れました。", ["Couldn't install it: "] = "入れられませんでした: ",
         ["The .NET 10 SDK isn't installed, or `dotnet` isn't on the PATH Faro sees. Install it (https://dotnet.microsoft.com/download/dotnet/10.0), check `dotnet --version` in a terminal, then restart Faro."]

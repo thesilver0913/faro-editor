@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace Faro.Editor;
 
 /// <summary>
-/// Tools Faro fetches on demand (Preferences › Components) instead of shipping them: a JDK 21 and Maven for Java projects,
+/// Tools Faro fetches on demand (Preferences › Components) instead of shipping them: a JDK 21, Maven and jdtls for Java projects,
 /// Gluon's GraalVM for Java APKs, the .NET "android" workload for C# APKs. Downloads go to Faro's own tools folder and are
 /// used only by Faro: <see cref="Activate"/> puts their bin folders first on its PATH and sets JAVA_HOME / GRAALVM_HOME.
 /// </summary>
@@ -17,6 +17,10 @@ public static class Components
     static string Dir(string name) => Path.Combine(Tools, name);
 
     const string MavenVersion = "3.9.9";
+    const string JdtlsUrl = "https://download.eclipse.org/jdtls/milestones/1.50.0/jdt-language-server-1.50.0-202509041425.tar.gz";
+
+    /// <summary>The Java language server's folder, once installed.</summary>
+    public static string? Jdtls => Directory.Exists(Dir("jdtls")) ? Dir("jdtls") : null;
     const string GraalVmUrl = "https://github.com/gluonhq/graal/releases/download/gluon-23%2B25.1-dev-2409082136/graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz";
 
     static string Os => OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "mac" : "linux";
@@ -32,6 +36,8 @@ public static class Components
         new("Maven", "Java projects (Run, builds)", () => Directory.Exists(Dir("maven")),
             (log, cancel) => Fetch($"https://archive.apache.org/dist/maven/maven-3/{MavenVersion}/binaries/apache-maven-{MavenVersion}-bin.{(OperatingSystem.IsWindows() ? "zip" : "tar.gz")}",
                 Dir("maven"), OperatingSystem.IsWindows(), log, cancel)),
+        new("Java language server (jdtls)", "Completion and errors in Java code (installed on first use too)", () => Jdtls is not null,
+            (log, cancel) => Fetch(JdtlsUrl, Dir("jdtls"), false, log, cancel)),
         new("Gluon GraalVM", "Android APKs of Java projects (Linux only)", () => Directory.Exists(Dir("graalvm")),
             (log, cancel) => Fetch(GraalVmUrl, Dir("graalvm"), false, log, cancel), OperatingSystem.IsLinux()),
         new(".NET Android workload", "Android APKs of C# projects", AndroidWorkloadInstalled,

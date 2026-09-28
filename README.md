@@ -10,7 +10,7 @@
 | パス | 内容 |
 |---|---|
 | `src/Faro.Runtime` | ランタイムバインダー。UIグラフ(XML)→Avaloniaコントロール構築、`<Bind>`のReflection解決、生存期間・永続化、画面遷移 |
-| `src/Faro.Editor` | エディター本体。Roslynレジストリ抽出、紐付け検証(赤バッジ+候補サジェスト)、コンポーネント明示同期、Dock 3ペイン、コードエディタ(AvaloniaEdit + csharp-ls)、バイブコーディング(チャット) |
+| `src/Faro.Editor` | エディター本体。Roslynレジストリ抽出、紐付け検証(赤バッジ+候補サジェスト)、コンポーネント明示同期、Dock 3ペイン、コードエディタ(AvaloniaEdit + csharp-ls / jdtls)、バイブコーディング(チャット) |
 | `src/Faro.Runtime.Java` | Java 版ランタイムバインダー(JavaFX)。同じ UI/・Bindings/ を JavaFX で表示し、紐付けを Java のリフレクションで解決する。各 Java プロジェクトにソースで同梱 |
 | `samples/HelloFaro` | 仕様書の例をそのまま使ったFaroプロジェクト(UI/ Source/ Bindings/ Assets/) |
 | `samples/HelloFaroJava` | 同じサンプルの Java(JavaFX)版 |
@@ -45,7 +45,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **初回起動のウィザード**:言語(English / 日本語、選ぶとその場で切り替わる)・テーマ・プラグイン(今後対応の案内)を選ぶ。言語は環境設定の「言語」タブでも変えられる(開いているメニューは再起動で切り替わる)。画面の文言は英語をキーにした表 `src/Faro.Editor/L.cs` で訳す
 - **キャンバスのズーム**:−/+、全体表示(Fit、パネル幅に合わせる)、Ctrl+ホイール、倍率をクリックで 100%
 - **キャンバスの右クリックメニュー**:追加・切り取り(Ctrl+X)・コピー・貼り付け・複製・削除・前後へ移動・親を選択・コンテナで囲む(Stack/Overlay/Grid、ID と紐付けはそのまま)・名前の変更・マスターを編集(インスタンス)
-- **エクスプローラー(VSCode 風)**:プロジェクトフォルダ全体を表示(bin/obj/.git は非表示)。C# 以外のテキストファイル(faro.json、.csproj、XML など)もコードエディタで開ける(言語サーバーは C# だけ)。新しいファイル/フォルダ、切り取り・コピー・貼り付け、名前の変更(F2)、削除(Del)、ドラッグで移動、OS のファイルマネージャーからドロップしてコピー、パスのコピー、ファイルマネージャーで表示。UI/ と Bindings/ のファイルは画面に属するため、普通のファイルとしては移動・貼り付けしない(画面・コンポーネントの名前変更と削除は従来どおり参照も追従)
+- **エクスプローラー(VSCode 風)**:プロジェクトフォルダ全体を表示(bin/obj/.git は非表示)。C# 以外のテキストファイル(faro.json、.csproj、XML など)もコードエディタで開ける(言語サーバーは C# プロジェクトの .cs と Java プロジェクトの .java)。新しいファイル/フォルダ、切り取り・コピー・貼り付け、名前の変更(F2)、削除(Del)、ドラッグで移動、OS のファイルマネージャーからドロップしてコピー、パスのコピー、ファイルマネージャーで表示。UI/ と Bindings/ のファイルは画面に属するため、普通のファイルとしては移動・貼り付けしない(画面・コンポーネントの名前変更と削除は従来どおり参照も追従)
 - **キャンバスの便利機能**:Node のコピー(Ctrl+C)・貼り付け(Ctrl+V)・複製(Ctrl+D)。ID がかぶるものは番号を振り直し、紐付けも新しい ID で複製する。プレビューの大きさを Phone / Tablet / Desktop で切り替え(アプリ全体の設定に保存)
 - **画像**:Image の Source などは Assets/ の画像から選べる。エクスプローラーの画像をキャンバスへドラッグすると Image Node として追加。モック行で画像の Source も差し替えられる
 - **Run / Stop**:キャンバスの Run(F5)で `dotnet watch run` を起動し、出力を Console の Output タブに表示。もう一度押す(または Shift+F5)と止まる。エディターを閉じるとアプリも止まる
@@ -57,6 +57,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 
 - AvaloniaEdit + C#言語サーバー [csharp-ls](https://github.com/razzmatazz/csharp-language-server) をLSP(stdio)で接続。補完(`.` または Ctrl+Space)とエラーの波線表示
 - csharp-ls は初回起動時に `ApplicationData/Faro/tools` へ固定バージョンで自動インストール(`dotnet tool install`)。クラッシュ時は3回まで自動再起動
+- **Java プロジェクト**は Eclipse の言語サーバー [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls)(1.50.0)で同じく補完とエラーの波線表示。初めて Java のコードを開いたときに `tools/jdtls` へダウンロードする(環境設定 › 部品からも入れられる)。JDK 21 以降で動き、`pom.xml` を読み込む(初回は依存のダウンロードで時間がかかる)。Eclipse の設定ファイル(`.project` など)はプロジェクトに書かず、`tools/jdtls-data` に置く
 - **保存(Ctrl+S)時のリネーム追従**:最後に保存した内容と比べ、クラス1つ／同じクラス内の同種メンバー1つが消えて1つ増えた場合をリネームとみなし、`Bindings/` の `target` を書き換える。判定できない変更は追従せず、赤バッジで知らせる
 - 配色は標準の C# `.xshd`(明るい背景)か TextMate テーマ(環境設定で選択)
 
@@ -147,7 +148,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **実行**:キャンバスの Run で `mvn javafx:run`(ホットリロードなし、保存後にもう一度 Run)。javac のエラーは Problems に出る
 - **Material 3**:エディターが `faro.json` の `design` から JavaFX 用 CSS(`.faro/design.css`)を作り、ランタイムが読み込む(押したときの形の変化はバネなしで切り替わるだけ)
 - **レジストリ**:.java の宣言をソースから読み取る(未ビルドでも可)。コメント・文字列・入れ子のクラスは除外
-- 既知の制限:Java の言語サーバー(補完・参照追従)は未対応で色分けのみ。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
+- 既知の制限:Java のメンバー名変更の紐付け追従は未対応(補完とエラー表示は jdtls)。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
 
 ## Android APK
 
