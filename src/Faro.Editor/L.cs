@@ -151,6 +151,8 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        // Binding format
+        ["Format, e.g. ¥{0:N0}"] = "書式(例: ¥{0:N0})", ["{0} is the value; {0:N0} adds thousands separators, {0:F2} two decimals"] = "{0} が値。{0:N0} で 3 桁区切り、{0:F2} で小数 2 桁",
         // Compare and data preview (canvas)
         ["One artboard"] = "1 枚で表示", ["All sizes"] = "全サイズを並べる", ["Light and dark"] = "ライトとダークを並べる",
         ["Compare the screen on every size, or in light and dark"] = "画面を全サイズ、またはライトとダークで並べて比べる",

@@ -1,4 +1,6 @@
 <Bindings>
   <Bind nodeId="count" prop="Text" target="myapp.services.OrderService.summary" mode="OneWay" />
+  <Bind nodeId="itemsValue" prop="Text" target="myapp.models.Order.name" mode="OneWay" />
+  <Bind nodeId="totalValue" prop="Text" target="myapp.models.Order.price" mode="OneWay" format="¥{0:N0}" />
   <Bind nodeId="back" event="Click" target="Navigate:Screen.MainScreen" />
 </Bindings>

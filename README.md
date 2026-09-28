@@ -81,6 +81,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with AI Chat」
 - **リストの実データ**:repeatable なインスタンスに `prop="Items"` で一覧のプロパティを紐付けると、実行時に 1 件 1 行で並ぶ(C# は `ObservableCollection<T>` なら追加・削除で再描画。Java は `List` を返す getter と `changed("orders")`)。中の Node への紐付けは要素のクラスのメンバーを指す(`orderList/name` → `MyApp.Models.Order.Name`)。サンプルの「送信」で注文が 1 行増える
+- **表示形式**:値の紐付けに `format="¥{0:N0}"` を付けると書式付きで表示する(インスペクターの紐付け欄の「書式」。`{0}` が値、`{0:N0}` は 3 桁区切り、`{0:F2}` は小数 2 桁。この 3 つは C# と Java で同じ結果、ほかは C# だけ)
+- **選択(行のクリック)**:コンテナにも `Click` を紐付けられる(行のどこをクリックしても反応)。一覧の行の中の Click に**引数 1 つのメソッド**(`Open(Order order)`)を紐付けると、その行の要素が渡る。行の中の `Navigate:Screen.…` もその行の要素を遷移先に渡す
+- **画面遷移で値を渡す**(仕様§7):コードから `FaroApp.Navigate("Detail", order)`(Java は `FaroApp.navigate("Detail", order)`)。遷移先の紐付けは、渡した値のクラスのメンバー(`MyApp.Models.Order.Name`)ならその値を使う(`FaroApp.Parameter` でも読める)。サンプルでは一覧の行をクリックすると Detail にその注文が出る
 - Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
 
 ## エクスプローラー
@@ -136,7 +139,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 
 - 新規プロジェクトで **Java (JavaFX)** を選ぶと、Maven プロジェクト(`pom.xml`、`Source/Main.java`)ができる。**JDK 21 以降と Maven** が必要。UI/・Bindings/・Assets/ の形式、キャンバス、インスペクター、紐付けの検証は C# と同じ
 - **ランタイム**:Java 版ランタイムバインダー(`faro.runtime` パッケージ)を `.faro/runtime-java` にソースで同梱し、`build-helper-maven-plugin` でアプリと一緒にコンパイルする(C# の nupkg 同梱に当たる。Faro を更新すると開いたときに入れ替えを案内する)
-- **紐付け**:`target` は `パッケージ.クラス.メンバー`。イベントは引数なしの public メソッド(`myapp.services.OrderService.submit`)、プロパティは Bean プロパティ(`getName()`/`isName()`、TwoWay なら `setName(...)` も → `myapp.models.UserProfile.name`)
+- **紐付け**:`target` は `パッケージ.クラス.メンバー`。イベントは引数なし(または行の要素・遷移で渡した値を受ける引数 1 つ)の public メソッド(`myapp.services.OrderService.submit`)、プロパティは Bean プロパティ(`getName()`/`isName()`、TwoWay なら `setName(...)` も → `myapp.models.UserProfile.name`)
 - 変更通知は `FaroObject` を継承して `changed("name", "greeting")` を呼ぶ。生存期間は `@FaroLifetime(value = Lifetime.SINGLETON, persistent = true)`(永続化は文字列・数値・真偽値の Bean プロパティを `.properties` に保存)
 - **Script 部品**は `FaroScript` を継承して `build()` で JavaFX の Node を返す。キャンバスでは枠表示(実物は実行時)
 - **実行**:キャンバスの Run で `mvn javafx:run`(ホットリロードなし、保存後にもう一度 Run)。javac のエラーは Problems に出る

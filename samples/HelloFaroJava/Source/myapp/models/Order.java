@@ -13,6 +13,4 @@ public class Order {
     public String getName() { return name; }
 
     public int getPrice() { return price; }
-
-    public String getPriceText() { return "¥" + price; }
 }

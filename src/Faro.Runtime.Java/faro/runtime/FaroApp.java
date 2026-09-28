@@ -92,8 +92,16 @@ public final class FaroApp {
         }
     }
 
-    /** Opens a screen by UIGraph id. Also the API user code calls for parameterised navigation (spec §7). */
-    public static void navigate(String screenId) {
+    private static Object parameter;
+
+    /** What the last navigate passed: the new screen's binds to members of its class use it (e.g. the tapped row's item). */
+    public static Object parameter() { return parameter; }
+
+    /** Opens a screen by UIGraph id. */
+    public static void navigate(String screenId) { navigate(screenId, null); }
+
+    /** Opens a screen with a value for its binds (spec §7: user code navigates with parameters). */
+    public static void navigate(String screenId, Object parameter) {
         var graph = screens.get(screenId);
         if (graph == null) {
             showError("Navigate: screen '" + screenId + "' does not exist.");
@@ -101,6 +109,7 @@ public final class FaroApp {
         }
         release(screenScoped.values());
         screenScoped = new HashMap<>();
+        FaroApp.parameter = parameter;
         var byId = new HashMap<String, Node>();
         var rootNode = UiBuilder.children(graph, "Node").get(0);
         var content = UiBuilder.build(rootNode, byId, root, "");
@@ -175,8 +184,10 @@ public final class FaroApp {
         if (owner instanceof FaroObject observable) observable.addChangeListener(changed -> { if (changed.equals(name)) render.run(); });
     }
 
-    /** Inside a list row, members of the item's class bind to that row's item. */
-    private static Object source(Class<?> type, Object item) { return item != null && type.isInstance(item) ? item : instanceOf(type); }
+    /** Members of the row item's class (inside a list) or of the navigation parameter's class bind to that object. */
+    private static Object given(Class<?> type, Object item) { return type.isInstance(item) ? item : type.isInstance(parameter) ? parameter : null; }
+
+    private static Object source(Class<?> type, Object item) { var given = given(type, item); return given != null ? given : instanceOf(type); }
 
     private static void apply(Element bind, Node control, Object item) throws ReflectiveOperationException {
         var target = bind.getAttribute("target");
@@ -186,13 +197,24 @@ public final class FaroApp {
             if (target.startsWith("Navigate:")) {
                 var screen = navigateScreenId(target);
                 if (!screens.containsKey(screen)) throw new IllegalStateException("Screen '" + screen + "' does not exist.");
-                hook.accept(() -> navigate(screen));
+                hook.accept(() -> navigate(screen, item)); // a row passes its item
                 return;
             }
-            // ponytail: parameterless methods only; pass event data when a use case needs it
-            var method = classOf(target).getMethod(memberOf(target));
+            // No parameters, or one: the row's item (selection) or the navigation parameter, whichever its type takes.
+            Method method = null;
+            for (var m : classOf(target).getMethods())
+                if (m.getName().equals(memberOf(target)) && m.getParameterCount() <= 1 && (method == null || m.getParameterCount() == 0)) method = m;
+            if (method == null) throw new NoSuchMethodException("'" + target + "' must be a public method with no parameters, or one (the row's item or the screen's parameter).");
+            Object[] args = {};
+            if (method.getParameterCount() == 1) {
+                var arg = given(method.getParameterTypes()[0], item);
+                if (arg == null) throw new IllegalStateException("'" + target + "' takes a " + method.getParameterTypes()[0].getSimpleName() + ": bind it inside a list of them, or on a screen opened with one.");
+                args = new Object[] { arg };
+            }
+            var chosen = method;
+            var arguments = args;
             hook.accept(() -> {
-                try { method.invoke(Modifier.isStatic(method.getModifiers()) ? null : source(method.getDeclaringClass(), item)); }
+                try { chosen.invoke(Modifier.isStatic(chosen.getModifiers()) ? null : source(chosen.getDeclaringClass(), item), arguments); }
                 catch (InvocationTargetException e) { showError(target + " threw:\n" + e.getCause()); }
                 catch (IllegalAccessException e) { showError(target + ": " + e.getMessage()); }
             });
@@ -203,8 +225,9 @@ public final class FaroApp {
             var name = memberOf(target);
             var getter = getter(type, name);
             var source = source(type, item);
+            var format = bind.getAttribute("format");
             Runnable pull = () -> {
-                try { fx.setValue(convert(getter.invoke(source), fx.getValue())); }
+                try { fx.setValue(format.isEmpty() ? convert(getter.invoke(source), fx.getValue()) : format(format, getter.invoke(source))); }
                 catch (ReflectiveOperationException e) { showError(target + ": " + e.getCause()); }
             };
             pull.run();
@@ -223,6 +246,8 @@ public final class FaroApp {
     private static Consumer<Runnable> event(Node control, String name) {
         if (name.equals("Click") && control instanceof ButtonBase button)
             return r -> button.addEventHandler(ActionEvent.ACTION, e -> r.run());
+        if (name.equals("Click") && control instanceof javafx.scene.layout.Pane pane) // containers: a tap (e.g. a list row)
+            return r -> pane.addEventHandler(javafx.scene.input.MouseEvent.MOUSE_CLICKED, e -> r.run());
         if (name.equals("Changed") && control instanceof TextInputControl input)
             return r -> input.textProperty().addListener((o, a, b) -> r.run());
         throw new IllegalStateException(control.getClass().getSimpleName() + " has no event '" + name + "'.");
@@ -243,6 +268,14 @@ public final class FaroApp {
         };
         if (property == null) throw new IllegalStateException(control.getClass().getSimpleName() + " has no property '" + name + "'.");
         return property;
+    }
+
+    private static final Pattern FORMAT = Pattern.compile("\\{0(?::([NF])(\\d*))?\\}");
+
+    /** "¥{0:N0}" as in .NET: {0}, {0:N<decimals>} (thousands separators) and {0:F<decimals>} are the portable ones. */
+    static String format(String format, Object value) {
+        return FORMAT.matcher(format).replaceAll(m -> java.util.regex.Matcher.quoteReplacement(m.group(1) == null || !(value instanceof Number number) ? String.valueOf(value)
+            : String.format((m.group(1).equals("N") ? "%,." : "%.") + (m.group(2).isEmpty() ? "2" : m.group(2)) + "f", number.doubleValue())));
     }
 
     private static Object convert(Object value, Object current) {

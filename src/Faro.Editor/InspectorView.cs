@@ -292,6 +292,10 @@ public sealed class InspectorView : UserControl
             var mode = new ComboBox { ItemsSource = new[] { "OneWay", "TwoWay" }, SelectedItem = (string?)bind.Attribute("mode") ?? "OneWay" };
             mode.SelectionChanged += (_, _) => EditBind(bind, "Set binding mode", b => b.SetAttributeValue("mode", (string)mode.SelectedItem!));
             row.Children.Add(mode);
+            // Display format ("¥{0:N0}"): {0}, N<decimals> (thousands separators) and F<decimals> work the same in C# and Java.
+            var format = new TextBox { Text = (string?)bind.Attribute("format") ?? "", PlaceholderText = L.T("Format, e.g. ¥{0:N0}"), MinWidth = 120, [ToolTip.TipProperty] = L.T("{0} is the value; {0:N0} adds thousands separators, {0:F2} two decimals") };
+            Commit(format, () => format.Text ?? "", value => EditBind(bind, "Set binding format", b => b.SetAttributeValue("format", value.Length > 0 ? value : null)));
+            row.Children.Add(format);
         }
         var remove = new Button { Content = L.T("✕"), [ToolTip.TipProperty] = L.T("Remove binding") };
         remove.Click += (_, _) => EditBind(bind, "Remove binding", b => b.Remove());
@@ -368,7 +372,7 @@ public sealed class InspectorView : UserControl
 
     static string[] Candidates(bool isEvent) =>
         isEvent
-            ? [.. Workspace.Registry.Where(m => m.IsMethod && m.Signature.EndsWith("()")).Select(m => m.Target),
+            ? [.. Workspace.Registry.Where(m => m.IsMethod && !m.Signature.Contains(',')).Select(m => m.Target), // no parameter, or one: the row's item / the screen's parameter
                .. Workspace.Project?.Screens.Keys.Order().Select(s => $"Navigate:Screen.{s}") ?? []]
             : [.. Workspace.Registry.Where(m => !m.IsMethod).Select(m => m.Target)];
 

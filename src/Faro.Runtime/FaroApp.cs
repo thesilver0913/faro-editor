@@ -102,8 +102,11 @@ public static class FaroApp
             };
     }
 
-    /// <summary>Opens a screen by UIGraph id. Also the API user code calls for parameterised navigation (spec §7).</summary>
-    public static void Navigate(string screenId)
+    /// <summary>What the last Navigate passed: the new screen's binds to members of its class use it (e.g. the tapped row's item).</summary>
+    public static object? Parameter { get; private set; }
+
+    /// <summary>Opens a screen by UIGraph id, optionally with a value for its binds (spec §7: user code navigates with parameters).</summary>
+    public static void Navigate(string screenId, object? parameter = null)
     {
         if (!project.Screens.TryGetValue(screenId, out var graph))
         {
@@ -112,6 +115,7 @@ public static class FaroApp
         }
         Release(screenScoped.Values);
         screenScoped = [];
+        Parameter = parameter;
 
         var byId = new Dictionary<string, Control>();
         host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
@@ -124,9 +128,9 @@ public static class FaroApp
     /// Design-time data (the editor's canvas): the screen's property bindings (not events) on controls built from it,
     /// with new instances of the classes in <paramref name="assembly"/> (nothing is persisted). Returns the errors.
     /// </summary>
-    public static List<string> Preview(Assembly assembly, FaroProject faroProject, string screenId, Dictionary<string, Control> byId)
+    public static List<string> Preview(Assembly assembly, FaroProject faroProject, string screenId, Dictionary<string, Control> byId, object? parameter = null)
     {
-        (userAssembly, project) = (assembly, faroProject);
+        (userAssembly, project, Parameter) = (assembly, faroProject, parameter);
         singletons.Clear();
         screenScoped = [];
         return project.Graph(screenId)?.Root?.Element("Node") is { } node ? Bind(node, screenId, byId, events: false) : [];
@@ -217,27 +221,34 @@ public static class FaroApp
 
     static void Apply(XElement bind, Control control, object? item)
     {
-        // Inside a list row, members of the item's class bind to that row's item.
-        object? Source(MemberInfo member, bool isStatic) =>
-            isStatic ? null : item is not null && member.DeclaringType!.IsInstanceOfType(item) ? item : InstanceOf(member.DeclaringType!);
+        // Members of the row item's class (inside a list) or of the navigation parameter's class bind to that object.
+        object? Given(Type type) => new[] { item, Parameter }.FirstOrDefault(type.IsInstanceOfType);
+        object? Source(MemberInfo member, bool isStatic) => isStatic ? null : Given(member.DeclaringType!) ?? InstanceOf(member.DeclaringType!);
         var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
         if ((string?)bind.Attribute("event") is { } eventName)
         {
             var routed = Bindable.For(control)?.Events.GetValueOrDefault(eventName)
                 ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no event '{eventName}'.");
+            if (control is Border { Background: null } container) container.Background = Brushes.Transparent; // a tap anywhere on a container (a row) counts
             if (target.StartsWith("Navigate:"))
             {
                 var screen = NavigateScreenId(target, project.Screens.Keys);
                 if (!project.Screens.ContainsKey(screen)) throw new InvalidOperationException($"Screen '{screen}' does not exist.");
-                control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) => Navigate(screen)));
+                control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) => Navigate(screen, item))); // a row passes its item
                 return;
             }
-            // ponytail: parameterless methods only; pass event args/node values when a use case needs them
+            // No parameters, or one: the row's item (selection) or the navigation parameter, whichever its type takes.
             var method = Resolve(userAssembly, target) as MethodInfo ?? throw new InvalidOperationException($"'{target}' is not a method.");
-            if (method.GetParameters().Length > 0) throw new InvalidOperationException($"'{target}' must take no parameters.");
+            var parameters = method.GetParameters();
+            object?[]? args = parameters.Length switch
+            {
+                0 => null,
+                1 => [Given(parameters[0].ParameterType) ?? throw new InvalidOperationException($"'{target}' takes a {parameters[0].ParameterType.Name}: bind it inside a list of them, or on a screen opened with one.")],
+                _ => throw new InvalidOperationException($"'{target}' must take no parameters, or one (the row's item or the screen's parameter)."),
+            };
             control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) =>
             {
-                try { method.Invoke(Source(method, method.IsStatic), null); }
+                try { method.Invoke(Source(method, method.IsStatic), args); }
                 catch (TargetInvocationException e) { ShowError($"{target} threw:\n{e.InnerException}"); }
             }));
         }
@@ -251,6 +262,7 @@ public static class FaroApp
             {
                 Source = Source(prop, prop.GetMethod?.IsStatic == true),
                 Mode = (string?)bind.Attribute("mode") == "TwoWay" ? BindingMode.TwoWay : BindingMode.OneWay,
+                StringFormat = (string?)bind.Attribute("format"), // "¥{0:N0}"; N and F are the ones Java formats the same way
             });
         }
     }
