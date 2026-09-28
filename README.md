@@ -138,14 +138,18 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **レジストリ**:.java の宣言をソースから読み取る(未ビルドでも可)。コメント・文字列・入れ子のクラスは除外
 - 既知の制限:Java の言語サーバー(補完・参照追従)は未対応で色分けのみ。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
 
-## Android APK(C# プロジェクト)
+## Android APK
 
 - **File › Android APK をビルド** で、プロジェクトを Android アプリ(`dist/<名前>.apk`)にする。出力は Console の Output に出る。Stop で中止できる
-- 仕組み:`.faro/android/` に Android 用のプロジェクトを生成する(毎回作り直す)。これは `Source/` のコードを Avalonia.Android と一緒にビルドし、`faro.json`・`UI/`・`Bindings/`・`Assets/` を APK に入れる。アプリは起動時にそれらを展開して、デスクトップと同じランタイムバインダーで画面を出す
+- 仕組み(C#):`.faro/android/` に Android 用のプロジェクトを生成する(毎回作り直す)。これは `Source/` のコードを Avalonia.Android と一緒にビルドし、`faro.json`・`UI/`・`Bindings/`・`Assets/` を APK に入れる。アプリは起動時にそれらを展開して、デスクトップと同じランタイムバインダーで画面を出す
 - 必要なもの:.NET の android workload(`dotnet workload install android`)。Android SDK と JDK は初回のビルドで Faro の設定フォルダ(`Faro/android`)に自動で入る(`ANDROID_HOME`・`JAVA_HOME` があればそちらを使う)
 - 署名はデバッグ用の鍵。端末やエミュレーターにそのまま入れて試せる(`adb install dist/<名前>.apk`)。Google Play に出すには自分の鍵で署名し直す
-- コマンドラインからも作れる:`Faro.Editor --build-apk <プロジェクトのフォルダ>`(CI では C# サンプルの APK をこれで作っている)
-- 制限:Java(JavaFX)プロジェクトはまだ対象外(Android で動かすには Gluon と GraalVM での変換が必要)。Android では `Persistent` なクラスの保存はまだ行わない。バインディングエラーは画面の下に重ねて表示する
+- コマンドラインからも作れる:`Faro.Editor --build-apk <プロジェクトのフォルダ>`(CI では両方のサンプルの APK をこれで作っている)
+- **Java(JavaFX)プロジェクト**:GluonFX(`gluonfx:build gluonfx:package`)が Gluon の GraalVM でネイティブの Android アプリにする
+  - `.faro/android/pom.xml` をプロジェクトの `pom.xml` から生成する(プロパティと依存はそのまま。紐付けで使う `Source/` のクラスはリフレクション一覧に入れる)
+  - UI・紐付け・アセット・デザインの CSS は `faro/` の下にリソースとして入り、ランタイムはフォルダの代わりにそこから読む
+  - 必要なもの:**Linux**(GluonFX の Android ビルドは Linux のみ。Windows では WSL か CI)、Maven、Gluon の GraalVM(https://github.com/gluonhq/graal/releases)を `GRAALVM_HOME` に設定。Android SDK・NDK は初回ビルドで GluonFX が入れる
+- 制限:Android では `Persistent` なクラスの保存はまだ行わない。C# ではバインディングエラーを画面の下に重ねて表示する
 
 ## インストールと更新、ログ
 

@@ -40,13 +40,14 @@ public sealed class LspClient : IDisposable
         var server = Path.Combine(ToolDir, OperatingSystem.IsWindows() ? "csharp-ls.exe" : "csharp-ls");
         if (!File.Exists(server))
         {
-            using var install = Process.Start("dotnet", ["tool", "install", "--tool-path", ToolDir, "csharp-ls", "--version", ServerVersion])!;
+            using var install = Process.Start(new ProcessStartInfo("dotnet", ["tool", "install", "--tool-path", ToolDir, "csharp-ls", "--version", ServerVersion]) { CreateNoWindow = true })!;
             await install.WaitForExitAsync();
             if (install.ExitCode != 0) throw new InvalidOperationException($"Installing csharp-ls {ServerVersion} failed (exit {install.ExitCode}).");
         }
         var client = new LspClient(Process.Start(new ProcessStartInfo(server)
         {
             WorkingDirectory = root,
+            CreateNoWindow = true, // Windows: no empty console window next to Faro (it and the MSBuild nodes it starts)
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

@@ -46,3 +46,23 @@ jobs:
         with:
           name: HelloFaro-apk
           path: samples/HelloFaro/dist/*.apk
+
+  # Android APK of the Java sample: GluonFX with Gluon's GraalVM, again through Faro.Editor --build-apk.
+  android-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Gluon GraalVM
+        run: |
+          curl -sSL -o graalvm.tar.gz "https://github.com/gluonhq/graal/releases/download/gluon-23%2B25.1-dev-2409082136/graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz"
+          mkdir -p "$RUNNER_TEMP/graalvm" && tar -xzf graalvm.tar.gz -C "$RUNNER_TEMP/graalvm" --strip-components=1
+          echo "GRAALVM_HOME=$RUNNER_TEMP/graalvm" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$RUNNER_TEMP/graalvm" >> "$GITHUB_ENV"
+      - run: dotnet run --project src/Faro.Editor -- --build-apk samples/HelloFaroJava
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HelloFaroJava-apk
+          path: samples/HelloFaroJava/dist/*.apk

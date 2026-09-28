@@ -70,6 +70,7 @@ public static class Workspace
         var start = new System.Diagnostics.ProcessStartInfo(file, args)
         {
             WorkingDirectory = Root,
+            CreateNoWindow = true, // Windows: output goes to the console tab, not an empty command prompt
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
@@ -100,10 +101,10 @@ public static class Workspace
     static CancellationTokenSource? apk;
     public static bool BuildingApk => apk is not null;
 
-    /// <summary>File › Build Android APK (C# projects): output in the console, the APK in dist/.</summary>
+    /// <summary>File › Build Android APK: output in the console, the APK in dist/.</summary>
     public static async void BuildApk()
     {
-        if (Running || apk is not null || !Trusted || IsJava) return;
+        if (Running || apk is not null || !Trusted) return;
         Output.Clear();
         apk = new();
         RunChanged?.Invoke();

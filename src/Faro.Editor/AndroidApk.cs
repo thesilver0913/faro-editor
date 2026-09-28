@@ -116,6 +116,7 @@ public static class AndroidApk
     /// <summary>Installs the Android SDK / JDK if missing, publishes, and copies the APK to dist/&lt;name&gt;.apk (returned; null on failure).</summary>
     public static async Task<string?> BuildAsync(string root, Action<string> output, CancellationToken cancel = default)
     {
+        if (JavaProject.Is(root)) return await JavaProject.BuildApkAsync(root, output, cancel);
         var csproj = Write(root);
         var tools = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "android");
         var sdk = Environment.GetEnvironmentVariable("ANDROID_HOME") ?? Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT") ?? Path.Combine(tools, "sdk");
@@ -124,24 +125,29 @@ public static class AndroidApk
         var published = Path.Combine(Head(root), "out");
         if (Directory.Exists(published)) Directory.Delete(published, true);
         output(L.T("Installing the Android SDK and JDK if needed (the first build downloads them)…"));
-        if (await Exec(["build", csproj, "-t:InstallAndroidDependencies", "-f", Framework, .. properties], output, cancel) != 0) return null;
-        if (await Exec(["publish", csproj, "-c", "Release", "-f", Framework, "-o", published, .. properties], output, cancel) != 0) return null;
-        if (Directory.EnumerateFiles(published, "*-Signed.apk").FirstOrDefault() is not { } apk) return null;
-        var target = Path.Combine(root, "dist", Name(root) + ".apk");
+        if (await Exec("dotnet", ["build", csproj, "-t:InstallAndroidDependencies", "-f", Framework, .. properties], output, cancel) != 0) return null;
+        if (await Exec("dotnet", ["publish", csproj, "-c", "Release", "-f", Framework, "-o", published, .. properties], output, cancel) != 0) return null;
+        return Directory.EnumerateFiles(published, "*-Signed.apk").FirstOrDefault() is { } apk ? CopyToDist(root, apk, Name(root)) : null;
+    }
+
+    /// <summary>The finished APK as dist/&lt;name&gt;.apk in the project.</summary>
+    public static string CopyToDist(string root, string apk, string name)
+    {
+        var target = Path.Combine(root, "dist", name + ".apk");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         File.Copy(apk, target, true);
         return target;
     }
 
-    static async Task<int> Exec(string[] args, Action<string> output, CancellationToken cancel)
+    public static async Task<int> Exec(string file, string[] args, Action<string> output, CancellationToken cancel, string? directory = null)
     {
-        using var process = new Process { StartInfo = new("dotnet", args) { RedirectStandardOutput = true, RedirectStandardError = true } };
+        using var process = new Process { StartInfo = new(file, args) { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, WorkingDirectory = directory ?? "" } };
         process.OutputDataReceived += (_, e) => { if (e.Data is { } line) output(line); };
         process.ErrorDataReceived += (_, e) => { if (e.Data is { } line) output(line); };
         try { process.Start(); }
-        catch (System.ComponentModel.Win32Exception e) // the .NET SDK isn't installed
+        catch (System.ComponentModel.Win32Exception e) // the .NET SDK / Maven isn't installed
         {
-            output(L.F("Couldn't start {0}: {1}", "dotnet", e.Message));
+            output(L.F("Couldn't start {0}: {1}", file, e.Message));
             return -1;
         }
         process.BeginOutputReadLine();

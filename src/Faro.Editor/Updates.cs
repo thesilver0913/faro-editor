@@ -36,6 +36,8 @@ public static class Updates
     }
 
     static readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(15), DefaultRequestHeaders = { { "User-Agent", "Faro" }, { "Accept", "application/vnd.github+json" } } };
+    // The Setup is tens of MB: the API's 15 s would cut it off on a slow line (issue #25).
+    static readonly HttpClient download = new() { Timeout = TimeSpan.FromMinutes(15), DefaultRequestHeaders = { { "User-Agent", "Faro" } } };
 
     /// <summary>Asks GitHub (unauthenticated) for the newest release on the chosen channel.</summary>
     public static async Task<Release?> Check()
@@ -52,7 +54,9 @@ public static class Updates
         if (OperatingSystem.IsWindows() && release.WindowsSetup is { } url)
         {
             var setup = Path.Combine(Path.GetTempPath(), Path.GetFileName(new Uri(url).LocalPath));
-            await File.WriteAllBytesAsync(setup, await http.GetByteArrayAsync(url));
+            await using (var from = await download.GetStreamAsync(url))
+            await using (var to = File.Create(setup))
+                await from.CopyToAsync(to);
             Process.Start(new ProcessStartInfo(setup, "/SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS") { UseShellExecute = true });
             Environment.Exit(0); // the installer replaces the files, then starts the new Faro
         }
@@ -85,7 +89,18 @@ public static class Updates
                 + (windows ? "\n\n" + L.T("Faro closes while the installer updates it, then starts again.") : ""),
                 [L.T(windows ? "Install" : "Download"), L.T("Release Notes")]) is var choice and >= 0)
         {
-            if (choice == 0) await Install(release); else Open(release.Page);
+            if (choice != 0) { Open(release.Page); return; }
+            try { await Install(release); }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException or System.ComponentModel.Win32Exception)
+            {
+                Log.Error("Update download", e);
+                await Dialogs.Info(owner, L.T("Check for Updates"), new Avalonia.Controls.TextBlock
+                {
+                    Text = L.T("Couldn't download the update: ") + e.Message + "\n\n" + L.T("The release page opens so you can download it there."),
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                });
+                Open(release.Page);
+            }
         }
     }
 
