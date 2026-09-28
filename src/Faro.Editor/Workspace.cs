@@ -83,6 +83,9 @@ public static class Workspace
         catch (System.ComponentModel.Win32Exception e) // Maven or the .NET SDK isn't installed
         {
             Add(L.F("Couldn't start {0}: {1}", file, e.Message));
+            Add(L.T(IsJava
+                ? "Maven isn't installed, or `mvn` isn't on the PATH Faro sees. Install the JDK 21 and Maven from Preferences › Tools, or install them yourself (Ubuntu: sudo apt install maven openjdk-21-jdk) and restart Faro."
+                : "The .NET 10 SDK isn't installed, or `dotnet` isn't on the PATH Faro sees. Install it (https://dotnet.microsoft.com/download/dotnet/10.0), check `dotnet --version` in a terminal, then restart Faro."));
             return;
         }
         process.BeginOutputReadLine();
