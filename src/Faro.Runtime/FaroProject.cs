@@ -18,6 +18,9 @@ public sealed class FaroProject
     /// <summary>"startScreen" in faro.json: the screen the app opens with (kept out of the code, so it's language-neutral).</summary>
     public string? StartScreen { get; private set; }
 
+    /// <summary>"design" in faro.json: the app's design language, seed color and light/dark theme.</summary>
+    public AppDesign Design { get; private set; } = new();
+
     /// <summary>Every bind in the project (for project-wide follow-ups such as class renames).</summary>
     public IEnumerable<XElement> Binds => BindingFiles.SelectMany(d => d.Root!.Elements("Bind"));
 
@@ -46,7 +49,9 @@ public sealed class FaroProject
         }
         project.BindingFiles.AddRange(LoadAll(Path.Combine(root, "Bindings")));
         var meta = Path.Combine(root, "faro.json");
-        project.StartScreen = File.Exists(meta) ? (string?)JsonNode.Parse(File.ReadAllText(meta))?["startScreen"] : null;
+        var json = File.Exists(meta) ? JsonNode.Parse(File.ReadAllText(meta)) : null;
+        project.StartScreen = (string?)json?["startScreen"];
+        project.Design = AppDesign.Read(json?["design"]);
         return project;
     }
 

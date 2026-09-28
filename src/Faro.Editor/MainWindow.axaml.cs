@@ -167,6 +167,36 @@ public partial class MainWindow : Window
         Relaunch(Workspace.Root);
     }
 
+    /// <summary>The app's design language, seed color and light/dark theme (faro.json "design"), as one undoable step.</summary>
+    async void ProjectDesign(object? sender, RoutedEventArgs e)
+    {
+        var current = Workspace.Project?.Design ?? new();
+        var language = new ComboBox { ItemsSource = Faro.Runtime.AppDesign.Languages, SelectedItem = current.Language, MinWidth = 200 };
+        var seed = new TextBox { Text = current.SeedColor, Width = 120 };
+        var swatch = new Border { Width = 28, Height = 28, CornerRadius = new(14), VerticalAlignment = VerticalAlignment.Center };
+        void Paint() => swatch.Background = Color.TryParse(seed.Text, out var c) ? new SolidColorBrush(c) : Brushes.Transparent;
+        seed.TextChanged += (_, _) => Paint();
+        Paint();
+        var theme = new ComboBox { ItemsSource = Faro.Runtime.AppDesign.Themes, SelectedItem = current.Theme, MinWidth = 200 };
+        var form = new Grid { ColumnDefinitions = new("Auto, *"), RowDefinitions = new("Auto, Auto, Auto, Auto"), ColumnSpacing = 12, RowSpacing = 8 };
+        void Add(int row, string label, Control editor)
+        {
+            form.Children.Add(new TextBlock { Text = L.T(label), VerticalAlignment = VerticalAlignment.Center, [Grid.RowProperty] = row });
+            editor[Grid.RowProperty] = row;
+            editor[Grid.ColumnProperty] = 1;
+            form.Children.Add(editor);
+        }
+        Add(0, "Design language", language);
+        Add(1, "Seed color", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { seed, swatch } });
+        Add(2, "Theme", theme);
+        form.Children.Add(new TextBlock { Text = L.T("Material 3 generates its color roles (light and dark) from the seed color. Nodes get Material 3 options in the inspector."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 3, [Grid.ColumnSpanProperty] = 2 });
+        if (!await Dialogs.Form(this, L.T("Project Design"), form, L.T("Apply"))) return;
+        var design = new Faro.Runtime.AppDesign((string)language.SelectedItem!, Color.TryParse(seed.Text, out _) ? seed.Text!.Trim() : current.SeedColor, (string)theme.SelectedItem!);
+        UiHistory.CommitFiles("Set design", ProjectSetup.DesignChange(Workspace.Root, design));
+        Workspace.Reload();
+        UpdateHistory();
+    }
+
     /// <summary>Close Project: back to the welcome screen.</summary>
     void CloseProject(object? sender, RoutedEventArgs e) => Relaunch(null);
 

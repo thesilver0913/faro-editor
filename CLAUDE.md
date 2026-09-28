@@ -38,6 +38,7 @@
 - Grid は行・列のトラック指定(`columns="Auto, *, 2*, 120px"`、子は `row`/`column`/`rowSpan`/`columnSpan`)
 - **Script 部品**(`Control.Script` + `class`):`FaroScript` を継承したクラスの `Build()` が見た目も動作もコードで作る。キャンバスは最後のビルド結果で実物を表示
 - 画面の言語は English / 日本語(初回起動ウィザードと環境設定で選ぶ)。文言は英語をキーに `src/Faro.Editor/L.cs` の表で訳す。新しい文言を足したら表にも足す
+- **デザイン言語**は `faro.json` の `design`(Fluent / Material3、`seedColor`、`theme`)。Node ごとの言語固有の設定は `m3.variant="Tonal"` のような `<言語>.<名前>` 属性で持ち、UiBuilder がスタイルクラス(`m3-variant-tonal`)に変えて `Faro.Runtime/Material3.axaml` が見た目を付ける(ほかの言語では無視される)
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
 - 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
 - 詳細はREADMEを参照。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある

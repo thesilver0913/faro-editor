@@ -12,6 +12,7 @@
       <MenuItem Header="_Open Folder…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
       <MenuItem Header="_Close Project" Click="CloseProject" />
       <MenuItem x:Name="TrustItem" Header="_Trust Project…" Click="TrustProject" />
+      <MenuItem Header="Project _Design…" Click="ProjectDesign" />
       <Separator />
       <MenuItem Header="_Save" Click="Save" InputGesture="Ctrl+S" />
       <MenuItem Header="Save _As…" Click="SaveAs" InputGesture="Ctrl+Shift+S" />

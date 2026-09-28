@@ -133,6 +133,17 @@ public static partial class ProjectSetup
     /// Makes a folder a Faro project: adds only what is missing and never overwrites existing files.
     /// A folder that already has a .csproj keeps it (it then needs a Faro.Runtime reference of its own).
     /// </summary>
+    /// <summary>faro.json with the new "design" (left out when it's the Fluent default), for one UI history step.</summary>
+    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design)
+    {
+        var path = Path.Combine(dir, ProjectFile);
+        var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        json.Remove("design");
+        if (design != new Faro.Runtime.AppDesign())
+            json["design"] = new JsonObject { ["language"] = design.Language, ["seedColor"] = design.SeedColor, ["theme"] = design.Theme };
+        return new() { [path] = json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n" };
+    }
+
     public static void Initialize(string dir, string? name = null, string startScreen = "MainScreen", string? appDir = null)
     {
         name ??= new string(Path.GetFileName(Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar)).Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray()) is { Length: > 0 } n && !char.IsDigit(n[0]) ? n : "FaroApp";

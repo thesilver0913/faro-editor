@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Faroは以下のオープンソースソフトウェアを利用しています。いずれもMIT Licenseです。
+Faroは以下のオープンソースソフトウェアを利用しています。特記のないものは MIT License です。
 MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著作権表示のみ各ライブラリのものに読み替えます。
 
 | ライブラリ | バージョン | 著作権表示 | リポジトリ | 用途 |
@@ -12,6 +12,7 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | AvaloniaEdit.TextMate | 12.0.0 | Copyright 2017-2026 © The AvaloniaUI Project | https://github.com/AvaloniaUI/AvaloniaEdit | コードエディタの TextMate 配色 |
 | TextMateSharp / TextMateSharp.Grammars | 2.0.3 | Copyright (c) 2021 Daniel Peñalba | https://github.com/danipen/TextMateSharp | TextMate 文法・テーマの読み込み(同梱の文法・テーマは VS Code 由来、MIT) |
 | Anthropic C# SDK | 12.50.0 | Copyright 2023 Anthropic, PBC. | https://github.com/anthropics/anthropic-sdk-csharp | バイブコーディング(Claude プロバイダ) |
+| MaterialColorUtilities | 0.3.0 | Copyright 2021 Google LLC(C# 移植: albi005)| https://github.com/albi005/MaterialColorUtilities | Material 3 の色の役割をシードカラーから作る(**Apache License 2.0**、ランタイム) |
 | Roslyn (Microsoft.CodeAnalysis.CSharp) | 5.9.0 | Copyright (c) .NET Foundation and Contributors | https://github.com/dotnet/roslyn | Source/ の解析(レジストリ抽出) |
 
 ## フォント

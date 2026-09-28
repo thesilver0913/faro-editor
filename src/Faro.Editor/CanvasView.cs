@@ -226,7 +226,30 @@ public sealed class CanvasView : UserControl
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // selection boxes follow the new layout
     }
 
-    readonly Border artboard = new() { Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
+    readonly Border artboard = new() { Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Classes = { "faro-screen" } };
+    readonly ThemeVariantScope designScope = new() { RequestedThemeVariant = ThemeVariant.Light };
+    AppDesign? shownDesign;
+
+    /// <summary>The artboard shows the app's design language (faro.json "design"); "System" previews light.</summary>
+    void ShowDesign(AppDesign design)
+    {
+        if (design == shownDesign) return;
+        shownDesign = design;
+        designScope.Styles.Clear();
+        designScope.Resources = new ResourceDictionary();
+        design.Apply(designScope.Styles, designScope.Resources);
+        designScope.RequestedThemeVariant = design.Theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        if (design.Language == "Fluent")
+        {
+            artboard.Background = design.Theme == "Dark" ? new SolidColorBrush(Color.Parse("#202020")) : Brushes.White;
+            artboard[TextElement.ForegroundProperty] = design.Theme == "Dark" ? Brushes.White : Brushes.Black;
+        }
+        else
+        {
+            artboard.ClearValue(Border.BackgroundProperty); // the language's surface (Border.faro-screen)
+            artboard.ClearValue(TextElement.ForegroundProperty);
+        }
+    }
 
     readonly Button run = new() { Content = L.T("Run") };
 
@@ -347,7 +370,8 @@ public sealed class CanvasView : UserControl
         var zoomBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { zoomOut, zoomLabel, zoomIn, fit } };
         var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
-        viewport.Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = zoomHost };
+        designScope.Child = zoomHost;
+        viewport.Content = designScope;
         Content = new DockPanel { Children = { bar, viewport } };
     }
 
@@ -405,6 +429,7 @@ public sealed class CanvasView : UserControl
             artboard.Child = new TextBlock { Text = L.F("No UI/*.xml screens in {0}", Workspace.Root), Margin = new(16), Foreground = Brushes.Gray };
             return;
         }
+        ShowDesign(Workspace.Project.Design);
         byId = [];
         var built = UiBuilder.Build(MockData.Expand(graph.Root!.Element("Node")!), byId, Workspace.Root);
         // An instance selects as a whole; mock row copies ("id~2") aren't nodes of the file.

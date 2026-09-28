@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <UIGraph id="MainScreen" version="1">
   <Node id="root" type="Container.Stack" direction="Vertical" gap="8" padding="16">
-    <Node id="header" type="Container.Overlay" widthSizing="Fill">
-      <Node id="title" type="Control.Text" sizing="Hug" anchorY="Center">
+    <Node id="header" type="Container.Overlay" widthSizing="Fill" padding="20,16" m3.surface="Primary" m3.corner="XL">
+      <Node id="title" type="Control.Text" sizing="Hug" anchorY="Center" m3.type="HeadlineSmall" m3.emphasized="true">
         <Prop name="Text" value="Faro サンプル" />
       </Node>
-      <Node id="badge" type="Control.Text" sizing="Hug" anchorX="Right" anchorY="Center">
+      <Node id="badge" type="Control.Text" sizing="Hug" anchorX="Right" anchorY="Center" m3.type="LabelLarge">
         <Prop name="Text" value="β版" />
       </Node>
     </Node>
@@ -20,7 +20,7 @@
           <Prop name="Text" value="Button" />
         </Node>
       </Node>
-      <Node id="btnDetail" type="Instance" component="Comp.PrimaryButton" sizing="Hug">
+      <Node id="btnDetail" type="Instance" component="Comp.PrimaryButton" sizing="Hug" m3.variant="Tonal">
         <Override prop="Text" value="詳細へ" />
         <Node id="root" type="Control.Button">
           <Prop name="Text" value="Button" />
