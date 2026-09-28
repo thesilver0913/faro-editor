@@ -130,7 +130,11 @@ public partial class MainWindow : Window
         if (!codeHistory && e.KeyModifiers == KeyModifiers.None && e.Key == Key.Delete) { CanvasView.DeleteSelection(); e.Handled = true; return; }
         if (!codeHistory && e.KeyModifiers == KeyModifiers.Alt && e.Key is Key.Up or Key.Down) { CanvasView.MoveSelection(e.Key == Key.Up ? -1 : 1); e.Handled = true; return; }
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
-        if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Shift)) SaveAs(this, e);
+        if (!codeHistory && e.Key is Key.C or Key.V or Key.D && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) // canvas nodes (text boxes handle their own)
+        {
+            if (e.Key == Key.C) CanvasView.CopySelection(); else if (e.Key == Key.V) CanvasView.PasteClipboard(); else CanvasView.DuplicateSelection();
+        }
+        else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Shift)) SaveAs(this, e);
         else if (e.Key == Key.S) Save(this, e);
         else if (e.Key == Key.Z && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)) Undo(this, e);
         else if (e.Key == Key.Y || e.Key == Key.Z) Redo(this, e);
@@ -230,6 +234,9 @@ public partial class MainWindow : Window
     // Edit
 
     void Delete(object? sender, RoutedEventArgs e) => CanvasView.DeleteSelection();
+    void CopyNodes(object? sender, RoutedEventArgs e) => CanvasView.CopySelection();
+    void PasteNodes(object? sender, RoutedEventArgs e) => CanvasView.PasteClipboard();
+    void DuplicateNodes(object? sender, RoutedEventArgs e) => CanvasView.DuplicateSelection();
     void SyncComponents(object? sender, RoutedEventArgs e) => CanvasView.SyncComponents();
     void Preferences(object? sender, RoutedEventArgs e) => new PreferencesWindow().ShowDialog(this);
 

@@ -166,6 +166,18 @@ int[] Cell(int i) => [Avalonia.Controls.Grid.GetRow(form.Children[i]), Avalonia.
 Check(form.ColumnDefinitions.Count == 2 && form.RowDefinitions.Count == 3 && Cell(0).SequenceEqual([0, 0, 2]) && Cell(1).SequenceEqual([1, 0, 1]) && Cell(2).SequenceEqual([1, 1, 1]) && Cell(3).SequenceEqual([2, 0, 1])
     && form.Children[2].HorizontalAlignment == Avalonia.Layout.HorizontalAlignment.Stretch && form.Children[3] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "grid places children by cell, span and reading order");
 Check(StackGrid("""<Node id="g" type="Container.Grid" columns="2"><Node id="a" type="Control.Text" column="9" columnSpan="5" row="x" /></Node>""") is { Children: [var clamped] } && Avalonia.Controls.Grid.GetColumn(clamped) == 1 && Avalonia.Controls.Grid.GetColumnSpan(clamped) == 1, "out-of-range cells are clamped, bad numbers ignored");
+// Copy / paste / duplicate: fresh ids where taken, binds follow the copies (inner paths too), other screens keep ids.
+var clip = CanvasEdit.Copy(project, project.Screens["MainScreen"], ["btn1", "orderList", "actions"]);
+Check(clip.Nodes.Select(n => (string?)n.Attribute("id")).SequenceEqual(["actions", "orderList"]) && clip.Binds.Count == 3, "copy takes whole subtrees (a selected child goes with its parent) and their binds");
+var (pasted, pasteChanged) = CanvasEdit.Paste(project, project.Screens["MainScreen"], "orderList", clip, after: true);
+var pastedIds = pasted.SelectMany(n => n.DescendantsAndSelf("Node")).Where(n => n.Parent?.Attribute("type")?.Value != "Instance").Select(n => (string?)n.Attribute("id")).ToList();
+Check(pastedIds.Contains("actions2") && pastedIds.Contains("btn2") && pastedIds.Contains("orderList2") && pasted[0].ElementsBeforeSelf("Node").Last().Attribute("id")!.Value == "orderList"
+    && project.BindsFor("MainScreen").Any(b => (string?)b.Attribute("nodeId") == "btn2" && (string?)b.Attribute("event") == "Click")
+    && project.BindsFor("MainScreen").Any(b => (string?)b.Attribute("nodeId") == "orderList2/price") && pasteChanged.Count == 2, "paste renames taken ids and copies binds to the new ids");
+var (onDetail, _) = CanvasEdit.Paste(project, project.Screens["Detail"], null, CanvasEdit.Copy(project, project.Screens["MainScreen"], ["txt1"]));
+Check((string?)onDetail[0].Attribute("id") == "txt1" && project.BindsFor("Detail").Any(b => (string?)b.Attribute("nodeId") == "txt1"), "pasting on another screen keeps free ids");
+Check(BindingCheck.Check(project, registry).Where(i => i.Screen is "MainScreen" or "Detail").All(i => i.NodeId is not ("btn2" or "orderList2/price" or "txt1")), "pasted binds resolve");
+project = FaroProject.Load(root);
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");

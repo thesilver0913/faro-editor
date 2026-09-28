@@ -476,6 +476,68 @@ public static class CanvasEdit
         return node;
     }
 
+    /// <summary>Copied nodes (deep) and the binds that point into them, pasteable on any screen.</summary>
+    public sealed record Clip(List<XElement> Nodes, List<XElement> Binds);
+
+    /// <summary>Nodes authored in a subtree: the node and its descendants, not the synced snapshots inside instances.</summary>
+    static IEnumerable<XElement> Authored(XElement node) =>
+        node.DescendantsAndSelf("Node").Where(d => !d.Ancestors("Node").TakeWhile(a => a != node.Parent).Any(a => a != d && (string?)a.Attribute("type") == "Instance"));
+
+    public static Clip Copy(FaroProject project, XDocument screen, IEnumerable<string> ids)
+    {
+        var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
+        nodes = [.. nodes.Where(n => !n.Ancestors().Any(nodes.Contains)).OrderBy(n => n.ElementsBeforeSelf().Count())]; // a selected child goes with its selected parent
+        var copied = nodes.SelectMany(Authored).Select(n => (string?)n.Attribute("id")).ToHashSet();
+        return new([.. nodes.Select(n => new XElement(n))],
+            [.. project.BindsFor(ScreenId(screen)).Where(b => copied.Contains(((string?)b.Attribute("nodeId"))?.Split('/')[0])).Select(b => new XElement(b))]);
+    }
+
+    /// <summary>
+    /// Pastes into the selected container (or after the selected node; <paramref name="after"/> forces that, for
+    /// Duplicate). Ids that are taken on this screen get the next free number ("btn1" → "btn2"); copied binds follow.
+    /// </summary>
+    public static (List<XElement> Added, List<XDocument> Changed) Paste(FaroProject project, XDocument screen, string? selectedId, Clip clip, bool after = false)
+    {
+        var taken = IdsOf(screen);
+        var renamed = new Dictionary<string, string>();
+        string Unique(string id)
+        {
+            var stem = id.TrimEnd("0123456789".ToCharArray());
+            var fresh = taken.Contains(id) ? Enumerable.Range(2, int.MaxValue - 2).Select(i => $"{stem}{i}").First(c => !taken.Contains(c)) : id;
+            taken.Add(fresh);
+            return fresh;
+        }
+        var selected = selectedId is null ? null : Find(screen, selectedId);
+        var into = selected is not null && IsContainer(selected) && !after ? selected : null;
+        var last = into is null && selected?.Parent is XElement { Name.LocalName: "Node" } ? selected : null;
+        var added = new List<XElement>();
+        foreach (var original in clip.Nodes)
+        {
+            var node = new XElement(original);
+            foreach (var n in Authored(node).ToList())
+                n.SetAttributeValue("id", renamed[(string)n.Attribute("id")!] = Unique((string)n.Attribute("id")!));
+            if (into is not null) into.Add(node);
+            else if (last is not null) { last.AddAfterSelf(node); last = node; }
+            else screen.Root!.Element("Node")!.Add(node);
+            added.Add(node);
+        }
+        List<XDocument> changed = [screen];
+        if (clip.Binds.Count > 0)
+        {
+            var file = BindingsFileFor(project, ScreenId(screen));
+            foreach (var bind in clip.Binds)
+            {
+                var path = ((string?)bind.Attribute("nodeId") ?? "").Split('/', 2);
+                if (!renamed.TryGetValue(path[0], out var id)) continue;
+                var copy = new XElement(bind);
+                copy.SetAttributeValue("nodeId", path.Length > 1 ? $"{id}/{path[1]}" : id);
+                file.Root!.Add(copy);
+            }
+            changed.Add(file);
+        }
+        return (added, changed);
+    }
+
     /// <summary>Deletes nodes (never the screen root) and the bindings that pointed at them.</summary>
     public static List<XDocument> Delete(FaroProject project, XDocument screen, IEnumerable<string> ids)
     {

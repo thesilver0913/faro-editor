@@ -59,6 +59,35 @@ public sealed class CanvasView : UserControl
         return [screen];
     });
 
+    static CanvasEdit.Clip? clipboard;
+
+    public static void CopySelection()
+    {
+        if (CurrentGraph() is { } graph && Workspace.Project is { } project && Selection.Count > 0) clipboard = CanvasEdit.Copy(project, graph, Selection);
+    }
+
+    public static void PasteClipboard() => Paste(clipboard, after: false);
+
+    /// <summary>Duplicate: copy and paste right after the selection, in one undo step.</summary>
+    public static void DuplicateSelection()
+    {
+        if (CurrentGraph() is { } graph && Workspace.Project is { } project && Selection.Count > 0) Paste(CanvasEdit.Copy(project, graph, Selection), after: true);
+    }
+
+    static void Paste(CanvasEdit.Clip? clip, bool after)
+    {
+        // A component master can't contain an instance of itself (as in AddNode).
+        if (clip is null || clip.Nodes.Any(n => n.DescendantsAndSelf("Node").Any(d => (string?)d.Attribute("component") == CurrentScreen))) return;
+        var anchor = after ? Selection.OrderBy(id => ScreenNodeIds.IndexOf(id)).LastOrDefault() : Selection.Count == 1 ? Selection.First() : null;
+        Edit(after ? "Duplicate" : "Paste", (project, screen) =>
+        {
+            var (added, changed) = CanvasEdit.Paste(project, screen, anchor, clip, after);
+            Selection.Clear();
+            Selection.UnionWith(added.Select(n => (string)n.Attribute("id")!));
+            return changed;
+        });
+    }
+
     public static void DeleteSelection() => Edit("Delete", (project, screen) => CanvasEdit.Delete(project, screen, Selection.ToList()));
 
     public static void MoveSelection(int delta) => Edit(delta < 0 ? "Move up" : "Move down", (_, screen) =>
@@ -257,7 +286,7 @@ public sealed class CanvasView : UserControl
         idOf.Where(c => !excluded.Contains(c.Value)).Select(c => (Id: c.Value, Rect: RectOf(c.Key)))
             .Where(h => h.Rect.Contains(p)).OrderBy(h => h.Rect.Width * h.Rect.Height).Select(h => h.Id).FirstOrDefault();
 
-    XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
+    static XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
 
     Rect RectOf(Control c) => c.TranslatePoint(default, overlay) is { } p ? new Rect(p, c.Bounds.Size) : default;
 
