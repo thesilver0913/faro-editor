@@ -13,6 +13,9 @@ public static class Workspace
 
     /// <summary>Restricted mode (untrusted project): no restore, language server, Script previews or Run.</summary>
     public static bool Trusted { get; private set; }
+
+    /// <summary>A Java (JavaFX, Maven) project rather than C# (faro.json "language").</summary>
+    public static bool IsJava { get; private set; }
     public static FaroProject? Project { get; private set; }
     public static List<RegistryMember> Registry { get; private set; } = [];
     public static List<string> ScriptClasses { get; private set; } = [];
@@ -27,7 +30,9 @@ public static class Workspace
     {
         Root = root;
         Trusted = ProjectSetup.IsTrusted(root);
-        UiBuilder.ScriptFactory = Trusted ? name => ScriptPreview.Build(root, name) : null;
+        IsJava = JavaProject.Is(root);
+        // ponytail: Java scripts show as placeholders on the canvas (running them needs a JVM); the app runs them
+        UiBuilder.ScriptFactory = Trusted && !IsJava ? name => ScriptPreview.Build(root, name) : null;
         Reload(report);
         watcher?.Dispose();
         if (!Directory.Exists(root)) return;
@@ -44,7 +49,7 @@ public static class Workspace
         watcher.Renamed += (s, e) => onChange(s, e);
     }
 
-    // Run (spec §9): `dotnet watch run` with its output in the console and its build errors in Problems.
+    // Run (spec §9): `dotnet watch run` (Java: `mvn javafx:run`) with its output in the console and its build errors in Problems.
 
     static System.Diagnostics.Process? app;
     const int MaxOutputLines = 5000;
@@ -61,7 +66,8 @@ public static class Workspace
     {
         if (Running || !Trusted) return;
         Output.Clear();
-        var start = new System.Diagnostics.ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"])
+        var (file, args) = IsJava ? JavaProject.RunCommand : ("dotnet", ["watch", "run", "--non-interactive"]);
+        var start = new System.Diagnostics.ProcessStartInfo(file, args)
         {
             WorkingDirectory = Root,
             RedirectStandardOutput = true,
@@ -72,7 +78,12 @@ public static class Workspace
         process.OutputDataReceived += read;
         process.ErrorDataReceived += read;
         process.Exited += (_, _) => Dispatcher.UIThread.Post(() => { Add("[Stopped]"); RunChanged?.Invoke(); });
-        process.Start();
+        try { process.Start(); }
+        catch (System.ComponentModel.Win32Exception e) // Maven or the .NET SDK isn't installed
+        {
+            Add(L.F("Couldn't start {0}: {1}", file, e.Message));
+            return;
+        }
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         app = process;
@@ -95,7 +106,7 @@ public static class Workspace
             if (!BuildErrors.Contains(error)) { BuildErrors.Add(error); RunChanged?.Invoke(); } // MSBuild repeats errors in its summary
         }
         else if (building && BuildErrors.Count > 0) { BuildErrors = []; RunChanged?.Invoke(); }
-        if (line.Contains("Build succeeded") || line.Contains("Hot reload succeeded"))
+        if (line.Contains("Build succeeded") || line.Contains("Hot reload succeeded") || line.Contains("--- javafx:")) // Maven compiled, now running
         {
             appliedAt = DateTime.UtcNow;
             CheckBuilt();
@@ -112,8 +123,11 @@ public static class Workspace
     {
         var source = Path.Combine(Root, "Source");
         var bin = Path.Combine(Root, "bin");
-        var edited = Directory.Exists(source) ? Directory.EnumerateFiles(source, "*.cs", SearchOption.AllDirectories).Select(File.GetLastWriteTimeUtc).DefaultIfEmpty().Max() : default;
-        var built = Directory.Exists(bin)
+        var edited = Directory.Exists(source) ? Directory.EnumerateFiles(source, IsJava ? "*.java" : "*.cs", SearchOption.AllDirectories).Select(File.GetLastWriteTimeUtc).DefaultIfEmpty().Max() : default;
+        var classes = Path.Combine(Root, "target", "classes");
+        var built = IsJava
+            ? (Directory.Exists(classes) ? Directory.EnumerateFiles(classes, "*.class", SearchOption.AllDirectories).Select(File.GetLastWriteTimeUtc).Append(appliedAt).Max() : appliedAt)
+            : Directory.Exists(bin)
             ? Directory.EnumerateFiles(Root, "*.csproj").SelectMany(p => Directory.EnumerateFiles(bin, Path.GetFileNameWithoutExtension(p) + ".dll", SearchOption.AllDirectories)).Select(File.GetLastWriteTimeUtc).Append(appliedAt).Max()
             : appliedAt;
         Unbuilt = edited > built;
@@ -130,6 +144,7 @@ public static class Workspace
             report?.Invoke("Checking bindings…", 60);
             ScriptClasses = Editor.Registry.ScriptClasses(Path.Combine(Root, "Source"));
             Issues = BindingCheck.Check(Project, Registry, ScriptClasses);
+            if (IsJava) JavaProject.WriteDesignCss(Root, Project.Design); // the Java runtime's Material 3 styles
             CheckBuilt();
             LoadError = null;
         }
@@ -151,8 +166,11 @@ public sealed partial record BuildError(string File, int Line, int Column, strin
     {
         line = WatchPrefix().Replace(line, "");
         building = line.StartsWith("Building ");
+        building |= line.Contains("--- compiler:"); // Maven compiling
         var m = ErrorLine().Match(line);
-        return m.Success ? new(m.Groups[1].Value, int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value), m.Groups[4].Value, m.Groups[5].Value) : null;
+        if (m.Success) return new(m.Groups[1].Value, int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value), m.Groups[4].Value, m.Groups[5].Value);
+        var java = MavenError().Match(line);
+        return java.Success ? new(java.Groups[1].Value, int.Parse(java.Groups[2].Value), int.Parse(java.Groups[3].Value), "javac", java.Groups[4].Value) : null;
     }
 
     [System.Text.RegularExpressions.GeneratedRegex(@"^dotnet watch \S+ ")]
@@ -160,4 +178,8 @@ public sealed partial record BuildError(string File, int Line, int Column, strin
 
     [System.Text.RegularExpressions.GeneratedRegex(@"^(.+?)\((\d+),(\d+)\): error (\w+): (.*?)(?: \[[^\]]*\])?$")]
     private static partial System.Text.RegularExpressions.Regex ErrorLine();
+
+    /// <summary>Maven's javac errors: "[ERROR] /path/Source/app/Foo.java:[12,5] cannot find symbol".</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\[ERROR\] (.+?\.java):\[(\d+),(\d+)\] (.*)$")]
+    private static partial System.Text.RegularExpressions.Regex MavenError();
 }

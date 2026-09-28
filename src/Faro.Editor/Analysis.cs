@@ -22,7 +22,8 @@ public static class Registry
     // ponytail: full re-parse of Source/ on every change; incremental parsing when projects get big (spec §11.5)
     public static List<RegistryMember> Scan(string sourceDir) =>
         !Directory.Exists(sourceDir) ? [] :
-        [.. Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).SelectMany(f => Parse(File.ReadAllText(f)))];
+        [.. Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).SelectMany(f => Parse(File.ReadAllText(f))),
+            .. Directory.EnumerateFiles(sourceDir, "*.java", SearchOption.AllDirectories).SelectMany(f => JavaProject.Parse(File.ReadAllText(f)))];
 
     /// <summary>Classes deriving from FaroScript (for Script nodes), by the same syntax-only scan.</summary>
     public static List<string> ScriptClasses(string sourceDir) =>
@@ -32,7 +33,8 @@ public static class Registry
             where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
                 && cls.BaseList?.Types.Any(t => t.Type.ToString().Split('.')[^1] == "FaroScript") == true
             let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
-            select ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text];
+            select ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text,
+            .. Directory.EnumerateFiles(sourceDir, "*.java", SearchOption.AllDirectories).SelectMany(f => JavaProject.ScriptClasses(File.ReadAllText(f)))];
 
     public static IEnumerable<RegistryMember> Parse(string code) =>
         from cls in CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
@@ -229,14 +231,17 @@ public static partial class VibeCoding
     // ponytail: sends all of Source/ each turn; select relevant files when projects outgrow the context window
     public static string SystemPrompt(FaroProject project, string root, Lifetime lifetime, bool persistent)
     {
+        var java = JavaProject.Is(root);
         var attribute = lifetime == Lifetime.ScreenScoped && !persistent
-            ? "Do not add a [FaroLifetime] attribute (the default lifetime is ScreenScoped)."
+            ? java ? "Do not add a @FaroLifetime annotation (the default lifetime is SCREEN_SCOPED)." : "Do not add a [FaroLifetime] attribute (the default lifetime is ScreenScoped)."
+            : java ? $"Put @FaroLifetime(value = Lifetime.{(lifetime == Lifetime.ScreenScoped ? "SCREEN_SCOPED" : lifetime.ToString().ToUpperInvariant())}{(persistent ? ", persistent = true" : "")}) (import faro.runtime.*) on every new class."
             : $"Put [FaroLifetime(Lifetime.{lifetime}{(persistent ? ", Persistent = true" : "")})] on every new class.";
         var sourceDir = Path.Combine(root, "Source");
         var files = Directory.Exists(sourceDir)
-            ? string.Join("\n\n", Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).Order()
-                .Select(f => $"File: {Path.GetRelativePath(root, f).Replace('\\', '/')}\n```csharp\n{File.ReadAllText(f)}\n```"))
+            ? string.Join("\n\n", Directory.EnumerateFiles(sourceDir, java ? "*.java" : "*.cs", SearchOption.AllDirectories).Order()
+                .Select(f => $"File: {Path.GetRelativePath(root, f).Replace('\\', '/')}\n```{(java ? "java" : "csharp")}\n{File.ReadAllText(f)}\n```"))
             : "(none yet)";
+        if (java) return JavaProject.PromptRules(attribute, project.Screens.Keys.Order()) + "\n\nCurrent Source/ files:\n\n" + files;
         return $$"""
             You write C# for a Faro project: an Avalonia app whose UI (XML screens) is bound at runtime to public members
             of classes in Source/, addressed by the string "Namespace.Class.Member".
@@ -267,12 +272,12 @@ public static partial class VibeCoding
     public static List<GeneratedFile> ParseFiles(string response) =>
         [.. FileBlock().Matches(response).Select(m => new GeneratedFile(m.Groups["path"].Value, m.Groups["code"].Value + "\n"))];
 
-    /// <summary>Model output is untrusted: only .cs files inside Source/ may be written. Returns the full path or null.</summary>
+    /// <summary>Model output is untrusted: only source files (.cs, or .java in a Java project) inside Source/ may be written. Returns the full path or null.</summary>
     public static string? ResolvePath(string root, string relative)
     {
         var source = Path.GetFullPath(Path.Combine(root, "Source")) + Path.DirectorySeparatorChar;
         var full = Path.GetFullPath(Path.Combine(root, relative));
-        return !Path.IsPathRooted(relative) && full.StartsWith(source) && full.EndsWith(".cs") ? full : null;
+        return !Path.IsPathRooted(relative) && full.StartsWith(source) && full.EndsWith(JavaProject.Is(root) ? ".java" : ".cs") ? full : null;
     }
 
     /// <summary>Roslyn syntax errors; approval is blocked while there are any (spec §11.5).</summary>

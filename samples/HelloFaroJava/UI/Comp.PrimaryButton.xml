@@ -1,0 +1,5 @@
+<ComponentDef id="Comp.PrimaryButton">
+  <Node id="root" type="Control.Button">
+    <Prop name="Text" value="Button" />
+  </Node>
+</ComponentDef>

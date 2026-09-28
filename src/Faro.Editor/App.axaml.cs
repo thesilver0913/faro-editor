@@ -83,8 +83,9 @@ public partial class App : Application
             }
             catch (System.ComponentModel.Win32Exception) { } // no dotnet on PATH: the code pane will show unresolved references
         }
-        splash.Report("Starting C# language server…", 80);
-        try { if (Workspace.Trusted) await CodeView.Lsp(); }
+        // ponytail: C# only; Java files get highlighting (a Java server, jdtls, when completion is needed there)
+        if (!Workspace.IsJava) splash.Report("Starting C# language server…", 80);
+        try { if (Workspace.Trusted && !Workspace.IsJava) await CodeView.Lsp(); }
         catch (Exception) { } // the code pane shows why; the editor still opens
         splash.Report("Ready", 100);
 

@@ -273,6 +273,37 @@ Check(ProjectSetup.IsFaroProject(empty) && FaroProject.Load(empty).Screens.Conta
     && FaroProject.Load(empty).StartScreen == "MainScreen" && File.ReadAllText(Path.Combine(empty, "EmptyApp.csproj")).Contains("faro.json;"), "empty project: faro.json, start screen, csproj, vendored runtime");
 var sampleProject = ProjectSetup.Create(projects, "SampleApp", "Sample");
 Check(BindingCheck.Check(FaroProject.Load(sampleProject), Registry.Scan(Path.Combine(sampleProject, "Source"))).Count == 0 && FaroProject.Load(sampleProject).Screens.Count == 2, "sample project copies a working template");
+// Java projects (JavaFX, Maven): the same UI files, a registry from .java sources, the runtime vendored as sources.
+var javaSample = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaroJava"));
+var javaRegistry = Registry.Scan(Path.Combine(javaSample, "Source"));
+Check(javaRegistry.Any(m => m.Target == "myapp.services.OrderService.submit" && m.IsMethod && m.Signature == "void submit()")
+    && javaRegistry.Any(m => m.Target == "myapp.models.UserProfile.name" && !m.IsMethod && m.Signature == "String name")
+    && !javaRegistry.Any(m => m.Target.EndsWith(".setName") || m.Target.EndsWith(".build") || m.Target.EndsWith(".main"))
+    && Registry.ScriptClasses(Path.Combine(javaSample, "Source")).SequenceEqual(["myapp.views.Stamp"]), "Java registry: methods, bean properties, script classes");
+Check(BindingCheck.Check(FaroProject.Load(javaSample), javaRegistry, Registry.ScriptClasses(Path.Combine(javaSample, "Source"))).Count == 0, "Java sample has no broken bindings");
+Check(JavaProject.Parse("""
+    package a.b; // { not a brace
+    /* public class Fake { public void no() {} } */
+    @Deprecated(since = "1") public final class Real<T> extends Base {
+        private String s = "}{;";
+        public static class Inner { public void nested() { } }
+        public boolean isOn() { return true; }
+        public <R> java.util.List<R> items(int n, String m) throws Exception { return null; }
+        public Real() { }
+        void hidden() { }
+    }
+    class Other { public void no() { } }
+    """).Select(m => m.Target).SequenceEqual(["a.b.Real.on", "a.b.Real.items"]), "Java scanner skips comments, strings, nested and non-public code");
+var javaApp = ProjectSetup.Create(projects, "JavaApp", "Sample", language: JavaProject.Language);
+Check(JavaProject.Is(javaApp) && File.ReadAllText(Path.Combine(javaApp, "pom.xml")).Contains("<artifactId>JavaApp</artifactId>") && File.Exists(Path.Combine(javaApp, "Source/Main.java"))
+    && File.Exists(Path.Combine(javaApp, ".faro/runtime-java/faro/runtime/FaroApp.java")) && !Directory.Exists(Path.Combine(javaApp, ".faro/packages"))
+    && BindingCheck.Check(FaroProject.Load(javaApp), Registry.Scan(Path.Combine(javaApp, "Source"))).Count == 0
+    && ProjectSetup.ProjectRuntime(javaApp) == ProjectSetup.BundledRuntime().Version, "Java project: pom, Main, vendored runtime sources, working sample");
+Check(JavaProject.ClassFile("shop/cart", "Cart") is var javaClass && javaClass.StartsWith("package shop.cart;") && javaClass.Contains("public class Cart extends FaroObject")
+    && VibeCoding.ResolvePath(javaApp, "Source/shop/Cart.java") is not null && VibeCoding.ResolvePath(javaApp, "Source/shop/Cart.cs") is null, "Java class files and AI paths");
+Check(BuildError.Parse("[ERROR] /home/me/App/Source/app/Foo.java:[12,5] cannot find symbol", out _) == new BuildError("/home/me/App/Source/app/Foo.java", 12, 5, "javac", "cannot find symbol"), "Maven compile error parsed");
+Check(JavaProject.DesignCss(new AppDesign("Material3")) is { } javaCss && javaCss.Contains("m3-primary: #65558f;") && javaCss.Contains(".button.m3-variant-tonal")
+    && JavaProject.DesignCss(new AppDesign()) is null, "JavaFX Material 3 stylesheet from the seed");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))
     && Throws<ArgumentException>(() => ProjectSetup.Create("relative/dir", "Ok", "Empty")) && Path.IsPathRooted(ProjectSetup.DefaultLocation), "project name and location validated");
 var existing = Path.Combine(projects, "existing-folder");

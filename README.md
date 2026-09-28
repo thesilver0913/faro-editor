@@ -11,7 +11,9 @@
 |---|---|
 | `src/Faro.Runtime` | ランタイムバインダー。UIグラフ(XML)→Avaloniaコントロール構築、`<Bind>`のReflection解決、生存期間・永続化、画面遷移 |
 | `src/Faro.Editor` | エディター本体。Roslynレジストリ抽出、紐付け検証(赤バッジ+候補サジェスト)、コンポーネント明示同期、Dock 3ペイン、コードエディタ(AvaloniaEdit + csharp-ls)、バイブコーディング(チャット) |
+| `src/Faro.Runtime.Java` | Java 版ランタイムバインダー(JavaFX)。同じ UI/・Bindings/ を JavaFX で表示し、紐付けを Java のリフレクションで解決する。各 Java プロジェクトにソースで同梱 |
 | `samples/HelloFaro` | 仕様書の例をそのまま使ったFaroプロジェクト(UI/ Source/ Bindings/ Assets/) |
+| `samples/HelloFaroJava` | 同じサンプルの Java(JavaFX)版 |
 | `tests/Faro.Checks` | assertベースのセルフチェック |
 | `spikes/HotReloadMethodInfo` | 仕様11.5のリスク検証 |
 
@@ -31,7 +33,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 ## プロジェクトの作成と配布
 
 - **ワークスペースの信頼(Workspace Trust)**:初めて開くフォルダでは「Trust / Restricted Mode」を確認する。開くと restore(MSBuild)・言語サーバー・Script のプレビュー(ビルド済み DLL の実行)でプロジェクトのコードが動くため。Restricted Mode では表示と編集だけで、それらと Run は止まり、Script は枠表示。File › Trust Project… で信頼して開き直せる。Faro が作った Untitled と、その Save As 先は最初から信頼済み
-- 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(テンプレートは Empty か Sample、言語は C# 固定)。File メニューの「Open Folder…」「Close Project」も同じ流れ
+- 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(テンプレートは Empty か Sample、言語は C#(Avalonia)か Java(JavaFX)。作成後は変えられない)。File メニューの「Open Folder…」「Close Project」も同じ流れ
 - **新規プロジェクトは名前なし(Untitled)で始まる**:設定フォルダの `Faro/Untitled/UntitledN` に作られ、最初の **File › Save**(Ctrl+S)か **Save As…**(Ctrl+Shift+S)で名前と場所(既定は `ドキュメント/Faro`)を決める。Save As はプロジェクトを `bin/`・`obj/` 抜きで複製し、`faro.json` と `.csproj` の名前を付け替えて開き直す。保存せずに閉じようとすると「Save As… / Don't Save / Cancel」を確認し、捨てた Untitled は次の起動時に削除(削除するのは Untitled フォルダだけ)。Faro が落ちるなどして残った Untitled は、ウェルカム画面に「(not saved)」として出て、開き直すか Discard できる
 - **Save** はコードの未保存分をすべて保存する(キャンバスの編集は操作のたびにファイルへ書かれる)。保存済みのプロジェクトでの Save As は別名の複製を作って開く
 - Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン・開始画面 `startScreen`)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
@@ -110,6 +112,18 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - Text:文字スタイル(Display〜Label)、強調、色
   - コンテナ:面の色(Surface、コンテナの濃さ、Primary など)、角丸、影の高さ
 - 既知の制限:フォントは OS 標準(Roboto Flex は同梱しない)。無効状態は全体を薄くするだけ
+
+## Java(JavaFX)プロジェクト
+
+- 新規プロジェクトで **Java (JavaFX)** を選ぶと、Maven プロジェクト(`pom.xml`、`Source/Main.java`)ができる。**JDK 21 以降と Maven** が必要。UI/・Bindings/・Assets/ の形式、キャンバス、インスペクター、紐付けの検証は C# と同じ
+- **ランタイム**:Java 版ランタイムバインダー(`faro.runtime` パッケージ)を `.faro/runtime-java` にソースで同梱し、`build-helper-maven-plugin` でアプリと一緒にコンパイルする(C# の nupkg 同梱に当たる。Faro を更新すると開いたときに入れ替えを案内する)
+- **紐付け**:`target` は `パッケージ.クラス.メンバー`。イベントは引数なしの public メソッド(`myapp.services.OrderService.submit`)、プロパティは Bean プロパティ(`getName()`/`isName()`、TwoWay なら `setName(...)` も → `myapp.models.UserProfile.name`)
+- 変更通知は `FaroObject` を継承して `changed("name", "greeting")` を呼ぶ。生存期間は `@FaroLifetime(value = Lifetime.SINGLETON, persistent = true)`(永続化は文字列・数値・真偽値の Bean プロパティを `.properties` に保存)
+- **Script 部品**は `FaroScript` を継承して `build()` で JavaFX の Node を返す。キャンバスでは枠表示(実物は実行時)
+- **実行**:キャンバスの Run で `mvn javafx:run`(ホットリロードなし、保存後にもう一度 Run)。javac のエラーは Problems に出る
+- **Material 3**:エディターが `faro.json` の `design` から JavaFX 用 CSS(`.faro/design.css`)を作り、ランタイムが読み込む(押したときの形の変化はバネなしで切り替わるだけ)
+- **レジストリ**:.java の宣言をソースから読み取る(未ビルドでも可)。コメント・文字列・入れ子のクラスは除外
+- 既知の制限:Java の言語サーバー(補完・参照追従)は未対応で色分けのみ。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
 
 ## インストールと更新、ログ
 

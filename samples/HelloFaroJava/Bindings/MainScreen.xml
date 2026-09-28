@@ -1,0 +1,7 @@
+<Bindings>
+  <Bind nodeId="btn1" event="Click" target="myapp.services.OrderService.submit" />
+  <Bind nodeId="txt1" prop="Text" target="myapp.models.UserProfile.name" mode="TwoWay" />
+  <Bind nodeId="greeting" prop="Text" target="myapp.models.UserProfile.greeting" mode="OneWay" />
+  <Bind nodeId="btnDetail" event="Click" target="Navigate:Screen.Detail" />
+  <Bind nodeId="orderList/price" prop="Text" target="myapp.services.OrderService.summary" mode="OneWay" />
+</Bindings>
