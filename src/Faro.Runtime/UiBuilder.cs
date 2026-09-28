@@ -31,12 +31,12 @@ public static class UiBuilder
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)
             templated.Background = new ImageBrush(Bitmap(projectRoot, texture)) { Stretch = Stretch.UniformToFill };
-        if (Sizing(node, "width") == "Fixed" && (double?)node.Attribute("width") is { } w) control.Width = w;
-        if (Sizing(node, "height") == "Fixed" && (double?)node.Attribute("height") is { } h) control.Height = h;
-        if ((double?)node.Attribute("minWidth") is { } minW) control.MinWidth = minW;
-        if ((double?)node.Attribute("maxWidth") is { } maxW) control.MaxWidth = maxW;
-        if ((double?)node.Attribute("minHeight") is { } minH) control.MinHeight = minH;
-        if ((double?)node.Attribute("maxHeight") is { } maxH) control.MaxHeight = maxH;
+        if (Sizing(node, "width") == "Fixed" && Num(node, "width") is { } w) control.Width = w;
+        if (Sizing(node, "height") == "Fixed" && Num(node, "height") is { } h) control.Height = h;
+        if (Num(node, "minWidth") is { } minW) control.MinWidth = minW;
+        if (Num(node, "maxWidth") is { } maxW) control.MaxWidth = maxW;
+        if (Num(node, "minHeight") is { } minH) control.MinHeight = minH;
+        if (Num(node, "maxHeight") is { } maxH) control.MaxHeight = maxH;
         if (node.Attribute("margin") is { } margin) control.Margin = Sides(margin.Value);
         // Design-language options ("m3.variant"="Tonal") become style classes ("m3-variant-tonal") that only that language styles.
         foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.')))
@@ -105,7 +105,7 @@ public static class UiBuilder
     static Control Container(XElement node, string type, IDictionary<string, Control> byId, string root, string prefix)
     {
         var vertical = (string?)node.Attribute("direction") != "Horizontal";
-        var gap = (double?)node.Attribute("gap") ?? 0;
+        var gap = Num(node, "gap") ?? 0;
         var align = (string?)node.Attribute("alignment");
         var children = node.Elements("Node").Select(n => (Node: n, Control: Build(n, byId, root, prefix))).ToList();
 
@@ -127,7 +127,7 @@ public static class UiBuilder
             {
                 var (n, c) = children[i];
                 if (spread && i > 0) Add(GridLength.Star, null); // the leftover space goes between the children
-                Add(Sizing(n, vertical ? "height" : "width") == "Fill" ? new GridLength((double?)n.Attribute("weight") ?? 1, GridUnitType.Star) : GridLength.Auto, c);
+                Add(Sizing(n, vertical ? "height" : "width") == "Fill" ? new GridLength(Num(n, "weight") ?? 1, GridUnitType.Star) : GridLength.Auto, c);
             }
             // Packed at Start/Center/End: the grid hugs its children inside the container (Fill children need the whole length).
             if (!anyFill && !spread && justify is "Center" or "End")
@@ -225,13 +225,22 @@ public static class UiBuilder
         return tracks;
     }
 
+    /// <summary>faro.json "tokens" ({"space.m": 16}): a number attribute may name one as "$space.m" (set when a project loads).</summary>
+    public static IReadOnlyDictionary<string, string> Tokens { get; set; } = new Dictionary<string, string>();
+
+    static string Token(string value) => value.StartsWith('$') && Tokens.TryGetValue(value[1..], out var token) ? token : value;
+
+    /// <summary>A number attribute ("16" or a token "$space.m"); null when missing or not a number.</summary>
+    static double? Num(XElement node, string name) =>
+        node.Attribute(name) is { } a && double.TryParse(Token(a.Value.Trim()), System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+
     /// <summary>
     /// "16", "8 16" (vertical horizontal) or "8 16 4 16" (top right bottom left), CSS order; commas work too.
     /// Converted here because Avalonia's Thickness order differs (left top right bottom).
     /// </summary>
     public static Thickness Sides(string? text)
     {
-        var v = (text ?? "").Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(x => double.TryParse(x, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0).ToArray();
+        var v = (text ?? "").Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(x => double.TryParse(Token(x), System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0).ToArray();
         return v switch
         {
             [var all] => new(all),

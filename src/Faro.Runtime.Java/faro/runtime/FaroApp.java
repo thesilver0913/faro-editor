@@ -62,6 +62,7 @@ public final class FaroApp {
         var meta = read("faro.json");
         appName = value(meta, "name", "FaroApp");
         start = value(meta, "startScreen", "MainScreen");
+        UiBuilder.tokens = tokens(meta);
         load();
         UiBuilder.scriptFactory = name -> {
             try {
@@ -426,6 +427,17 @@ public final class FaroApp {
     }
 
     /** ponytail: a flat "key": "value" lookup; faro.json is Faro-written and simple. Use a JSON library if it grows. */
+    /** faro.json "tokens": {"space.m": 16, …} (flat names to numbers). */
+    static Map<String, String> tokens(String json) {
+        var tokens = new HashMap<String, String>();
+        var block = Pattern.compile("\"tokens\"\\s*:\\s*\\{([^}]*)\\}").matcher(json);
+        if (block.find()) {
+            var pair = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"?([^,\"\\s}]+)").matcher(block.group(1));
+            while (pair.find()) tokens.put(pair.group(1), pair.group(2));
+        }
+        return tokens;
+    }
+
     private static String value(String json, String key, String fallback) {
         var m = Pattern.compile("\"" + key + "\"\\s*:\\s*\"([^\"]*)\"").matcher(json);
         return m.find() ? m.group(1) : fallback;

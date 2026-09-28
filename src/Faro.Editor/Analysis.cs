@@ -117,8 +117,8 @@ public static class BindingCheck
                     issues.Add(new((string)n.Attribute("id")!, "", ((string?)n.Attribute("class") ?? "") is { Length: > 0 } cls
                         ? L.F("Script class '{0}' (deriving from FaroScript) not found in Source/.", cls) : L.T("No script class chosen yet."), Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
         foreach (var (screenId, screen) in project.Screens)
-            foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
-                issues.Add(new((string)n.Attribute("id")!, "", L.F("Component '{0}' does not exist.", (string?)n.Attribute("component")), Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
+            foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey(ComponentSync.MasterId(n))))
+                issues.Add(new((string)n.Attribute("id")!, "", L.F("Component '{0}' does not exist.", ComponentSync.MasterId(n)), Nearest(ComponentSync.MasterId(n), project.Components.Keys), screenId));
 
         if (project.StartScreen is { } start && !project.Screens.ContainsKey(start))
             issues.Add(new("", "", L.F("Start screen '{0}' (faro.json) does not exist.", start), Nearest(start, project.Screens.Keys), ""));
@@ -203,10 +203,14 @@ public static class BindingCheck
 /// </summary>
 public static class ComponentSync
 {
+    /// <summary>The master an instance shows: its component, or the variant it picked ("Comp.X@Outlined" for variant="Outlined").</summary>
+    public static string MasterId(XElement instance) =>
+        (string?)instance.Attribute("component") + ((string?)instance.Attribute("variant") is { Length: > 0 } variant ? "@" + variant : "");
+
     public static List<XElement> OutOfDate(FaroProject project) =>
         [.. from n in BindingCheck.ScreenNodes(project)
             where (string?)n.Attribute("type") == "Instance"
-            let master = project.Components.GetValueOrDefault((string?)n.Attribute("component") ?? "")?.Root!.Element("Node")
+            let master = project.Components.GetValueOrDefault(MasterId(n))?.Root!.Element("Node")
             where master is not null && !XNode.DeepEquals(n.Element("Node"), master)
             select n];
 
@@ -217,7 +221,7 @@ public static class ComponentSync
         foreach (var n in changed)
         {
             n.Elements("Node").Remove();
-            n.Add(new XElement(project.Components[(string)n.Attribute("component")!].Root!.Element("Node")!));
+            n.Add(new XElement(project.Components[MasterId(n)].Root!.Element("Node")!));
         }
         return [.. changed.Select(n => n.Document!).Distinct()];
     }
@@ -625,6 +629,7 @@ public static class CanvasEdit
     // ponytail: the created file stays behind (empty) if the adding step is undone; harmless
     public static XDocument BindingsFileFor(FaroProject project, string screenId)
     {
+        screenId = screenId.Split('@')[0]; // a variant's binds are its component's
         if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == screenId) is { } existing) return existing;
         var path = Path.Combine(project.Root, "Bindings", screenId + ".xml");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -675,6 +680,24 @@ public static partial class ProjectFiles
             new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("gap", "8"))))) };
     }
 
+    /// <summary>
+    /// A variant of a component (Figma variants): a copy of its master saved as "Comp.X@Name" and edited like any master.
+    /// Instances pick one with variant="Name" (their snapshot comes from it); all variants share Comp.X's bindings.
+    /// </summary>
+    public static Dictionary<string, string?> NewVariant(FaroProject project, string component, string name)
+    {
+        if (!IdPattern().IsMatch(name)) throw new ArgumentException($"'{name}' is not a valid variant name (letters, digits, '_' and '.', starting with a letter).");
+        var id = $"{component}@{name}";
+        if (project.Components.ContainsKey(id)) throw new ArgumentException($"'{name}' is already a variant of {component}.");
+        var copy = new XDocument(project.Components[component]);
+        copy.Root!.SetAttributeValue("id", id);
+        return new() { [Path.Combine(project.Root, "UI", id + ".xml")] = Text(copy) };
+    }
+
+    /// <summary>The variant names of a component ("Outlined" for Comp.X@Outlined).</summary>
+    public static List<string> Variants(FaroProject project, string component) =>
+        [.. project.Components.Keys.Where(k => k.StartsWith(component + "@")).Select(k => k[(component.Length + 1)..]).Order()];
+
     /// <summary>Renames a screen (id and file) and follows Navigate targets and the start screen in faro.json.</summary>
     public static Dictionary<string, string?> RenameScreen(FaroProject project, string oldId, string newId)
     {
@@ -702,6 +725,8 @@ public static partial class ProjectFiles
     {
         ValidateNewId(project, newId);
         var changes = MoveDoc(project, project.Components[oldId], newId);
+        foreach (var variant in Variants(project, oldId)) // its variants keep their names under the new id
+            foreach (var (path, text) in MoveDoc(project, project.Components[$"{oldId}@{variant}"], $"{newId}@{variant}")) changes[path] = text;
         MoveBindings(project, oldId, newId, changes);
         foreach (var doc in project.Screens.Values.Concat(project.Components.Values).Where(d => d != project.Components[oldId]))
         {

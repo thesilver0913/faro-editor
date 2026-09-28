@@ -132,13 +132,15 @@ public static partial class ProjectSetup
     }
 
     /// <summary>faro.json with the new "design" (left out when it's the Fluent default), for one UI history step.</summary>
-    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design)
+    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design, IReadOnlyDictionary<string, double> tokens)
     {
         var path = Path.Combine(dir, ProjectFile);
         var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
         json.Remove("design");
         if (design != new Faro.Runtime.AppDesign())
             json["design"] = new JsonObject { ["language"] = design.Language, ["seedColor"] = design.SeedColor, ["theme"] = design.Theme };
+        json.Remove("tokens");
+        if (tokens.Count > 0) json["tokens"] = new JsonObject(tokens.Select(t => KeyValuePair.Create(t.Key, (JsonNode?)JsonValue.Create(t.Value))));
         return new() { [path] = json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n" };
     }
 
