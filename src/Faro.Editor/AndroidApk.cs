@@ -45,7 +45,7 @@ public static class AndroidApk
                 new XElement("SupportedOSPlatformVersion", "24"),
                 new XElement("OutputType", "Exe"),
                 new XElement("Nullable", "enable"),
-                new XElement("ImplicitUsings", "enable"),
+                new XElement("ImplicitUsings", "disable"), // the desktop set is listed below
                 new XElement("AssemblyName", name),
                 new XElement("ApplicationId", ApplicationId(name)),
                 new XElement("ApplicationTitle", name),
@@ -55,6 +55,9 @@ public static class AndroidApk
             new XElement("ItemGroup",
                 new XElement("Compile", new XAttribute("Include", "MainActivity.cs")),
                 new XElement("Compile", new XAttribute("Include", "../../Source/**/*.cs")),
+                // Source/ is written for the desktop's implicit usings; Android's own (Android.Widget.Button…) would clash with Avalonia's.
+                new[] { "System", "System.Collections.Generic", "System.IO", "System.Linq", "System.Net.Http", "System.Threading", "System.Threading.Tasks" }
+                    .Select(u => new XElement("Using", new XAttribute("Include", u))),
                 new XElement("AndroidAsset", new XAttribute("Include", "../../faro.json"), new XAttribute("Link", "faro/faro.json")),
                 assets,
                 new XElement("PackageReference", new XAttribute("Include", "Avalonia.Android"), new XAttribute("Version", AvaloniaVersion)),

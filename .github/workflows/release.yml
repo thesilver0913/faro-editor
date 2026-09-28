@@ -19,6 +19,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { os: windows-latest, rid: win-x64 }
@@ -47,7 +48,7 @@ jobs:
         run: |
           if [[ -n "$INPUT_TAG" ]]; then v="${INPUT_TAG#v}"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
-          else v="$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"; fi
+          else v="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)"; fi # BSD grep (macOS) has no -P
           echo "VERSION=$v" >> "$GITHUB_ENV"
       - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
       - name: Installer
