@@ -356,8 +356,9 @@ public static partial class JavaProject
     // GraalVM. .faro/android/pom.xml is generated from the project's pom (properties and dependencies, runtime path re-rooted);
     // the project files ride along as resources under faro/ with an index.txt (the runtime reads them there, see FaroApp.url).
 
-    // Matches Gluon's latest public GraalVM (gluon-23+25.1-dev, Sept 2024); newer plugins pass options it doesn't know.
-    const string GluonFxVersion = "1.0.24";
+    // Works with Gluon's latest public GraalVM (gluon-23+25.1-dev) and Maven 3.9: 1.0.24 rejects Maven 3.9, and from
+    // 1.0.29 (substrate 0.0.69) the plugin passes -H:+ForceNoROSectionRelocations, which that GraalVM doesn't know.
+    const string GluonFxVersion = "1.0.25";
     public const string GraalVmDownload = "https://github.com/gluonhq/graal/releases";
 
     /// <summary>Writes .faro/android (pom.xml and resources/faro/…); returns the pom's path.</summary>
