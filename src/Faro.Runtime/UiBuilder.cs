@@ -138,12 +138,18 @@ public static class UiBuilder
             panel = new Grid(); // one cell: children stack up in z-order, placed by their anchors below
         else if (type == "Container.Wrap")
             panel = new WrapPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal, ItemSpacing = gap, LineSpacing = gap };
-        else // ponytail: Grid = uniform grid with a "columns" attribute; explicit row/column tracks when a design needs them
-            panel = new UniformGrid { Columns = (int?)node.Attribute("columns") ?? 2, RowSpacing = gap, ColumnSpacing = gap };
+        else
+            panel = GridPanel(node, children, gap);
 
         foreach (var (n, c) in children)
         {
-            if (type == "Container.Overlay")
+            if (type == "Container.Grid") // both axes inside its cell
+            {
+                var self = (string?)n.Attribute("alignSelf") ?? align;
+                c.HorizontalAlignment = Sizing(n, "width") == "Fill" ? HorizontalAlignment.Stretch : self switch { "Center" => HorizontalAlignment.Center, "End" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
+                c.VerticalAlignment = Sizing(n, "height") == "Fill" ? VerticalAlignment.Stretch : self switch { "Center" => VerticalAlignment.Center, "End" => VerticalAlignment.Bottom, _ => VerticalAlignment.Top };
+            }
+            else if (type == "Container.Overlay")
             {
                 c.HorizontalAlignment = Sizing(n, "width") == "Fill" ? HorizontalAlignment.Stretch
                     : (string?)n.Attribute("anchorX") switch { "Center" => HorizontalAlignment.Center, "Right" => HorizontalAlignment.Right, _ => HorizontalAlignment.Left };
@@ -160,6 +166,59 @@ public static class UiBuilder
             panel.Children.Add(c);
         }
         return new Border { Padding = Sides((string?)node.Attribute("padding")), Child = panel };
+    }
+
+    /// <summary>
+    /// Grid with explicit tracks (CSS grid / Avalonia Grid): columns="Auto, *, 2*, 120" ("3" = three equal columns),
+    /// rows likewise (default: Auto rows as needed). A child sits at row / column (0-based) spanning rowSpan / columnSpan;
+    /// children without a row and column fill the free cells in reading order.
+    /// </summary>
+    static Grid GridPanel(XElement node, List<(XElement Node, Control Control)> children, double gap)
+    {
+        var grid = new Grid { RowSpacing = gap, ColumnSpacing = gap };
+        var columns = Tracks((string?)node.Attribute("columns")) ?? [GridLength.Star, GridLength.Star];
+        columns.ForEach(c => grid.ColumnDefinitions.Add(new ColumnDefinition(c)));
+        int? Int(XElement n, string name) => int.TryParse((string?)n.Attribute(name), out var v) ? Math.Max(v, 0) : null;
+
+        var taken = new HashSet<(int Row, int Column)>();
+        void Place(Control c, int row, int column, int rowSpan, int columnSpan)
+        {
+            column = Math.Min(column, columns.Count - 1);
+            columnSpan = Math.Clamp(columnSpan, 1, columns.Count - column);
+            Grid.SetRow(c, row); Grid.SetColumn(c, column); Grid.SetRowSpan(c, rowSpan); Grid.SetColumnSpan(c, columnSpan);
+            for (var r = row; r < row + rowSpan; r++)
+                for (var col = column; col < column + columnSpan; col++) taken.Add((r, col));
+        }
+        var explicitly = children.Where(c => Int(c.Node, "row") is not null || Int(c.Node, "column") is not null).ToList();
+        foreach (var (n, c) in explicitly) Place(c, Int(n, "row") ?? 0, Int(n, "column") ?? 0, Math.Max(Int(n, "rowSpan") ?? 1, 1), Int(n, "columnSpan") ?? 1);
+        var cell = 0;
+        foreach (var (n, c) in children.Except(explicitly))
+        {
+            while (taken.Contains((cell / columns.Count, cell % columns.Count))) cell++;
+            Place(c, cell / columns.Count, cell % columns.Count, 1, 1);
+        }
+        var rows = Tracks((string?)node.Attribute("rows")) ?? [];
+        var needed = taken.Count == 0 ? 0 : taken.Max(t => t.Row) + 1;
+        foreach (var r in rows.Concat(Enumerable.Repeat(GridLength.Auto, Math.Max(needed - rows.Count, 0))))
+            grid.RowDefinitions.Add(new RowDefinition(r));
+        return grid;
+    }
+
+    /// <summary>"Auto, *, 2*, 120px" → track sizes; a lone number is a count ("3" → three equal * tracks). Null when empty or invalid.</summary>
+    public static List<GridLength>? Tracks(string? spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+        if (int.TryParse(spec.Trim(), out var count)) return count > 0 ? [.. Enumerable.Repeat(GridLength.Star, count)] : null;
+        var tracks = new List<GridLength>();
+        foreach (var token in spec.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (token.Equals("Auto", StringComparison.OrdinalIgnoreCase)) tracks.Add(GridLength.Auto);
+            else if (token.EndsWith('*') && (token.Length == 1 || double.TryParse(token[..^1], inv, out _))) tracks.Add(new(token.Length == 1 ? 1 : double.Parse(token[..^1], inv), GridUnitType.Star));
+            else if (double.TryParse(token.EndsWith("px") ? token[..^2] : token, inv, out var px) && px >= 0) tracks.Add(new(px, GridUnitType.Pixel)); // "120" or "120px"
+            else return null;
+        }
+        return tracks;
     }
 
     /// <summary>

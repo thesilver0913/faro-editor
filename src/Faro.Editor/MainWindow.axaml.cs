@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         UpdateHistory();
         Closed += (_, _) => Workspace.Stop(); // the app started with Run goes with the editor
         RestoreLayout();
+        TrustItem.IsVisible = !Workspace.Trusted;
         Closed += (_, _) => SaveLayout();
         // An untitled project or unsaved code would be lost on close: ask first.
         Closing += async (_, e) =>
@@ -142,6 +143,14 @@ public partial class MainWindow : Window
     /// <summary>Open Folder: like the welcome screen (initializing non-Faro folders), then restarts Faro on it.</summary>
     async void OpenProject(object? sender, RoutedEventArgs e) => await WelcomeWindow.OpenFolder(this, folder => Relaunch(folder));
 
+    /// <summary>Leaves restricted mode: trusts the folder and reopens it with the language server, previews and Run.</summary>
+    async void TrustProject(object? sender, RoutedEventArgs e)
+    {
+        if (!await Dialogs.Confirm(this, "Trust Project", $"Trust {Workspace.Root}? Faro will restore, build and run its code.", "Trust")) return;
+        ProjectSetup.Trust(Workspace.Root);
+        Relaunch(Workspace.Root);
+    }
+
     /// <summary>Close Project: back to the welcome screen.</summary>
     void CloseProject(object? sender, RoutedEventArgs e) => Relaunch(null);
 
@@ -207,7 +216,7 @@ public partial class MainWindow : Window
     async Task<bool> LeaveUntitled()
     {
         if (savedAs || !ProjectSetup.IsUntitled(Workspace.Root)) return true;
-        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", "Save As…", "Don't Save"))
+        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", ["Save As…", "Don't Save"]))
         {
             case 0: return savedAs = await SaveProjectAs() is not null;
             case 1: ProjectSetup.Discard(Workspace.Root); return true;

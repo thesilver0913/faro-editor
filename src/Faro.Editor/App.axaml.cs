@@ -38,6 +38,11 @@ public partial class App : Application
         desktop.MainWindow = splash;
         splash.Show();
         previous?.Close(); // after the splash is up, so closing the last window doesn't end the app
+        // Workspace trust, before anything runs the project's code (restore, language server, Script previews).
+        if (!ProjectSetup.IsTrusted(dir) && await Dialogs.Choose(splash, "Trust this project?",
+                $"{dir}\n\nFaro restores, builds and runs a project's code (language server, Script previews, Run). Trust it only if you know where it comes from. In restricted mode you can still view and edit it.",
+                ["Trust", "Restricted Mode"], cancel: false) == 0)
+            ProjectSetup.Trust(dir);
         await Task.Run(() => Workspace.Open(dir, splash.Report));
         var updated = false;
         try
@@ -51,7 +56,7 @@ public partial class App : Application
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException) { } // keep the project's runtime
         // A new, copied or just-updated project needs a restore: the language server resolves Faro.Runtime from it.
-        if ((updated || !File.Exists(Path.Combine(dir, "obj", "project.assets.json"))) && Directory.EnumerateFiles(dir, "*.csproj").Any())
+        if (Workspace.Trusted && (updated || !File.Exists(Path.Combine(dir, "obj", "project.assets.json"))) && Directory.EnumerateFiles(dir, "*.csproj").Any())
         {
             splash.Report("Restoring packages…", 70);
             try
@@ -63,11 +68,11 @@ public partial class App : Application
             catch (System.ComponentModel.Win32Exception) { } // no dotnet on PATH: the code pane will show unresolved references
         }
         splash.Report("Starting C# language server…", 80);
-        try { await CodeView.Lsp(); }
+        try { if (Workspace.Trusted) await CodeView.Lsp(); }
         catch (Exception) { } // the code pane shows why; the editor still opens
         splash.Report("Ready", 100);
 
-        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? " (not saved)" : "")}" };
+        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? " (not saved)" : "")}{(Workspace.Trusted ? "" : " (Restricted Mode)")}" };
         desktop.MainWindow.Show();
         splash.Close();
     }

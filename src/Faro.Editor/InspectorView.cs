@@ -87,6 +87,12 @@ public sealed class InspectorView : UserControl
             body.Children.Add(Row("Anchor X", Choice(node, "anchorX", ["Left", "Center", "Right"])));
             body.Children.Add(Row("Anchor Y", Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
         }
+        else if (parentType == "Container.Grid")
+        {
+            body.Children.Add(Row("Row / Col", Pair(AttributeField(node, "row", integer: true), AttributeField(node, "column", integer: true))));
+            body.Children.Add(Row("Span R / C", Pair(AttributeField(node, "rowSpan", integer: true), AttributeField(node, "columnSpan", integer: true))));
+            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+        }
         else if (parentType == "Container.Stack")
         {
             body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
@@ -99,11 +105,22 @@ public sealed class InspectorView : UserControl
         if (CanvasEdit.IsContainer(node))
         {
             if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
-            if (type == "Container.Grid") body.Children.Add(Row("Columns", AttributeField(node, "columns")));
+            if (type == "Container.Grid")
+            {
+                string? TrackError(string v) => UiBuilder.Tracks(v) is null ? "Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\"." : null;
+                body.Children.Add(Row("Columns", CheckedField(node, "columns", 160, TrackError)));
+                body.Children.Add(Row("Rows", CheckedField(node, "rows", 160, TrackError)));
+            }
             if (type != "Container.Overlay") body.Children.Add(Row("Gap", AttributeField(node, "gap")));
             body.Children.Add(Row("Padding", AttributeField(node, "padding", sides: true)));
             if (type != "Container.Overlay") body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
-            if (type == "Container.Stack") body.Children.Add(Row("Justify", Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
+            if (type == "Container.Stack")
+            {
+                body.Children.Add(Row("Justify", Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
+                var mainAxis = (string?)node.Attribute("direction") == "Horizontal" ? "width" : "height";
+                if (node.Elements("Node").Any(c => UiBuilder.Sizing(c, mainAxis) == "Fill"))
+                    body.Children.Add(Hint("Justify has no effect while a child fills the main axis: it takes the free space."));
+            }
         }
 
         var props = type == "Instance"
@@ -143,7 +160,7 @@ public sealed class InspectorView : UserControl
         // An instance also lists the bindings of its inner nodes ("orderList/price").
         foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
-        body.Children.Add(AddBindRow(id, [id, .. CanvasEdit.InnerNodes(node).Where(n => n != node.Element("Node")).Select(n => $"{id}/{(string?)n.Attribute("id")}")]));
+        body.Children.Add(AddBindRow(id, [id, .. InnerPaths(node, id)]));
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>
@@ -173,15 +190,27 @@ public sealed class InspectorView : UserControl
     }
 
     /// <param name="sides">Padding/margin: 1, 2 or 4 numbers ("8", "8 16", "8 16 8 16": top right bottom left).</param>
-    Control AttributeField(XElement node, string attribute, bool sides = false)
-    {
-        var id = (string)node.Attribute("id")!;
-        return Field((string?)node.Attribute(attribute) ?? "", value =>
+    Control AttributeField(XElement node, string attribute, bool sides = false, bool integer = false) =>
+        CheckedField(node, attribute, 80, value =>
         {
             var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
-            if (numbers.Any(v => !double.TryParse(v, out _)) || numbers.Length > 1 && !(sides && numbers.Length is 2 or 4)) return; // the canvas would fail to build otherwise
-            EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value));
-        }, 80);
+            return numbers.Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? (integer ? "A whole number (0 or more)." : "Numbers only.")
+                : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? (sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
+                : null;
+        });
+
+    /// <summary>An attribute field that rejects invalid values with the reason (red outline) instead of breaking the canvas.</summary>
+    Control CheckedField(XElement node, string attribute, double width, Func<string, string?> validate)
+    {
+        var id = (string)node.Attribute("id")!;
+        TextBox? box = null;
+        box = Field((string?)node.Attribute(attribute) ?? "", value =>
+        {
+            var error = value.Length == 0 ? null : validate(value);
+            DataValidationErrors.SetError(box!, error is null ? null : new InvalidDataException(error));
+            if (error is null) EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value));
+        }, width);
+        return box;
     }
 
     /// <summary>One binding: target with registry candidates, mode for properties, remove, and the vibe coding shortcut when broken.</summary>
@@ -285,7 +314,6 @@ public sealed class InspectorView : UserControl
         return box;
     }
 
-    /// <summary>Commits on Enter or when focus leaves, once per actual change (one history step per edit).</summary>
     /// <summary>Mock rows for the canvas (spec §10.5): one line per row, values in field order separated by "|".</summary>
     Control MockRows(string id, XElement node, List<string> fields)
     {
@@ -315,6 +343,7 @@ public sealed class InspectorView : UserControl
         };
     }
 
+    /// <summary>Commits on Enter or when focus leaves, once per actual change (one history step per edit).</summary>
     static void Commit(Control box, Func<string> text, Action<string> commit)
     {
         var last = text();
@@ -337,6 +366,11 @@ public sealed class InspectorView : UserControl
         grid.Children.Add(editor);
         return grid;
     }
+
+    /// <summary>Bindable paths inside an instance, nested instances included ("card/ok", "card/ok/label").</summary>
+    static IEnumerable<string> InnerPaths(XElement instance, string prefix) =>
+        CanvasEdit.InnerNodes(instance).Where(n => n != instance.Element("Node"))
+            .SelectMany(n => InnerPaths(n, $"{prefix}/{(string?)n.Attribute("id")}").Prepend($"{prefix}/{(string?)n.Attribute("id")}"));
 
     static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 

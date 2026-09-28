@@ -30,7 +30,8 @@ public sealed class FaroSettings
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
     public string EditorThemeFile { get; set; } = ""; // .tmTheme or VS Code .json
     public List<string> RecentProjects { get; set; } = [];
-    public List<string> PendingDeletes { get; set; } = []; // discarded untitled projects (ProjectSetup.DeletePending)
+    public List<string> PendingDeletes { get; set; } = [];
+    public List<string> TrustedProjects { get; set; } = []; // workspace trust: folders whose code Faro may build and run // discarded untitled projects (ProjectSetup.DeletePending)
 
     // Editor layout (spec §14: saved per app). ponytail: pane sizes and the window; docking moves, tabs and floating panes reset on restart.
     public Dictionary<string, double> PaneProportions { get; set; } = [];
@@ -38,7 +39,9 @@ public sealed class FaroSettings
     public double WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
 
-    static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
+    /// <summary>FARO_SETTINGS overrides the location (the self-checks use a scratch file, never the user's settings).</summary>
+    static string FilePath => Environment.GetEnvironmentVariable("FARO_SETTINGS")
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
 
     public static FaroSettings Current { get; } = Load();
 

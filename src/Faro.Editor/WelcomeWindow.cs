@@ -63,6 +63,21 @@ public sealed class WelcomeWindow : Window
             item.Click += (_, _) => ProjectChosen?.Invoke(dir);
             list.Children.Add(item);
         }
+        // Unsaved projects from an earlier session (a crash, or closed without deciding): reopen or discard.
+        foreach (var dir in ProjectSetup.LeftoverUntitled())
+        {
+            var open = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Content = new StackPanel { Children = { new TextBlock { Text = $"{Path.GetFileName(dir)} (not saved)", FontWeight = FontWeight.SemiBold }, new TextBlock { Text = "Unsaved project from an earlier session", Opacity = 0.6, FontSize = 12 } } },
+            };
+            open.Click += (_, _) => ProjectChosen?.Invoke(dir);
+            var discard = new Button { Content = "Discard", VerticalAlignment = VerticalAlignment.Center };
+            discard.Click += (_, _) => { ProjectSetup.Discard(dir); ProjectSetup.DeletePending(); right.Content = Recent(); };
+            DockPanel.SetDock(discard, Avalonia.Controls.Dock.Right);
+            list.Children.Add(new DockPanel { Children = { discard, open } });
+        }
         if (list.Children.Count == 0)
             list.Children.Add(new TextBlock { Text = "No recent projects yet. Create a new project or open a folder.", Opacity = 0.6, TextWrapping = TextWrapping.Wrap });
         return new DockPanel

@@ -3,6 +3,9 @@ using System.Xml.Linq;
 using Faro.Editor;
 using Faro.Runtime;
 
+// Settings go to a scratch file: the checks never touch the user's Faro settings.
+Environment.SetEnvironmentVariable("FARO_SETTINGS", Path.Combine(Directory.CreateTempSubdirectory("faro-settings").FullName, "settings.json"));
+
 // Runs against a scratch copy of samples/HelloFaro so the sample itself is never modified.
 var sample = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
 var root = Directory.CreateTempSubdirectory("faro-check").FullName;
@@ -155,6 +158,14 @@ var overlay = StackGrid("""<Node id="o" type="Container.Overlay"><Node id="bg" t
 Check(overlay.RowDefinitions.Count == 0 && overlay.Children[0] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Stretch, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Stretch }
     && overlay.Children[1] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Top }
     && overlay.Children[2] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Center, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "Overlay layers children at their anchors");
+// Grid with explicit tracks: sizes, explicit cells with spans, reading-order fill of the rest, Auto rows as needed.
+Check(UiBuilder.Tracks("Auto, *, 2*, 120px") is [{ IsAuto: true }, { IsStar: true, Value: 1 }, { IsStar: true, Value: 2 }, { IsAbsolute: true, Value: 120 }]
+    && UiBuilder.Tracks("3")!.Count == 3 && UiBuilder.Tracks("wide") is null && UiBuilder.Tracks("") is null, "grid track syntax");
+var form = StackGrid("""<Node id="g" type="Container.Grid" columns="Auto, *" gap="4"><Node id="title" type="Control.Text" row="0" column="0" columnSpan="2" /><Node id="l1" type="Control.Text" /><Node id="v1" type="Control.TextInput" widthSizing="Fill" /><Node id="l2" type="Control.Text" alignSelf="End" /></Node>""");
+int[] Cell(int i) => [Avalonia.Controls.Grid.GetRow(form.Children[i]), Avalonia.Controls.Grid.GetColumn(form.Children[i]), Avalonia.Controls.Grid.GetColumnSpan(form.Children[i])];
+Check(form.ColumnDefinitions.Count == 2 && form.RowDefinitions.Count == 3 && Cell(0).SequenceEqual([0, 0, 2]) && Cell(1).SequenceEqual([1, 0, 1]) && Cell(2).SequenceEqual([1, 1, 1]) && Cell(3).SequenceEqual([2, 0, 1])
+    && form.Children[2].HorizontalAlignment == Avalonia.Layout.HorizontalAlignment.Stretch && form.Children[3] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "grid places children by cell, span and reading order");
+Check(StackGrid("""<Node id="g" type="Container.Grid" columns="2"><Node id="a" type="Control.Text" column="9" columnSpan="5" row="x" /></Node>""") is { Children: [var clamped] } && Avalonia.Controls.Grid.GetColumn(clamped) == 1 && Avalonia.Controls.Grid.GetColumnSpan(clamped) == 1, "out-of-range cells are clamped, bad numbers ignored");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");
@@ -250,8 +261,13 @@ var shop = ProjectSetup.SaveAs(untitled1, projects, "Shop");
 Check(File.Exists(Path.Combine(shop, "Shop.csproj")) && !File.Exists(Path.Combine(shop, "Untitled1.csproj")) && File.ReadAllText(Path.Combine(shop, "faro.json")).Contains("\"Shop\"")
     && File.Exists(Path.Combine(shop, "bin-marker.txt")) && Directory.Exists(Path.Combine(shop, "Assets")) && !Directory.Exists(Path.Combine(shop, "bin")) && FaroProject.Load(shop).Screens.Count == 2, "Save As copies the project under the new name, without build output");
 Check(FaroSettings.Current.PendingDeletes.Contains(untitled1) && Directory.Exists(untitled1), "the untitled original is queued, not deleted while open");
+var untitled2 = Path.Combine(ProjectSetup.UntitledRoot, "Untitled2");
+Check(ProjectSetup.LeftoverUntitled().SequenceEqual([untitled2]), "leftover untitled projects are offered, discarded ones aren't");
 ProjectSetup.DeletePending();
 Check(!Directory.Exists(untitled1) && !FaroSettings.Current.PendingDeletes.Contains(untitled1), "queued untitled projects are deleted later");
+Check(ProjectSetup.IsTrusted(untitled1) && !ProjectSetup.IsTrusted(empty) && ProjectSetup.IsTrusted(shop), "untitled projects and their Save As copies are trusted; other folders aren't until asked");
+ProjectSetup.Trust(empty);
+Check(ProjectSetup.IsTrusted(empty) && !ProjectSetup.IsTrusted(Path.Combine(projects, "SampleApp")), "trust is per folder");
 ProjectSetup.Discard(shop);
 Check(!FaroSettings.Current.PendingDeletes.Contains(shop) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, projects, "Shop")) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, shop, "Inside")), "only untitled folders are ever discarded; Save As validates the target");
 
@@ -305,7 +321,7 @@ Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyA
 var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";
 var generated = VibeCoding.ParseFiles(reply);
 Check(generated.Count == 2 && generated[0].Path == "Source/Services/Cart.cs" && generated[0].Code.Contains("class Cart"), "generated files parsed");
-Check(VibeCoding.ResolvePath(root, "Source/Services/Cart.cs") == Path.Combine(root, "Source/Services/Cart.cs"), "path inside Source/ accepted");
+Check(VibeCoding.ResolvePath(root, "Source/Services/Cart.cs") == Path.GetFullPath(Path.Combine(root, "Source", "Services", "Cart.cs")), "path inside Source/ accepted"); // normalized: \\ on Windows
 Check(new[] { "../Evil.cs", "Source/../Evil.cs", "/etc/passwd.cs", "Source/notes.txt", "UI/MainScreen.cs" }.All(p => VibeCoding.ResolvePath(root, p) is null), "paths outside Source/ or non-.cs rejected");
 Check(VibeCoding.SyntaxErrors(generated[0].Code).Count == 0 && VibeCoding.SyntaxErrors("public class { void }").Count > 0, "syntax check");
 Check(string.Concat(VibeCoding.Diff("a\nb\nc", "a\nx\nc").Select(d => d.Op)) == " -+ ", "line diff");

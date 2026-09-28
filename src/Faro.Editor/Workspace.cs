@@ -10,6 +10,9 @@ namespace Faro.Editor;
 public static class Workspace
 {
     public static string Root { get; private set; } = "";
+
+    /// <summary>Restricted mode (untrusted project): no restore, language server, Script previews or Run.</summary>
+    public static bool Trusted { get; private set; }
     public static FaroProject? Project { get; private set; }
     public static List<RegistryMember> Registry { get; private set; } = [];
     public static List<string> ScriptClasses { get; private set; } = [];
@@ -23,7 +26,8 @@ public static class Workspace
     public static void Open(string root, Action<string, double>? report = null)
     {
         Root = root;
-        UiBuilder.ScriptFactory = name => ScriptPreview.Build(root, name);
+        Trusted = ProjectSetup.IsTrusted(root);
+        UiBuilder.ScriptFactory = Trusted ? name => ScriptPreview.Build(root, name) : null;
         Reload(report);
         watcher?.Dispose();
         if (!Directory.Exists(root)) return;
@@ -55,7 +59,7 @@ public static class Workspace
     /// <summary>Runs the project with hot reload; code saves hot-reload, UI graph changes restart (dotnet watch).</summary>
     public static void Run()
     {
-        if (Running) return;
+        if (Running || !Trusted) return;
         Output.Clear();
         var start = new System.Diagnostics.ProcessStartInfo("dotnet", ["watch", "run", "--non-interactive"])
         {
