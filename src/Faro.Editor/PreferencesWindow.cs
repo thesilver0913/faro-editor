@@ -16,7 +16,7 @@ public sealed class PreferencesWindow : Window
 
     public PreferencesWindow()
     {
-        Title = "Preferences";
+        Title = L.T("Preferences");
         Width = 720;
         Height = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -26,11 +26,25 @@ public sealed class PreferencesWindow : Window
             TabStripPlacement = Avalonia.Controls.Dock.Left,
             Items =
             {
-                new TabItem { Header = "Environment", Content = EnvironmentPage() },
-                new TabItem { Header = "Theme", Content = ThemePage() },
-                new TabItem { Header = "Plugins", Content = Page(new TextBlock { Text = "Plugins are planned for a later version (spec §12: outside the prototype scope).", TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
+                new TabItem { Header = L.T("Language"), Content = Page(LanguageChoice(null), new TextBlock { Text = L.T("Language changes apply to windows opened from now on; restart Faro to update the menus."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
+                new TabItem { Header = L.T("Environment"), Content = EnvironmentPage() },
+                new TabItem { Header = L.T("Theme"), Content = ThemePage() },
+                new TabItem { Header = L.T("Plugins"), Content = Page(new TextBlock { Text = L.T("Plugins are planned for a later version (spec §12: outside the prototype scope)."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
             },
         };
+    }
+
+    /// <summary>English / 日本語 (also in the first-run wizard, which redraws itself through <paramref name="changed"/>).</summary>
+    public static ComboBox LanguageChoice(Action? changed)
+    {
+        var box = new ComboBox { ItemsSource = L.Languages, SelectedIndex = FaroSettings.Current.Language == "ja" ? 1 : 0, MinWidth = 160 };
+        box.SelectionChanged += (_, _) =>
+        {
+            FaroSettings.Current.Language = box.SelectedIndex == 1 ? "ja" : "en";
+            FaroSettings.Current.Save();
+            changed?.Invoke();
+        };
+        return box;
     }
 
     static Control Page(params Control[] children)
@@ -51,7 +65,7 @@ public sealed class PreferencesWindow : Window
             var name = new SelectableTextBlock { Text = EnvironmentVariables[i], FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace") };
             var state = new TextBlock
             {
-                Text = string.IsNullOrEmpty(value) ? "Not set" : $"Set (…{value[^Math.Min(4, value.Length)..]})",
+                Text = string.IsNullOrEmpty(value) ? L.T("Not set") : L.F("Set (…{0})", value[^Math.Min(4, value.Length)..]),
                 Foreground = string.IsNullOrEmpty(value) ? Brushes.OrangeRed : Brushes.LightGreen,
             };
             Grid.SetRow(name, i);
@@ -64,9 +78,9 @@ public sealed class PreferencesWindow : Window
             ? "setx ANTHROPIC_API_KEY \"your-key\"   (Command Prompt; then restart Faro)"
             : "export ANTHROPIC_API_KEY=\"your-key\"   (add to ~/.zshrc or ~/.bashrc; then restart Faro)";
         return Page(
-            new TextBlock { Text = "API keys are read from environment variables only. Faro never writes them to disk.", TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("API keys are read from environment variables only. Faro never writes them to disk."), TextWrapping = TextWrapping.Wrap },
             grid,
-            new TextBlock { Text = "To set one:", Opacity = 0.7 },
+            new TextBlock { Text = L.T("To set one:"), Opacity = 0.7 },
             new SelectableTextBlock { Text = howTo, FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"), TextWrapping = TextWrapping.Wrap });
     }
 
@@ -79,7 +93,7 @@ public sealed class PreferencesWindow : Window
         editorThemes.AddRange(Enum.GetNames<ThemeName>());
         editorThemes.Add(FaroSettings.CustomEditorTheme);
         var editorTheme = new ComboBox { ItemsSource = editorThemes, SelectedItem = settings.EditorTheme, MinWidth = 220 };
-        var editorFile = FileRow(settings.EditorThemeFile, "Code editor theme", ["*.tmTheme", "*.json"], path =>
+        var editorFile = FileRow(settings.EditorThemeFile, L.T("Code editor theme"), ["*.tmTheme", "*.json"], path =>
         {
             settings.EditorThemeFile = path;
             if (path.Length > 0) editorTheme.SelectedItem = FaroSettings.CustomEditorTheme;
@@ -94,11 +108,11 @@ public sealed class PreferencesWindow : Window
         };
 
         return Page(
-            new TextBlock { Text = "App theme", FontWeight = FontWeight.SemiBold },
+            new TextBlock { Text = L.T("App theme"), FontWeight = FontWeight.SemiBold },
             appTheme,
-            new TextBlock { Text = "Custom theme file (Avalonia ResourceDictionary .axaml, overrides the colors above)", TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
-            FileRow(settings.AppThemeFile, "App theme", ["*.axaml", "*.xaml"], path => { settings.AppThemeFile = path; Apply(); }),
-            new TextBlock { Text = "Code editor theme", FontWeight = FontWeight.SemiBold, Margin = new(0, 12, 0, 0) },
+            new TextBlock { Text = L.T("Custom theme file (Avalonia ResourceDictionary .axaml, overrides the colors above)"), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
+            FileRow(settings.AppThemeFile, L.T("App theme"), ["*.axaml", "*.xaml"], path => { settings.AppThemeFile = path; Apply(); }),
+            new TextBlock { Text = L.T("Code editor theme"), FontWeight = FontWeight.SemiBold, Margin = new(0, 12, 0, 0) },
             editorTheme,
             editorFile,
             themeError);
@@ -107,9 +121,9 @@ public sealed class PreferencesWindow : Window
     /// <summary>Path box with Browse / Clear; calls <paramref name="changed"/> with the new path ("" when cleared).</summary>
     Control FileRow(string path, string title, string[] patterns, Action<string> changed)
     {
-        var box = new TextBox { Text = path, IsReadOnly = true, PlaceholderText = "(none)" };
-        var browse = new Button { Content = "Browse…" };
-        var clear = new Button { Content = "Clear" };
+        var box = new TextBox { Text = path, IsReadOnly = true, PlaceholderText = L.T("(none)") };
+        var browse = new Button { Content = L.T("Browse…") };
+        var clear = new Button { Content = L.T("Clear") };
         browse.Click += async (_, _) =>
         {
             var files = await StorageProvider.OpenFilePickerAsync(new() { Title = title, FileTypeFilter = [new(title) { Patterns = patterns }] });

@@ -113,19 +113,19 @@ public static class BindingCheck
             foreach (var (graphId, graph) in project.Screens.Concat(project.Components))
                 foreach (var n in NodesOf(graph).Where(n => (string?)n.Attribute("type") == "Control.Script" && !scripts.Contains((string?)n.Attribute("class") ?? "")))
                     issues.Add(new((string)n.Attribute("id")!, "", ((string?)n.Attribute("class") ?? "") is { Length: > 0 } cls
-                        ? $"Script class '{cls}' (deriving from FaroScript) not found in Source/." : "No script class chosen yet.", Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
+                        ? L.F("Script class '{0}' (deriving from FaroScript) not found in Source/.", cls) : L.T("No script class chosen yet."), Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
         foreach (var (screenId, screen) in project.Screens)
             foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
-                issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
+                issues.Add(new((string)n.Attribute("id")!, "", L.F("Component '{0}' does not exist.", (string?)n.Attribute("component")), Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
 
         if (project.StartScreen is { } start && !project.Screens.ContainsKey(start))
-            issues.Add(new("", "", $"Start screen '{start}' (faro.json) does not exist.", Nearest(start, project.Screens.Keys), ""));
+            issues.Add(new("", "", L.F("Start screen '{0}' (faro.json) does not exist.", start), Nearest(start, project.Screens.Keys), ""));
         foreach (var file in project.BindingFiles)
         {
             var screenId = FaroProject.ScreenOf(file);
             if (project.Graph(screenId) is not { } screen) // a screen, or a component master (component-level bindings)
             {
-                issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen or component.", Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
+                issues.Add(new("", "", L.F("Bindings/{0}.xml doesn't belong to any screen or component.", screenId), Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
                 continue;
             }
             var nodes = NodesOf(screen).Where(n => n.Attribute("id") is not null).DistinctBy(n => (string)n.Attribute("id")!).ToDictionary(n => (string)n.Attribute("id")!);
@@ -134,22 +134,22 @@ public static class BindingCheck
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
                 if ((nodeId.Contains('/') ? CanvasEdit.FindPath(screen, nodeId) : nodes.GetValueOrDefault(nodeId)) is not { } node)
-                    issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
+                    issues.Add(new(nodeId, target, L.F("Node '{0}' does not exist on screen '{1}'.", nodeId, screenId), [], screenId));
                 else if (Unbindable(bind, node) is { } problem)
                     issues.Add(problem with { Target = target, Screen = screenId });
                 else if (target.Length == 0)
-                    issues.Add(new(nodeId, target, "No target chosen yet.", [], screenId));
+                    issues.Add(new(nodeId, target, L.T("No target chosen yet."), [], screenId));
                 else if (target.StartsWith("Navigate:"))
                 {
                     var to = FaroApp.NavigateScreenId(target, project.Screens.Keys);
                     if (!project.Screens.ContainsKey(to))
-                        issues.Add(new(nodeId, target, $"Screen '{to}' does not exist.", Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId, "target"));
+                        issues.Add(new(nodeId, target, L.F("Screen '{0}' does not exist.", to), Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId, "target"));
                 }
                 else
                 {
                     var isEvent = bind.Attribute("event") is not null;
                     if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
-                        issues.Add(new(nodeId, target, $"{(isEvent ? "Method" : "Property")} '{target}' not found in Source/.",
+                        issues.Add(new(nodeId, target, L.F(isEvent ? "Method '{0}' not found in Source/." : "Property '{0}' not found in Source/.", target),
                             Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId, "target"));
                 }
             }
@@ -165,9 +165,8 @@ public static class BindingCheck
         var isEvent = bind.Attribute("event") is not null;
         var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
         IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
-        var kind = isEvent ? "event" : "property";
         return names?.Contains(name) == true ? null
-            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
+            : new((string)node.Attribute("id")!, "", L.F(isEvent ? "{0} has no event '{1}'." : "{0} has no property '{1}'.", type, name), Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
     }
 
     /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>

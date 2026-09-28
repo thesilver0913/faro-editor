@@ -22,15 +22,15 @@ public sealed class WelcomeWindow : Window
 
     public WelcomeWindow()
     {
-        Title = "Welcome to Faro";
+        Title = L.T("Welcome to Faro");
         Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png")));
         Width = 820;
         Height = 500;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-        var create = new Button { Content = "New Project…", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var create = new Button { Content = L.T("New Project…"), HorizontalAlignment = HorizontalAlignment.Stretch };
         create.Click += (_, _) => right.Content = NewProjectForm();
-        var open = new Button { Content = "Open Folder…", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var open = new Button { Content = L.T("Open Folder…"), HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => await OpenFolder(this, dir => ProjectChosen?.Invoke(dir));
         var left = new StackPanel
         {
@@ -38,7 +38,7 @@ public sealed class WelcomeWindow : Window
             Children =
             {
                 new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 88, Height = 88, HorizontalAlignment = HorizontalAlignment.Left },
-                new TextBlock { Text = "Faro", FontSize = 30, FontWeight = FontWeight.SemiBold },
+                new TextBlock { Text = L.T("Faro"), FontSize = 30, FontWeight = FontWeight.SemiBold },
                 new TextBlock { Text = App.Version, Opacity = 0.6, Margin = new(0, -8, 0, 16) },
                 create,
                 open,
@@ -70,21 +70,21 @@ public sealed class WelcomeWindow : Window
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Content = new StackPanel { Children = { new TextBlock { Text = $"{Path.GetFileName(dir)} (not saved)", FontWeight = FontWeight.SemiBold }, new TextBlock { Text = "Unsaved project from an earlier session", Opacity = 0.6, FontSize = 12 } } },
+                Content = new StackPanel { Children = { new TextBlock { Text = Path.GetFileName(dir) + L.T(" (not saved)"), FontWeight = FontWeight.SemiBold }, new TextBlock { Text = L.T("Unsaved project from an earlier session"), Opacity = 0.6, FontSize = 12 } } },
             };
             open.Click += (_, _) => ProjectChosen?.Invoke(dir);
-            var discard = new Button { Content = "Discard", VerticalAlignment = VerticalAlignment.Center };
+            var discard = new Button { Content = L.T("Discard"), VerticalAlignment = VerticalAlignment.Center };
             discard.Click += (_, _) => { ProjectSetup.Discard(dir); ProjectSetup.DeletePending(); right.Content = Recent(); };
             DockPanel.SetDock(discard, Avalonia.Controls.Dock.Right);
             list.Children.Add(new DockPanel { Children = { discard, open } });
         }
         if (list.Children.Count == 0)
-            list.Children.Add(new TextBlock { Text = "No recent projects yet. Create a new project or open a folder.", Opacity = 0.6, TextWrapping = TextWrapping.Wrap });
+            list.Children.Add(new TextBlock { Text = L.T("No recent projects yet. Create a new project or open a folder."), Opacity = 0.6, TextWrapping = TextWrapping.Wrap });
         return new DockPanel
         {
             Children =
             {
-                Header("Recent"),
+                Header(L.T("Recent")),
                 new ScrollViewer { Content = list },
             },
         };
@@ -96,8 +96,8 @@ public sealed class WelcomeWindow : Window
         // Spec §2: the language is chosen when a project is created and can't change later; the prototype supports C# only.
         var language = new ComboBox { ItemsSource = new[] { "C#" }, SelectedIndex = 0, IsEnabled = false, MinWidth = 160 };
         var error = new TextBlock { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
-        var create = new Button { Content = "Create", IsDefault = true };
-        var cancel = new Button { Content = "Cancel" };
+        var create = new Button { Content = L.T("Create"), IsDefault = true };
+        var cancel = new Button { Content = L.T("Cancel") };
         cancel.Click += (_, _) => right.Content = Recent();
         create.Click += (_, _) =>
         {
@@ -109,29 +109,29 @@ public sealed class WelcomeWindow : Window
             Spacing = 10,
             Children =
             {
-                new TextBlock { Text = "The project starts untitled. Give it a name and a place with File › Save (or Save As…).", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
-                Label("Template"), template,
-                Label("Language"), language,
+                new TextBlock { Text = L.T("The project starts untitled. Give it a name and a place with File › Save (or Save As…)."), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+                Label(L.T("Template")), template,
+                Label(L.T("Language")), language,
                 error,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { create, cancel } },
             },
         };
-        return new DockPanel { Children = { Header("New Project"), new ScrollViewer { Content = form } } };
+        return new DockPanel { Children = { Header(L.T("New Project")), new ScrollViewer { Content = form } } };
     }
 
     /// <summary>Picks a folder; one without faro.json is initialized after confirmation (existing files are never changed).</summary>
     public static async Task OpenFolder(Window owner, Action<string> open)
     {
-        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new() { Title = "Open Folder" });
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new() { Title = L.T("Open Folder") });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } dir) return;
         if (!ProjectSetup.IsFaroProject(dir))
         {
-            if (!await Dialogs.Confirm(owner, "Open Folder", $"{dir} isn't a Faro project yet. Initialize it? Missing folders and files are added; existing files aren't changed.", "Initialize"))
+            if (!await Dialogs.Confirm(owner, L.T("Open Folder"), L.F("{0} isn't a Faro project yet. Initialize it? Missing folders and files are added; existing files aren't changed.", dir), L.T("Initialize")))
                 return;
             try { ProjectSetup.Initialize(dir); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                await Dialogs.Info(owner, "Open Folder", new TextBlock { Text = e.Message, TextWrapping = TextWrapping.Wrap });
+                await Dialogs.Info(owner, L.T("Open Folder"), new TextBlock { Text = e.Message, TextWrapping = TextWrapping.Wrap });
                 return;
             }
         }

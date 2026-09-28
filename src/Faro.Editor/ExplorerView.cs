@@ -108,7 +108,7 @@ public sealed class ExplorerView : UserControl
         var items = new List<MenuItem>();
         void Add(string header, Action action)
         {
-            var item = new MenuItem { Header = header };
+            var item = new MenuItem { Header = L.T(header) };
             item.Click += (_, _) => action();
             items.Add(item);
         }
@@ -128,11 +128,11 @@ public sealed class ExplorerView : UserControl
 
     async Task<string?> Ask(string title, string message, string initial = "")
     {
-        var answer = await Dialogs.Prompt(Owner, title, message, initial);
+        var answer = await Dialogs.Prompt(Owner, L.T(title), L.T(message), initial);
         return string.IsNullOrWhiteSpace(answer) ? null : answer.Trim();
     }
 
-    async Task Fail(string title, string message) => await Dialogs.Info(Owner, title, new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+    async Task Fail(string title, string message) => await Dialogs.Info(Owner, L.T(title), new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
 
     /// <summary>Runs a screen/component file operation as one UI history step.</summary>
     async Task<bool> CommitUi(string label, Func<Dictionary<string, string?>> changes)
@@ -197,12 +197,12 @@ public sealed class ExplorerView : UserControl
     {
         if (!isDir && UiDoc(path) is { } doc && Workspace.Project is { } project)
         {
-            if (await Dialogs.Confirm(Owner, "Delete", $"Delete {Path.GetFileName(path)}? Bindings of its nodes are removed too. You can undo this with Ctrl+Z on the canvas.", "Delete"))
+            if (await Dialogs.Confirm(Owner, L.T("Delete"), L.F("Delete {0}? Bindings of its nodes are removed too. You can undo this with Ctrl+Z on the canvas.", Path.GetFileName(path)), L.T("Delete")))
                 await CommitUi("Delete " + (doc.Root!.Name == "UIGraph" ? "screen" : "component"), () => ProjectFiles.Delete(project, doc));
             return;
         }
         if (Busy(path, isDir) is { } busy) { await Fail("Delete", busy); return; }
-        if (!await Dialogs.Confirm(Owner, "Delete", $"Delete {Path.GetFileName(path)}{(isDir ? " and everything in it" : "")}? This can't be undone.", "Delete")) return;
+        if (!await Dialogs.Confirm(Owner, L.T("Delete"), L.F(isDir ? "Delete {0} and everything in it? This can't be undone." : "Delete {0}? This can't be undone.", Path.GetFileName(path)), L.T("Delete"))) return;
         if (isDir) Directory.Delete(path, recursive: true); else File.Delete(path);
         CodeView.Forget(path);
     }

@@ -320,6 +320,11 @@ File.SetLastWriteTimeUtc(Path.Combine(unbuilt, "Source/A.cs"), DateTime.UtcNow.A
 Workspace.Reload();
 Check(builtBefore && Workspace.Unbuilt, "code saved after the last build is flagged as unbuilt");
 Directory.Delete(unbuilt, true);
+// UI language: English is the key; Japanese from the table, unknown text stays as is.
+FaroSettings.Current.Language = "ja";
+Check(L.T("_Save") == "保存(_S)" && L.F("Screen '{0}' does not exist.", "Top") == "画面 'Top' はありません。" && L.T("MyApp.Views.MyScript") == "MyApp.Views.MyScript", "Japanese UI text");
+FaroSettings.Current.Language = "en";
+Check(L.T("_Save") == "_Save", "English UI text");
 string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8", "0.1.9-dev1", "0.1.10"];
 Check(ordered.OrderBy(v => ProjectSetup.RuntimeKey(v)).SequenceEqual(ordered) && ProjectSetup.RuntimeKey("0.1.8-beta") is null, "dev builds sort before their release");
 Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");

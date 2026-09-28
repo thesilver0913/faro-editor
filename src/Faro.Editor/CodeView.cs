@@ -29,7 +29,7 @@ public sealed class CodeView : UserControl
     static readonly Dictionary<string, string> saved = []; // last-saved content per file (rename detection)
     static readonly Dictionary<string, JsonArray> diagnostics = []; // by document uri
     static Task<LspClient>? lsp;
-    static string lspState = "Language server: starting…";
+    static string lspState = L.T("Language server: starting…");
     static int version, restarts;
     static event Action? StateChanged;
     static string? shownPath;
@@ -50,7 +50,7 @@ public sealed class CodeView : UserControl
     public static void Redo() { if (CanRedo) Buffer(shownPath!).UndoStack.Redo(); }
 
     readonly ComboBox files = new() { MinWidth = 260 };
-    readonly Button save = new() { Content = "Save" };
+    readonly Button save = new() { Content = L.T("Save") };
     readonly TextBlock status = new() { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7, TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextEditor editor = new()
     {
@@ -83,7 +83,7 @@ public sealed class CodeView : UserControl
         try { theme = FaroSettings.Current.LoadEditorTheme(); }
         catch (Exception e) when (e is IOException or System.Xml.XmlException or FormatException or ArgumentException or InvalidOperationException)
         {
-            lspState = $"Editor theme: {e.Message}";
+            lspState = L.T("Editor theme: ") + e.Message;
             theme = null;
         }
         if (theme is null)
@@ -173,7 +173,7 @@ public sealed class CodeView : UserControl
     void Redraw()
     {
         editor.TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
-        save.Content = Current is { } p && buffers.TryGetValue(p, out var d) && !d.UndoStack.IsOriginalFile ? "Save *" : "Save";
+        save.Content = Current is { } p && buffers.TryGetValue(p, out var d) && !d.UndoStack.IsOriginalFile ? L.T("Save") + " *" : L.T("Save");
         ShowStatus();
     }
 
@@ -185,7 +185,7 @@ public sealed class CodeView : UserControl
             ? diagnostics.GetValueOrDefault(Uri(p))?.FirstOrDefault(d => Squiggles.Offset(doc, d!["range"]!["start"]!) <= caret && caret <= Squiggles.Offset(doc, d!["range"]!["end"]!))
             : null;
         status.Text = here is not null ? $"{here["code"]}: {here["message"]}"
-            : Current is { } path && IsDirty(path) && ChangedOnDisk(path) ? "Changed on disk too: saving will ask before overwriting." : lspState;
+            : Current is { } path && IsDirty(path) && ChangedOnDisk(path) ? L.T("Changed on disk too: saving will ask before overwriting.") : lspState;
     }
 
     async void Save()
@@ -241,7 +241,7 @@ public sealed class CodeView : UserControl
 
     static async Task<bool> ConfirmOverwrite(Window owner, List<string> paths) =>
         paths.Where(ChangedOnDisk).Select(Path.GetFileName).ToList() is not { Count: > 0 } changed
-        || await Dialogs.Confirm(owner, "Changed on disk", $"{string.Join(", ", changed)} changed outside Faro since it was opened. Saving overwrites those changes.", "Overwrite");
+        || await Dialogs.Confirm(owner, L.T("Changed on disk"), L.F("{0} changed outside Faro since it was opened. Saving overwrites those changes.", string.Join(", ", changed)), L.T("Overwrite"));
 
     public static bool IsDirty(string path) => buffers.TryGetValue(path, out var doc) && !doc.UndoStack.IsOriginalFile;
 
@@ -309,11 +309,11 @@ public sealed class CodeView : UserControl
         {
             // ponytail: up to 3 automatic restarts per session; add a manual restart button if crashes turn out common
             lsp = null;
-            lspState = ++restarts <= 3 ? "Language server crashed, restarting…" : "Language server stopped (crashed 3 times).";
+            lspState = L.T(++restarts <= 3 ? "Language server crashed, restarting…" : "Language server stopped (crashed 3 times).");
             if (restarts <= 3) foreach (var (path, doc) in buffers) DidOpen(path, doc);
             StateChanged?.Invoke();
         });
-        lspState = "Language server: ready";
+        lspState = L.T("Language server: ready");
         StateChanged?.Invoke();
         return client;
     }
@@ -328,7 +328,7 @@ public sealed class CodeView : UserControl
         try { use(await Lsp()); }
         catch (Exception e)
         {
-            lspState = $"Language server unavailable: {e.Message}";
+            lspState = L.T("Language server unavailable: ") + e.Message;
             StateChanged?.Invoke();
         }
     }

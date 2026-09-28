@@ -3,6 +3,7 @@ using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -23,6 +24,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // UI language (L): menu headers from the XAML, panel titles once the dock layout exists.
+        foreach (var item in this.GetLogicalDescendants().OfType<MenuItem>())
+            if (item.Header is string header) item.Header = L.T(header);
+        Opened += (_, _) =>
+        {
+            if (Dock.Layout is null) return;
+            foreach (var dockable in Dockables(Dock.Layout)) dockable.Title = L.T(dockable.Title);
+        };
         // Follow the pane the user last clicked or focused: canvas → UI graph history, code/chat → code history.
         void Track(object? source)
         {
@@ -46,7 +55,7 @@ public partial class MainWindow : Window
             if (closeConfirmed) return;
             e.Cancel = true;
             if (!await LeaveUntitled()) return;
-            if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Close Faro and discard them?", "Discard and Close"))
+            if (CodeView.AnyDirty && !await Dialogs.Confirm(this, L.T("Unsaved changes"), L.T("Some code files have unsaved changes. Close Faro and discard them?"), L.T("Discard and Close")))
                 return;
             closeConfirmed = true;
             Close();
@@ -100,15 +109,15 @@ public partial class MainWindow : Window
         var (canUndo, canRedo) = codeHistory ? (CodeView.CanUndo, CodeView.CanRedo) : (UiHistory.UndoLabel is not null, UiHistory.RedoLabel is not null);
         UndoItem.IsEnabled = canUndo;
         RedoItem.IsEnabled = canRedo;
-        UndoItem.Header = codeHistory || UiHistory.UndoLabel is null ? "_Undo" : $"_Undo {UiHistory.UndoLabel}";
+        UndoItem.Header = codeHistory || UiHistory.UndoLabel is null ? L.T("_Undo") : $"{L.T("_Undo")} {UiHistory.UndoLabel}";
         RedoItem.Header = codeHistory || UiHistory.RedoLabel is null ? "_Redo" : $"_Redo {UiHistory.RedoLabel}";
-        HistoryLabel.Text = codeHistory ? $"History: Code — {CodeView.HistoryFile ?? "no file"}" : "History: UI graph";
+        HistoryLabel.Text = codeHistory ? L.F("History: Code — {0}", CodeView.HistoryFile ?? L.T("no file")) : L.T("History: UI graph");
     }
 
     async void Undo(object? sender, RoutedEventArgs e)
     {
         if (codeHistory) CodeView.Undo();
-        else if (UiHistory.Undo() is { } error) await Dialogs.Info(this, "Undo", new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        else if (UiHistory.Undo() is { } error) await Dialogs.Info(this, L.T("Undo"), new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
         else Workspace.Reload();
         UpdateHistory();
     }
@@ -116,7 +125,7 @@ public partial class MainWindow : Window
     async void Redo(object? sender, RoutedEventArgs e)
     {
         if (codeHistory) CodeView.Redo();
-        else if (UiHistory.Redo() is { } error) await Dialogs.Info(this, "Redo", new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        else if (UiHistory.Redo() is { } error) await Dialogs.Info(this, L.T("Redo"), new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
         else Workspace.Reload();
         UpdateHistory();
     }
@@ -150,7 +159,7 @@ public partial class MainWindow : Window
     /// <summary>Leaves restricted mode: trusts the folder and reopens it with the language server, previews and Run.</summary>
     async void TrustProject(object? sender, RoutedEventArgs e)
     {
-        if (!await Dialogs.Confirm(this, "Trust Project", $"Trust {Workspace.Root}? Faro will restore, build and run its code.", "Trust")) return;
+        if (!await Dialogs.Confirm(this, L.T("Trust Project"), L.F("Trust {0}? Faro will restore, build and run its code.", Workspace.Root), L.T("Trust"))) return;
         ProjectSetup.Trust(Workspace.Root);
         Relaunch(Workspace.Root);
     }
@@ -162,7 +171,7 @@ public partial class MainWindow : Window
     async void Relaunch(string? folder)
     {
         if (!await LeaveUntitled()) return;
-        if (CodeView.AnyDirty && !await Dialogs.Confirm(this, "Unsaved changes", "Some code files have unsaved changes. Discard them?", "Discard"))
+        if (CodeView.AnyDirty && !await Dialogs.Confirm(this, L.T("Unsaved changes"), L.T("Some code files have unsaved changes. Discard them?"), L.T("Discard")))
             return;
         var start = new ProcessStartInfo(Environment.ProcessPath!);
         if (Path.GetFileNameWithoutExtension(Environment.ProcessPath) == "dotnet") start.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location); // run via `dotnet Faro.Editor.dll`
@@ -192,25 +201,25 @@ public partial class MainWindow : Window
         var untitled = ProjectSetup.IsUntitled(Workspace.Root);
         var name = new TextBox { Text = untitled ? "MyFaroApp" : Path.GetFileName(Workspace.Root) + "Copy" };
         var location = new TextBox { Text = untitled ? ProjectSetup.DefaultLocation : Path.GetDirectoryName(Workspace.Root), MinWidth = 380 };
-        var browse = new Button { Content = "Browse…" };
+        var browse = new Button { Content = L.T("Browse…") };
         browse.Click += async (_, _) =>
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Project Location" });
+            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = L.T("Project Location") });
             if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) location.Text = path;
         };
         DockPanel.SetDock(browse, Avalonia.Controls.Dock.Right);
         var form = new StackPanel
         {
             Spacing = 8,
-            Children = { new TextBlock { Text = "Name" }, name, new TextBlock { Text = "Location" }, new DockPanel { Children = { browse, location } } },
+            Children = { new TextBlock { Text = L.T("Name") }, name, new TextBlock { Text = L.T("Location") }, new DockPanel { Children = { browse, location } } },
         };
-        while (await Dialogs.Form(this, "Save Project As", form, "Save"))
+        while (await Dialogs.Form(this, L.T("Save Project As"), form, L.T("Save")))
         {
             await CodeView.SaveAll(this);
             try { return ProjectSetup.SaveAs(Workspace.Root, location.Text ?? "", (name.Text ?? "").Trim()); }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
             {
-                await Dialogs.Info(this, "Save Project As", new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap });
+                await Dialogs.Info(this, L.T("Save Project As"), new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap });
             }
         }
         return null;
@@ -220,7 +229,7 @@ public partial class MainWindow : Window
     async Task<bool> LeaveUntitled()
     {
         if (savedAs || !ProjectSetup.IsUntitled(Workspace.Root)) return true;
-        switch (await Dialogs.Choose(this, "Save project?", $"{Path.GetFileName(Workspace.Root)} hasn't been saved yet. Save it before leaving?", ["Save As…", "Don't Save"]))
+        switch (await Dialogs.Choose(this, L.T("Save project?"), L.F("{0} hasn't been saved yet. Save it before leaving?", Path.GetFileName(Workspace.Root)), [L.T("Save As…"), L.T("Don't Save")]))
         {
             case 0: return savedAs = await SaveProjectAs() is not null;
             case 1: ProjectSetup.Discard(Workspace.Root); return true;
@@ -248,9 +257,9 @@ public partial class MainWindow : Window
 
     async void SelectById(object? sender, RoutedEventArgs e)
     {
-        if (await Dialogs.Prompt(this, "Select Node by ID", "Node ID on the current screen:") is not { Length: > 0 } id) return;
+        if (await Dialogs.Prompt(this, L.T("Select Node by ID"), L.T("Node ID on the current screen:")) is not { Length: > 0 } id) return;
         if (CanvasView.ScreenNodeIds.Contains(id.Trim())) CanvasView.Select([id.Trim()]);
-        else await Dialogs.Info(this, "Select Node by ID", new TextBlock { Text = $"No node '{id.Trim()}' on the current screen." });
+        else await Dialogs.Info(this, L.T("Select Node by ID"), new TextBlock { Text = L.F("No node '{0}' on the current screen.", id.Trim()) });
     }
 
     // Window
@@ -275,15 +284,15 @@ public partial class MainWindow : Window
 
     // Help
 
-    void About(object? sender, RoutedEventArgs e) => Dialogs.Info(this, "About Faro", new StackPanel
+    void About(object? sender, RoutedEventArgs e) => Dialogs.Info(this, L.T("About Faro"), new StackPanel
     {
         Spacing = 8,
         Children =
         {
             new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = $"Faro {App.Version}", FontSize = 20, FontWeight = FontWeight.SemiBold },
-            new TextBlock { Text = "Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse.", TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = "MIT License. Third-party components: see THIRD-PARTY-NOTICES.md.", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse."), TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("MIT License. Third-party components: see THIRD-PARTY-NOTICES.md."), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
         },
     });
 }

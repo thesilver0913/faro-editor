@@ -22,12 +22,12 @@ public sealed class ConsoleView : UserControl
     }
 
     readonly TabControl tabs = new() { Padding = new(0) };
-    readonly TabItem problems = Item("Problems", new ProblemsView());
+    readonly TabItem problems = Item(L.T("Problems"), new ProblemsView());
     readonly TextBox output = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = FontFamily.Parse("Cascadia Mono, Consolas, Menlo, monospace"), FontSize = 12, BorderThickness = new(0) };
 
     public ConsoleView()
     {
-        tabs.ItemsSource = new[] { problems, Item("Output", output), Item("Vibe Coding", new ChatView()) };
+        tabs.ItemsSource = new[] { problems, Item(L.T("Output"), output), Item(L.T("Vibe Coding"), new ChatView()) };
         tabs.SelectedIndex = (int)Tab.VibeCoding;
         Content = tabs;
     }
@@ -60,7 +60,7 @@ public sealed class ConsoleView : UserControl
     void Count()
     {
         var count = Workspace.Issues.Count + Workspace.BuildErrors.Count;
-        problems.Header = count > 0 ? $"Problems ({count})" : "Problems";
+        problems.Header = count > 0 ? $"{L.T("Problems")} ({count})" : L.T("Problems");
         if (Workspace.Running && Workspace.Output.Count == 0) output.Text = ""; // a new run
     }
 

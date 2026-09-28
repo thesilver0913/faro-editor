@@ -25,6 +25,8 @@ public sealed class FaroSettings
     public string OpenAiBaseUrl { get; set; } = "https://api.openai.com/v1";
     public string OpenAiModel { get; set; } = "";
 
+    public string Language { get; set; } = "en"; // "en" or "ja" (L.T)
+    public bool SetupDone { get; set; } // the first-run wizard ran
     public string AppTheme { get; set; } = "Dark"; // System / Dark / Light
     public string AppThemeFile { get; set; } = ""; // user ResourceDictionary (.axaml)
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme

@@ -126,7 +126,7 @@ public sealed class CanvasView : UserControl
 
     readonly Border artboard = new() { Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
 
-    readonly Button run = new() { Content = "Run" };
+    readonly Button run = new() { Content = L.T("Run") };
 
     public CanvasView()
     {
@@ -142,13 +142,13 @@ public sealed class CanvasView : UserControl
             SelectionChanged?.Invoke();
         };
 
-        var add = new Button { Content = "+ Add" };
+        var add = new Button { Content = L.T("+ Add") };
         add.Click += (_, _) =>
         {
             var menu = new MenuFlyout();
             foreach (var type in CanvasEdit.AddableTypes)
             {
-                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? " (container)" : "") };
+                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? L.T(" (container)") : "") };
                 item.Click += (_, _) => AddNode(type);
                 menu.Items.Add(item);
             }
@@ -161,11 +161,11 @@ public sealed class CanvasView : UserControl
             }
             menu.ShowAt(add);
         };
-        var delete = new Button { Content = "Delete", [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
+        var delete = new Button { Content = L.T("Delete"), [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
         delete.Click += (_, _) => DeleteSelection();
-        var up = new Button { Content = "↑", [ToolTip.TipProperty] = "Move up (Alt+Up)" };
+        var up = new Button { Content = L.T("↑"), [ToolTip.TipProperty] = "Move up (Alt+Up)" };
         up.Click += (_, _) => MoveSelection(-1);
-        var down = new Button { Content = "↓", [ToolTip.TipProperty] = "Move down (Alt+Down)" };
+        var down = new Button { Content = L.T("↓"), [ToolTip.TipProperty] = "Move down (Alt+Down)" };
         down.Click += (_, _) => MoveSelection(+1);
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
@@ -237,9 +237,9 @@ public sealed class CanvasView : UserControl
 
     void ShowRunState()
     {
-        run.Content = Workspace.Running ? "Stop" : "Run";
+        run.Content = L.T(Workspace.Running ? "Stop" : "Run");
         run.IsEnabled = Workspace.Trusted;
-        ToolTip.SetTip(run, Workspace.Trusted ? null : "Restricted Mode: File › Trust Project… to run it.");
+        ToolTip.SetTip(run, Workspace.Trusted ? null : L.T("Restricted Mode: File › Trust Project… to run it."));
         if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
         DrawSelection(); // refreshes the status line (unbuilt changes)
     }
@@ -277,7 +277,7 @@ public sealed class CanvasView : UserControl
         screens.ItemsSource = Workspace.Project is { } p0 ? [.. p0.Screens.Keys.Order(), .. p0.Components.Keys.Order()] : new List<string>();
         screens.SelectedItem = selected is not null && Workspace.Project?.Graph(selected) is not null ? selected : Workspace.Project?.Screens.Keys.Order().FirstOrDefault();
         var outOfDate = Workspace.Project is { } p ? ComponentSync.OutOfDate(p).Count : 0;
-        sync.Content = $"Sync components ({outOfDate})";
+        sync.Content = L.F("Sync components ({0})", outOfDate);
         sync.IsEnabled = outOfDate > 0;
         Render();
     }
@@ -286,7 +286,7 @@ public sealed class CanvasView : UserControl
     {
         if (Workspace.Project?.Graph(screens.SelectedItem as string ?? "") is not { } graph)
         {
-            artboard.Child = new TextBlock { Text = $"No UI/*.xml screens in {Workspace.Root}", Margin = new(16), Foreground = Brushes.Gray };
+            artboard.Child = new TextBlock { Text = L.F("No UI/*.xml screens in {0}", Workspace.Root), Margin = new(16), Foreground = Brushes.Gray };
             return;
         }
         byId = [];
@@ -386,12 +386,12 @@ public sealed class CanvasView : UserControl
             ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())
             : null;
         var editingComponent = CurrentScreen is not null && Workspace.Project?.Components.ContainsKey(CurrentScreen) == true
-            ? $"Component master · {ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)} instance(s) to sync · " : "";
+            ? L.F("Component master · {0} instance(s) to sync · ", ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)) : "";
         status.Text = Workspace.LoadError
-            ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
-            + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members"
-            + (Workspace.Unbuilt ? " · Unbuilt code changes: new members resolve after Run" : "") // spec §11.5
-            + (Workspace.Trusted ? "" : " · Restricted Mode (File › Trust Project…)");
+            ?? (selected is not null ? L.F("Selected: {0} ({1}) · ", Selection.First(), (string?)selected.Attribute("type")) : Selection.Count > 1 ? L.F("{0} nodes selected · ", Selection.Count) : "")
+            + editingComponent + L.F("{0} broken binding(s) · {1} registry members", Workspace.Issues.Count, Workspace.Registry.Count)
+            + (Workspace.Unbuilt ? L.T(" · Unbuilt code changes: new members resolve after Run") : "") // spec §11.5
+            + (Workspace.Trusted ? "" : L.T(" · Restricted Mode (File › Trust Project…)"));
     }
 
     /// <summary>
@@ -423,6 +423,6 @@ public sealed class CanvasView : UserControl
         VerticalAlignment = VerticalAlignment.Top,
         Margin = new(0, -7, -7, 0),
         [ToolTip.TipProperty] = string.Join("\n\n", issues.Select(i =>
-            i.Message + (i.Suggestions.Count > 0 ? "\nDid you mean: " + string.Join(", ", i.Suggestions) : ""))),
+            i.Message + (i.Suggestions.Count > 0 ? "\n" + L.T("Did you mean:") + " " + string.Join(", ", i.Suggestions) : ""))),
     };
 }
