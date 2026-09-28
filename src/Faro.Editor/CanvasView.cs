@@ -106,7 +106,21 @@ public sealed class CanvasView : UserControl
         SelectionChanged?.Invoke();
     }
 
-    readonly Border artboard = new() { Width = 420, MinHeight = 720, Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
+    static readonly Dictionary<string, (double Width, double Height)> Sizes = new()
+    {
+        ["Phone"] = (390, 844),
+        ["Tablet"] = (820, 1180),
+        ["Desktop"] = (1280, 800),
+    };
+
+    void ApplySize()
+    {
+        var (width, height) = Sizes.GetValueOrDefault(FaroSettings.Current.ArtboardSize, Sizes["Phone"]);
+        (artboard.Width, artboard.MinHeight) = (width, height);
+        Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // selection boxes follow the new layout
+    }
+
+    readonly Border artboard = new() { Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
 
     readonly Button run = new() { Content = "Run" };
 
@@ -186,7 +200,16 @@ public sealed class CanvasView : UserControl
             else DrawSelection();
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
 
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, add, delete, up, down, sync, run, status } };
+        // Preview sizes: check how Fill / Grid / Overlay layouts stretch on other devices.
+        var size = new ComboBox { ItemsSource = Sizes.Keys, SelectedItem = Sizes.ContainsKey(FaroSettings.Current.ArtboardSize) ? FaroSettings.Current.ArtboardSize : "Phone" };
+        size.SelectionChanged += (_, _) =>
+        {
+            FaroSettings.Current.ArtboardSize = (string)size.SelectedItem!;
+            FaroSettings.Current.Save();
+            ApplySize();
+        };
+        ApplySize();
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
     }

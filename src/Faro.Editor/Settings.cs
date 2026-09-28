@@ -35,6 +35,7 @@ public sealed class FaroSettings
 
     // Editor layout (spec §14: saved per app). ponytail: pane sizes and the window; docking moves, tabs and floating panes reset on restart.
     public Dictionary<string, double> PaneProportions { get; set; } = [];
+    public string ArtboardSize { get; set; } = "Phone"; // canvas preview width/height, see CanvasView.Sizes
     public double WindowWidth { get; set; }
     public double WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
