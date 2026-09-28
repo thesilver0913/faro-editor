@@ -22,11 +22,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.w3c.dom.Element;
 
 /**
@@ -168,6 +170,7 @@ public final class UiBuilder {
         var align = node.getAttribute("alignment");
         var kids = children(node, "Node");
         var built = kids.stream().map(k -> build(k, byId, root, prefix)).toList();
+        for (var c : built) if (c instanceof RepeatHost list) list.orient(vertical, gap); // rows sit like siblings
         Pane pane;
         switch (type) {
             case "Container.Stack" -> pane = stack(node, kids, built, vertical, gap, align);
@@ -368,6 +371,12 @@ public final class UiBuilder {
 
     /** Instances render the master snapshot stored inside them, with their &lt;Override&gt;s applied. */
     private static Node instance(Element node, Map<String, Node> byId, File root, String prefix) {
+        var copy = copy(node, byId, root, prefix);
+        return "true".equals(node.getAttribute("repeatable")) ? new RepeatHost(node, copy) : copy;
+    }
+
+    /** One copy of an instance (a list item's row, for a repeatable one). */
+    public static Node copy(Element node, Map<String, Node> byId, File root, String prefix) {
         var snapshots = children(node, "Node");
         if (snapshots.isEmpty()) return placeholder("[not synced: " + node.getAttribute("component") + "]", "orangered");
         var copy = (Element) snapshots.get(0).cloneNode(true);
@@ -379,7 +388,9 @@ public final class UiBuilder {
             p.setAttribute("value", o.getAttribute("value"));
             copy.appendChild(p);
         }
-        return build(copy, byId, root, prefix + node.getAttribute("id") + "/");
+        var row = build(copy, byId, root, prefix + node.getAttribute("id") + "/");
+        if ("true".equals(node.getAttribute("repeatable")) && row instanceof Region r) r.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE); // rows stretch across the list
+        return row;
     }
 
     private static Node image(File root, String path) {
@@ -387,5 +398,29 @@ public final class UiBuilder {
         view.setPreserveRatio(true);
         if (path != null && new File(root, path).isFile()) view.setImage(new Image(new File(root, path).toURI().toString()));
         return view;
+    }
+
+    /**
+     * A repeatable instance (a list): shows its snapshot until its Items are bound, then one copy per item
+     * (FaroApp). The canvas shows mock rows instead, so this is the app's side of repeatable.
+     */
+    public static final class RepeatHost extends StackPane {
+        public final Element node;
+        private Pane rows = new VBox();
+
+        RepeatHost(Element node, Node first) {
+            this.node = node;
+            setAlignment(Pos.TOP_LEFT);
+            rows.getChildren().add(first);
+            getChildren().add(rows);
+        }
+
+        void orient(boolean vertical, double gap) {
+            var kids = rows.getChildren().toArray(Node[]::new);
+            rows = vertical ? new VBox(gap, kids) : new HBox(gap, kids);
+            getChildren().setAll(rows);
+        }
+
+        public List<Node> rows() { return rows.getChildren(); }
     }
 }

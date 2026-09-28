@@ -208,6 +208,8 @@ public static partial class JavaProject
         Rules:
         - Event bindings (e.g. Click) call public parameterless methods ("pkg.Class.submit"). Property bindings use bean
           properties: getName()/isName() (and setName(...) for TwoWay), addressed as "pkg.Class.name".
+        - A list (repeatable instance) binds prop "Items" to a List property; call changed("orders") after changing it to redraw.
+          Binds to nodes inside the list ("orderList/name") then target properties of the item class for each row.
         - Classes are public, top-level, one per file, in the package matching their folder under Source/, and extend
           faro.runtime.FaroObject. After changing state, call changed("name", "otherDependentProperty") so bindings refresh.
         - A Script node's class extends faro.runtime.FaroScript and implements `@Override public javafx.scene.Node build()`,

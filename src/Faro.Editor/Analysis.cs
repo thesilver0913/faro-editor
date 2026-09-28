@@ -167,6 +167,7 @@ public static class BindingCheck
         var isEvent = bind.Attribute("event") is not null;
         var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
         IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
+        if (!isEvent && (string?)node.Attribute("repeatable") == "true") names = (names ?? []).Append("Items"); // a list: one copy per item (FaroApp)
         return names?.Contains(name) == true ? null
             : new((string)node.Attribute("id")!, "", L.F(isEvent ? "{0} has no event '{1}'." : "{0} has no property '{1}'.", type, name), Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
     }
@@ -248,6 +249,8 @@ public static partial class VibeCoding
 
             Rules:
             - Event bindings (e.g. Click) call public parameterless methods. Property bindings use public properties.
+            - A list (repeatable instance) binds prop "Items" to a collection property, best an ObservableCollection<T> so adds and
+              removes redraw it. Binds to nodes inside the list ("orderList/name") then target members of T for each row.
             - A Script node's class inherits Faro.Runtime.FaroScript and overrides `public override Control Build()`, returning the
               Avalonia control (look and behaviour) shown in the node's place (`using Avalonia.Controls;`).
             - Classes are public, top-level, and inherit Faro.Runtime.FaroObject (`using Faro.Runtime;`). Property setters raise

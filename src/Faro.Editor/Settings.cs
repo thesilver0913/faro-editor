@@ -17,7 +17,7 @@ namespace Faro.Editor;
 /// </summary>
 public sealed class FaroSettings
 {
-    public const string BuiltInEditorTheme = "Built-in (light)";
+    public const string BuiltInEditorTheme = "Match app theme";
     public const string CustomEditorTheme = "Custom file…";
 
     public string Provider { get; set; } = "Claude";
@@ -33,7 +33,7 @@ public sealed class FaroSettings
     public DateTime CrashesSeen { get; set; } // newer crash reports are offered at the next start
     public string AppTheme { get; set; } = "Dark"; // System / Dark / Light
     public string AppThemeFile { get; set; } = ""; // user ResourceDictionary (.axaml)
-    public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
+    public string EditorTheme { get; set => field = value == "Built-in (light)" ? BuiltInEditorTheme : value; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
     public string EditorThemeFile { get; set; } = ""; // .tmTheme or VS Code .json
     public List<string> RecentProjects { get; set; } = [];
     public List<string> PendingDeletes { get; set; } = [];
@@ -98,10 +98,11 @@ public sealed class FaroSettings
         AvaloniaRuntimeXamlLoader.Load(File.ReadAllText(path)) as ResourceDictionary
             ?? throw new InvalidDataException("The root element must be a ResourceDictionary.");
 
-    /// <summary>The TextMate theme for the code editor, or null for the built-in .xshd colors.</summary>
+    /// <summary>The TextMate theme for the code editor, or null for the built-in .xshd colors (light). The default follows the app: Dark+ when dark.</summary>
     public IRawTheme? LoadEditorTheme()
     {
-        if (EditorTheme == BuiltInEditorTheme) return null;
+        if (EditorTheme == BuiltInEditorTheme)
+            return Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? new RegistryOptions(ThemeName.DarkPlus).LoadTheme(ThemeName.DarkPlus) : null;
         if (EditorTheme != CustomEditorTheme) return new RegistryOptions(Enum.Parse<ThemeName>(EditorTheme)).LoadTheme(Enum.Parse<ThemeName>(EditorTheme));
         var text = File.ReadAllText(EditorThemeFile);
         var json = text.TrimStart().StartsWith('<') ? TmThemeToJson(text) : text; // TextMateSharp only reads JSON

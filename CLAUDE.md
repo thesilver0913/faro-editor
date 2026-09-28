@@ -34,6 +34,7 @@
 - 起動時は**ウェルカム画面**(最近のプロジェクト／フォルダを開く／新規作成、テンプレート選択)。`faro.json` のないフォルダは確認のうえ初期化
 - 新規プロジェクトは**名前なし(Untitled)で始め**、File › Save / Save As… で名前と場所(既定 `ドキュメント/Faro`)を決める
 - インスタンスの中の Node にも紐付けられる(`nodeId="orderList/price"`)
+- **リストの実データ**は repeatable なインスタンスへの `prop="Items"`(一覧のプロパティ)。中の Node への紐付けは、対象のクラスが要素の型ならその行の要素に付く
 - **ワークスペースの信頼**:初めて開くフォルダは Trust か Restricted Mode を選ぶ(Restricted では restore・言語サーバー・Script プレビュー・Run を止める)
 - Grid は行・列のトラック指定(`columns="Auto, *, 2*, 120px"`、子は `row`/`column`/`rowSpan`/`columnSpan`)
 - **Script 部品**(`Control.Script` + `class`):`FaroScript` を継承したクラスの `Build()` が見た目も動作もコードで作る。キャンバスは最後のビルド結果で実物を表示

@@ -78,6 +78,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with AI Chat」
+- **リストの実データ**:repeatable なインスタンスに `prop="Items"` で一覧のプロパティを紐付けると、実行時に 1 件 1 行で並ぶ(C# は `ObservableCollection<T>` なら追加・削除で再描画。Java は `List` を返す getter と `changed("orders")`)。中の Node への紐付けは要素のクラスのメンバーを指す(`orderList/name` → `MyApp.Models.Order.Name`)。サンプルの「送信」で注文が 1 行増える
 - Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
 
 ## エクスプローラー

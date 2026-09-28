@@ -87,17 +87,20 @@ public static class FaroApp
         window.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
         window.Title = screenId;
 
+        // Screen binds, then component-level binds (Bindings/<ComponentId>.xml) inside every instance of that component.
+        var node = graph.Root!.Element("Node")!;
+        var binds = project.BindsFor(screenId).Select(b => (Key: (string?)b.Attribute("nodeId") ?? "", Bind: b))
+            .Concat(UiBuilder.InstancePaths(node).SelectMany(p => project.BindsFor(p.Component).Select(b => (Key: p.Prefix + ((string?)b.Attribute("nodeId") ?? ""), Bind: b))))
+            .ToList();
+        var lists = byId.Where(p => p.Value is RepeatHost).Select(p => p.Key + "/").ToList();
         var errors = new List<string>();
-        void Bind(XElement bind, string prefix)
-        {
-            if (!byId.TryGetValue(prefix + ((string?)bind.Attribute("nodeId") ?? ""), out var control)) return;
-            try { Apply(bind, control); }
-            catch (Exception e) { errors.Add($"{bind}\n  → {e.Message}"); }
-        }
-        foreach (var bind in project.BindsFor(screenId)) Bind(bind, "");
-        // Component-level bindings (Bindings/<ComponentId>.xml) apply inside every instance of that component.
-        foreach (var (prefix, component) in UiBuilder.InstancePaths(graph.Root!.Element("Node")!))
-            foreach (var bind in project.BindsFor(component)) Bind(bind, prefix);
+        foreach (var (key, bind) in binds)
+            if (!lists.Any(key.StartsWith) && byId.TryGetValue(key, out var control)) // binds inside a list apply per row (BindItems)
+                Try(errors, bind, () =>
+                {
+                    if (control is RepeatHost list && (string?)bind.Attribute("prop") == "Items") BindItems(list, bind, key, binds);
+                    else Apply(bind, control, null);
+                });
         if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
     }
 
@@ -118,8 +121,55 @@ public static class FaroApp
             ?? throw new InvalidOperationException($"'{type.Name}' has no public member '{target[(dot + 1)..]}'.");
     }
 
-    static void Apply(XElement bind, Control control)
+    static void Try(List<string> errors, XElement bind, Action apply)
     {
+        try { apply(); }
+        catch (Exception e) { errors.Add($"{bind}\n  → {e.Message}"); }
+    }
+
+    /// <summary>
+    /// prop="Items" on a repeatable instance: one copy of it per item of a list property, redrawn when the
+    /// list changes (INotifyCollectionChanged) or is replaced (PropertyChanged). Binds inside a row use the
+    /// row's item when the target's class is the item's type.
+    /// </summary>
+    static void BindItems(RepeatHost list, XElement bind, string key, List<(string Key, XElement Bind)> binds)
+    {
+        var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
+        var prop = Resolve(userAssembly, target) as PropertyInfo ?? throw new InvalidOperationException($"'{target}' is not a property.");
+        if (!typeof(System.Collections.IEnumerable).IsAssignableFrom(prop.PropertyType)) throw new InvalidOperationException($"'{target}' is not a list.");
+        var owner = prop.GetMethod!.IsStatic ? null : InstanceOf(prop.DeclaringType!);
+        var prefix = key[..^((string?)list.Node.Attribute("id") ?? "").Length];
+        System.Collections.Specialized.INotifyCollectionChanged? watched = null;
+        System.Collections.Specialized.NotifyCollectionChangedEventHandler changed = null!;
+        var screen = window.Content;
+        void Render()
+        {
+            if (watched is not null) watched.CollectionChanged -= changed;
+            if (window.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
+            var items = prop.GetValue(owner) as System.Collections.IEnumerable;
+            watched = items as System.Collections.Specialized.INotifyCollectionChanged;
+            if (watched is not null) watched.CollectionChanged += changed;
+            list.Children.Clear();
+            var errors = new List<string>();
+            foreach (var item in items ?? Array.Empty<object>())
+            {
+                var row = new Dictionary<string, Control>();
+                list.Children.Add(UiBuilder.Copy(list.Node, row, project.Root, prefix));
+                foreach (var (k, b) in binds)
+                    if (k.StartsWith(key + "/") && row.TryGetValue(k, out var control)) Try(errors, b, () => Apply(b, control, item));
+            }
+            if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
+        }
+        changed = (_, _) => Render();
+        if (owner is INotifyPropertyChanged notify) notify.PropertyChanged += (_, e) => { if (e.PropertyName == prop.Name) Render(); };
+        Render();
+    }
+
+    static void Apply(XElement bind, Control control, object? item)
+    {
+        // Inside a list row, members of the item's class bind to that row's item.
+        object? Source(MemberInfo member, bool isStatic) =>
+            isStatic ? null : item is not null && member.DeclaringType!.IsInstanceOfType(item) ? item : InstanceOf(member.DeclaringType!);
         var target = (string?)bind.Attribute("target") ?? throw new InvalidOperationException("Bind has no target.");
         if ((string?)bind.Attribute("event") is { } eventName)
         {
@@ -137,7 +187,7 @@ public static class FaroApp
             if (method.GetParameters().Length > 0) throw new InvalidOperationException($"'{target}' must take no parameters.");
             control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) =>
             {
-                try { method.Invoke(method.IsStatic ? null : InstanceOf(method.DeclaringType!), null); }
+                try { method.Invoke(Source(method, method.IsStatic), null); }
                 catch (TargetInvocationException e) { ShowError($"{target} threw:\n{e.InnerException}"); }
             }));
         }
@@ -149,7 +199,7 @@ public static class FaroApp
             var prop = Resolve(userAssembly, target) as PropertyInfo ?? throw new InvalidOperationException($"'{target}' is not a property.");
             control.Bind(avaloniaProp, new ReflectionBinding(prop.Name)
             {
-                Source = InstanceOf(prop.DeclaringType!),
+                Source = Source(prop, prop.GetMethod?.IsStatic == true),
                 Mode = (string?)bind.Attribute("mode") == "TwoWay" ? BindingMode.TwoWay : BindingMode.OneWay,
             });
         }

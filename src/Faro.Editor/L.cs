@@ -94,7 +94,7 @@ public static class L
         ["Margin"] = "外側の余白", ["Direction"] = "方向", ["Columns"] = "列", ["Rows"] = "行", ["Gap"] = "間隔", ["Padding"] = "内側の余白", ["Alignment"] = "揃え", ["Justify"] = "並べ方",
         ["Justify has no effect while a child fills the main axis: it takes the free space."] = "Fill の子がいると並べ方は効きません(その子が空きを使うため)。",
         ["Properties"] = "プロパティ", ["Overrides"] = "上書き", ["Script"] = "Script", ["Class"] = "クラス", ["Repeatable (list)"] = "繰り返し(リスト)",
-        ["Mock rows (canvas only): {0}"] = "モック行(キャンバスのみ): {0}", ["Bindings"] = "紐付け", ["+ Add binding"] = "+ 紐付けを追加",
+        ["Mock rows (canvas only): {0}"] = "モック行(キャンバスのみ): {0}", ["Bindings"] = "紐付け", ["+ Add binding"] = "+ 紐付けを追加", ["Remove binding"] = "紐付けを削除",
         ["Create with AI Chat"] = "AI チャットで作る", ["Did you mean"] = "もしかして",
         ["Numbers only."] = "数値だけを入力してください。", ["One number."] = "数値は1つだけです。", ["A whole number (0 or more)."] = "0 以上の整数を入力してください。",
         ["1, 2 or 4 numbers (top right bottom left)."] = "数値を 1・2・4 個(上 右 下 左)で入力してください。",
