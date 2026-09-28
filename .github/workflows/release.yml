@@ -1,0 +1,65 @@
+# Builds the Windows installer and the Linux archive. A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
+# "v0.2.4-canary.1" (Canary) publishes them as a GitHub Release, which Faro's update check reads.
+# PRs that touch the installer or this workflow build them as a dry run (artifacts only, no release).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths: ['installer/**', '.github/workflows/release.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
+          else v="$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
+      - name: Installer
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc /DAppVersion=$env:VERSION /DSourceDir=..\publish\win-x64 installer\faro.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Archive
+        if: matrix.rid == 'linux-x64'
+        run: mkdir -p dist && tar -czf dist/Faro-$VERSION-linux-x64.tar.gz -C publish/linux-x64 .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--generate-notes)
+          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"

@@ -329,8 +329,23 @@ FaroSettings.Current.Language = "ja";
 Check(L.T("_Save") == "保存(_S)" && L.F("Screen '{0}' does not exist.", "Top") == "画面 'Top' はありません。" && L.T("MyApp.Views.MyScript") == "MyApp.Views.MyScript", "Japanese UI text");
 FaroSettings.Current.Language = "en";
 Check(L.T("_Save") == "_Save", "English UI text");
-string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8", "0.1.9-dev1", "0.1.10"];
-Check(ordered.OrderBy(v => ProjectSetup.RuntimeKey(v)).SequenceEqual(ordered) && ProjectSetup.RuntimeKey("0.1.8-beta") is null, "dev builds sort before their release");
+string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8-canary.3", "0.1.8-canary.10", "0.1.8-beta.1", "0.1.8", "0.1.9-dev1", "0.1.10"];
+Check(ordered.OrderBy(v => ProjectSetup.VersionKey(v)).SequenceEqual(ordered) && ProjectSetup.VersionKey("0.1.8-beta") is null, "dev builds sort before their release");
+// Update check: channels pick from GitHub releases (JSON as the API returns it).
+var releases = Updates.Parse("""
+[{"tag_name":"v0.3.0-canary.2","html_url":"c","draft":false,"assets":[]},
+ {"tag_name":"v0.2.9-beta.1","html_url":"b","draft":false,"assets":[{"name":"Faro-0.2.9-beta.1-win-x64-setup.exe","browser_download_url":"https://x/setup.exe"},{"name":"Faro-0.2.9-beta.1-linux-x64.tar.gz","browser_download_url":"https://x/l.tar.gz"}]},
+ {"tag_name":"v0.2.8","html_url":"s","draft":false,"assets":[]},
+ {"tag_name":"v0.4.0","html_url":"d","draft":true,"assets":[]}]
+""");
+Check(releases.Count == 3 && releases[1] is { Version: "0.2.9-beta.1", WindowsSetup: "https://x/setup.exe", LinuxArchive: "https://x/l.tar.gz" }, "releases parsed, drafts skipped");
+Check(Updates.Newest(releases, "0.2.4", "Stable")?.Version == "0.2.8" && Updates.Newest(releases, "0.2.4", "Beta")?.Version == "0.2.9-beta.1"
+    && Updates.Newest(releases, "0.2.4", "Canary")?.Version == "0.3.0-canary.2" && Updates.Newest(releases, "0.2.8", "Stable") is null, "update channels");
+// Crash reports land in the (scratch) settings folder's logs and are offered once at the next start.
+var crash = Log.Crash(new InvalidOperationException("boom"));
+Check(crash is not null && File.ReadAllText(crash).Contains("boom") && Log.UnseenCrash() == crash, "crash report saved and offered");
+FaroSettings.Current.CrashesSeen = DateTime.UtcNow.AddSeconds(1);
+Check(Log.UnseenCrash() is null, "a seen crash report isn't offered again");
 Check(ProjectSetup.ProjectRuntime(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))) is null, "projects without the package reference are skipped");
 Directory.Delete(projects, true);
 

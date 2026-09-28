@@ -27,6 +27,10 @@ public sealed class FaroSettings
 
     public string Language { get; set; } = "en"; // "en" or "ja" (L.T)
     public bool SetupDone { get; set; } // the first-run wizard ran
+    public string UpdateChannel { get; set; } = "Stable"; // Stable / Beta / Canary (Updates)
+    public bool CheckUpdatesOnStart { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; }
+    public DateTime CrashesSeen { get; set; } // newer crash reports are offered at the next start
     public string AppTheme { get; set; } = "Dark"; // System / Dark / Light
     public string AppThemeFile { get; set; } = ""; // user ResourceDictionary (.axaml)
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
@@ -43,7 +47,7 @@ public sealed class FaroSettings
     public bool WindowMaximized { get; set; }
 
     /// <summary>FARO_SETTINGS overrides the location (the self-checks use a scratch file, never the user's settings).</summary>
-    static string FilePath => Environment.GetEnvironmentVariable("FARO_SETTINGS")
+    public static string FilePath => Environment.GetEnvironmentVariable("FARO_SETTINGS")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
 
     public static FaroSettings Current { get; } = Load();

@@ -57,6 +57,8 @@
       <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
     </MenuItem>
     <MenuItem Header="_Help">
+      <MenuItem Header="Check for _Updates…" Click="CheckUpdates" />
+      <MenuItem Header="Open _Logs Folder" Click="OpenLogs" />
       <MenuItem Header="_About Faro" Click="About" />
     </MenuItem>
   </Menu>

@@ -28,6 +28,7 @@ public sealed class PreferencesWindow : Window
             {
                 new TabItem { Header = L.T("Language"), Content = Page(LanguageChoice(null), new TextBlock { Text = L.T("Language changes apply to windows opened from now on; restart Faro to update the menus."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
                 new TabItem { Header = L.T("Environment"), Content = EnvironmentPage() },
+                new TabItem { Header = L.T("Updates"), Content = UpdatesPage() },
                 new TabItem { Header = L.T("Theme"), Content = ThemePage() },
                 new TabItem { Header = L.T("Plugins"), Content = Page(new TextBlock { Text = L.T("Plugins are planned for a later version (spec §12: outside the prototype scope)."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
             },
@@ -45,6 +46,22 @@ public sealed class PreferencesWindow : Window
             changed?.Invoke();
         };
         return box;
+    }
+
+    /// <summary>Update channel (Stable = main, Beta, Canary), the startup check, and a manual check.</summary>
+    Control UpdatesPage()
+    {
+        var channel = new ComboBox { ItemsSource = Updates.Channels.Select(L.T).ToArray(), SelectedIndex = Math.Max(Array.IndexOf(Updates.Channels, settings.UpdateChannel), 0), MinWidth = 160 };
+        channel.SelectionChanged += (_, _) => { settings.UpdateChannel = Updates.Channels[channel.SelectedIndex]; settings.Save(); };
+        var onStart = new CheckBox { Content = L.T("Check for updates at startup (daily)"), IsChecked = settings.CheckUpdatesOnStart };
+        onStart.IsCheckedChanged += (_, _) => { settings.CheckUpdatesOnStart = onStart.IsChecked == true; settings.Save(); };
+        var now = new Button { Content = L.T("Check Now") };
+        now.Click += (_, _) => Updates.Offer(this, manual: true);
+        return Page(
+            new TextBlock { Text = L.T("Update channel"), FontWeight = FontWeight.SemiBold }, channel,
+            new TextBlock { Text = L.T("Stable: releases. Beta: previews of the next release. Canary: the latest development builds."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
+            onStart, now,
+            new TextBlock { Text = L.F("Current version: {0}. Releases come from github.com/{1}; the check only reads public release data.", App.Version, Updates.Repository), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
     }
 
     static Control Page(params Control[] children)

@@ -93,11 +93,20 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
 - **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Output・AI Chat タブ)の各パネルを前面に／全画面(F11)
-- **Help**:Faro について
+- **Help**:更新の確認／ログフォルダーを開く／Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)
   - テーマ:アプリ(System/Dark/Light)＋ユーザーの AXAML ResourceDictionary ファイル／コードエディタ(標準 `.xshd`、TextMate 内蔵テーマ、`.tmTheme` または VS Code の JSON テーマファイル)
   - プラグイン:今後対応(仕様§12 のとおりプロトタイプ範囲外)
+  - 更新:チャンネル(Stable / Beta / Canary)、起動時の確認(1日1回、`-dev` 版では確認しない)、今すぐ確認
+
+## インストールと更新、ログ
+
+- **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `tar.gz`(展開して `Faro.Editor` を実行)。どちらも .NET 10 SDK が必要(Faro 自体とプロジェクトのビルドに使う)
+- **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux はリリースページを開く
+- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う
+- **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。次の起動時に「予期せず終了しました」と知らせ、レポートを開くか GitHub の Issue を作れる。どこにも自動送信はしない
+- **コード署名**:未対応(Windows で SmartScreen の警告が出る)
 
 ## スキーマ補足(仕様書からの追加決定)
 

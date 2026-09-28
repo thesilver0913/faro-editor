@@ -288,6 +288,10 @@ public partial class MainWindow : Window
 
     // Help
 
+    void CheckUpdates(object? sender, RoutedEventArgs e) => Updates.Offer(this, manual: true);
+
+    void OpenLogs(object? sender, RoutedEventArgs e) { Directory.CreateDirectory(Log.Folder); Updates.Open(Log.Folder); }
+
     void About(object? sender, RoutedEventArgs e) => Dialogs.Info(this, L.T("About Faro"), new StackPanel
     {
         Spacing = 8,
