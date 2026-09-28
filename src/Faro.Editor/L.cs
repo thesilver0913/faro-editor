@@ -53,6 +53,9 @@ public static class L
 
         // Explorer
         ["New Screen…"] = "新しい画面…", ["New Component…"] = "新しいコンポーネント…", ["New C# Class…"] = "新しい C# クラス…", ["New Folder…"] = "新しいフォルダ…",
+        ["+ File"] = "+ ファイル", ["+ Folder"] = "+ フォルダ", ["New File…"] = "新しいファイル…", ["New File"] = "新しいファイル", ["File name:"] = "ファイル名:", ["Refresh"] = "最新の情報に更新", ["Collapse All"] = "すべて折りたたむ",
+        ["Open as Text"] = "テキストとして開く", ["Copy Path"] = "パスをコピー", ["Copy Relative Path"] = "相対パスをコピー", ["Reveal in File Manager"] = "ファイルマネージャーで表示",
+        ["Move"] = "移動", ["{0} has unsaved changes. Save it first."] = "{0} に未保存の変更があります。先に保存してください。",
         ["Rename…"] = "名前の変更…", ["Delete"] = "削除", ["New Screen"] = "新しい画面", ["New Component"] = "新しいコンポーネント", ["ID:"] = "ID:",
         ["New C# Class"] = "新しい C# クラス", ["Class name:"] = "クラス名:", ["New Folder"] = "新しいフォルダ", ["Folder name:"] = "フォルダ名:",
         ["Rename Screen"] = "画面の名前変更", ["Rename Component"] = "コンポーネントの名前変更", ["New ID (references follow):"] = "新しい ID(参照も追従):",

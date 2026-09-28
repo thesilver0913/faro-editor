@@ -88,19 +88,31 @@ public sealed class CodeView : UserControl
         }
         if (theme is null)
         {
-            editor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
             editor.Background = Brushes.White;
             editor.Foreground = Brushes.Black;
+            Highlight();
             return;
         }
         editor.SyntaxHighlighting = null;
-        var options = new RegistryOptions(ThemeName.DarkPlus);
-        textMate = editor.InstallTextMate(options);
-        textMate.SetGrammar(options.GetScopeByLanguageId(options.GetLanguageByExtension(".cs").Id));
+        textMate = editor.InstallTextMate(grammars);
+        Highlight();
         textMate.SetTheme(theme);
         editor.Background = textMate.TryGetThemeColor("editor.background", out var bg) && Color.TryParse(bg, out var b) ? new SolidColorBrush(b) : Brushes.White;
         editor.Foreground = textMate.TryGetThemeColor("editor.foreground", out var fg) && Color.TryParse(fg, out var f) ? new SolidColorBrush(f) : Brushes.Black;
     }
+
+    static readonly RegistryOptions grammars = new(ThemeName.DarkPlus);
+
+    /// <summary>Syntax colors by the shown file's extension (C#, XML, JSON, Markdown…): built-in .xshd or TextMate grammar.</summary>
+    void Highlight()
+    {
+        var extension = Path.GetExtension(Current ?? ".cs");
+        if (textMate is null) editor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinitionByExtension(extension);
+        else if (grammars.GetLanguageByExtension(extension) is { } language) textMate.SetGrammar(grammars.GetScopeByLanguageId(language.Id));
+    }
+
+    /// <summary>C# files get the language server, completion and rename following; other text files are plain edits.</summary>
+    static bool IsCSharp(string path) => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
 
     string? Current => files.SelectedItem is string rel ? Path.Combine(Workspace.Root, rel) : null;
 
@@ -143,15 +155,16 @@ public sealed class CodeView : UserControl
             }
 
         var selected = files.SelectedItem as string;
-        files.ItemsSource = Directory.Exists(dir)
-            ? Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(Workspace.Root, f)).Order().ToList()
-            : [];
+        // Source/*.cs, plus any other text file opened from the explorer.
+        files.ItemsSource = (Directory.Exists(dir) ? Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories) : [])
+            .Concat(buffers.Keys.Where(File.Exists)).Select(f => Path.GetRelativePath(Workspace.Root, f)).Distinct().Order().ToList();
         files.SelectedItem = selected ?? (files.ItemsSource as List<string>)?.FirstOrDefault();
         Show();
     }
 
     void Show(string path, int line, int column)
     {
+        Buffer(path); // listed from now on, even outside Source/
         Refresh(); // a new file may not be listed yet
         files.SelectedItem = Path.GetRelativePath(Workspace.Root, path);
         if (line <= 0 || editor.Document is not { } doc || line > doc.LineCount) return;
@@ -165,7 +178,7 @@ public sealed class CodeView : UserControl
         if (Current is not { } path || !File.Exists(path)) { editor.IsEnabled = false; return; }
         var doc = Buffer(path);
         if (editor.Document != doc) editor.Document = doc;
-        if (shownPath != path) { shownPath = path; StateChanged?.Invoke(); }
+        if (shownPath != path) { shownPath = path; Highlight(); StateChanged?.Invoke(); }
         editor.IsEnabled = true;
         Redraw();
     }
@@ -200,14 +213,14 @@ public sealed class CodeView : UserControl
         buffers[path] = doc = new TextDocument(saved[path] = File.Exists(path) ? File.ReadAllText(path) : "");
         doc.TextChanged += (_, _) =>
         {
-            WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
+            if (IsCSharp(path)) WithLsp(c => c.Notify("textDocument/didChange", new JsonObject
             {
                 ["textDocument"] = new JsonObject { ["uri"] = Uri(path), ["version"] = ++version },
                 ["contentChanges"] = new JsonArray(new JsonObject { ["text"] = doc.Text }),
             }));
             StateChanged?.Invoke();
         };
-        DidOpen(path, doc);
+        if (IsCSharp(path)) DidOpen(path, doc);
         return doc;
     }
 
@@ -259,20 +272,20 @@ public sealed class CodeView : UserControl
     {
         var doc = buffers[path];
         var text = doc.Text;
-        var renames = Registry.Renames(saved[path], text);
+        var renames = IsCSharp(path) ? Registry.Renames(saved[path], text) : [];
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, text);
         saved[path] = text;
         doc.UndoStack.MarkAsOriginalFile();
         if (Workspace.Project is { } project) Registry.FollowRenames(project, renames).ForEach(FaroProject.Save);
-        WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
+        if (IsCSharp(path)) WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
         lspState = renames.Count == 0 ? $"Saved {Path.GetFileName(path)}." : "Saved. Bindings followed: " + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
         StateChanged?.Invoke();
     }
 
     async void Complete()
     {
-        if (Current is not { } path) return;
+        if (Current is not { } path || !IsCSharp(path)) return;
         var doc = editor.Document;
         var caret = editor.CaretOffset;
         var start = caret;
@@ -310,7 +323,7 @@ public sealed class CodeView : UserControl
             // ponytail: up to 3 automatic restarts per session; add a manual restart button if crashes turn out common
             lsp = null;
             lspState = L.T(++restarts <= 3 ? "Language server crashed, restarting…" : "Language server stopped (crashed 3 times).");
-            if (restarts <= 3) foreach (var (path, doc) in buffers) DidOpen(path, doc);
+            if (restarts <= 3) foreach (var (path, doc) in buffers.Where(b => IsCSharp(b.Key))) DidOpen(path, doc);
             StateChanged?.Invoke();
         });
         lspState = L.T("Language server: ready");
