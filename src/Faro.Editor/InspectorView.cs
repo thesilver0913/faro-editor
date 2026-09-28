@@ -159,6 +159,31 @@ public sealed class InspectorView : UserControl
         }
         if (type == "Instance")
         {
+            // Variants (Figma): the instance shows the master it picks; switching replaces its snapshot in the same step.
+            body.Children.Add(Section(L.T("Component")));
+            var component = (string?)node.Attribute("component") ?? "";
+            var variants = ProjectFiles.Variants(project, component);
+            var variant = new ComboBox { ItemsSource = variants.Prepend(L.T("(default)")).ToList(), SelectedIndex = variants.IndexOf((string?)node.Attribute("variant") ?? "") + 1, MinWidth = 140 };
+            variant.SelectionChanged += (_, _) => EditNode(id, "Set variant", n =>
+            {
+                CanvasEdit.SetAttribute(n, "variant", variant.SelectedIndex > 0 ? variants[variant.SelectedIndex - 1] : null);
+                if (project.Components.GetValueOrDefault(ComponentSync.MasterId(n))?.Root?.Element("Node") is { } master)
+                {
+                    n.Elements("Node").Remove();
+                    n.Add(new XElement(master));
+                }
+            });
+            var newVariant = new Button { Content = L.T("New variant…"), [ToolTip.TipProperty] = L.T("Copy the component as a variant (edit it like a master; bindings are shared)") };
+            newVariant.Click += async (_, _) =>
+            {
+                if (TopLevel.GetTopLevel(this) is not Window owner || await Dialogs.Prompt(owner, L.T("New variant"), L.F("Variant name for {0}:", component), "Outlined") is not { Length: > 0 } name) return;
+                try { UiHistory.CommitFiles("New variant", ProjectFiles.NewVariant(project, component, name.Trim())); }
+                catch (ArgumentException ex) { await Dialogs.Info(owner, L.T("New variant"), new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap }); return; }
+                Workspace.Reload();
+                CanvasView.ShowScreen($"{component}@{name.Trim()}"); // edit the new variant on the canvas
+            };
+            body.Children.Add(Row(L.T("Component variant"), variant));
+            body.Children.Add(newVariant);
             var repeatable = new CheckBox { Content = L.T("Repeatable (list)"), IsChecked = (string?)node.Attribute("repeatable") == "true" };
             repeatable.IsCheckedChanged += (_, _) => EditNode(id, "Set repeatable", n => CanvasEdit.SetAttribute(n, "repeatable", repeatable.IsChecked == true ? "true" : null));
             body.Children.Add(repeatable);
@@ -258,7 +283,9 @@ public sealed class InspectorView : UserControl
         CheckedField(node, attribute, 80, value =>
         {
             var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
-            return numbers.Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? L.T(integer ? "A whole number (0 or more)." : "Numbers only.")
+            if (numbers.FirstOrDefault(v => v.StartsWith('$') && Workspace.Project?.Tokens.ContainsKey(v[1..]) != true) is { } unknown)
+                return L.F("No token {0} (File › Project Design… › Tokens).", unknown);
+            return numbers.Where(v => !v.StartsWith('$')).Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? L.T(integer ? "A whole number (0 or more)." : "Numbers only.") // "$space.m": a token
                 : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? L.T(sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
                 : null;
         });

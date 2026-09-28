@@ -81,6 +81,8 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with AI Chat」
 - **リストの実データ**:repeatable なインスタンスに `prop="Items"` で一覧のプロパティを紐付けると、実行時に 1 件 1 行で並ぶ(C# は `ObservableCollection<T>` なら追加・削除で再描画。Java は `List` を返す getter と `changed("orders")`)。中の Node への紐付けは要素のクラスのメンバーを指す(`orderList/name` → `MyApp.Models.Order.Name`)。サンプルの「送信」で注文が 1 行増える
+- **トークン**:File › プロジェクトのデザイン… の「トークン」に `space.m = 16` のように 1 行 1 つ書くと `faro.json` の `"tokens"` に入る。間隔・内側/外側の余白・幅/高さ・最小/最大に `$space.m` と書くとその値になり、トークンを変えれば全画面に反映される(C#・Java のランタイムとも。インスペクターは存在しないトークンを赤で示す)
+- **コンポーネントのバリアント**(Figma の Variants):インスタンスを選んでインスペクターの「コンポーネント › 新しいバリアント…」で、マスターのコピー `UI/Comp.X@名前.xml` ができ、キャンバスでマスターと同じように編集できる。インスタンスは「バリアント」で使う版を選ぶ(`variant="名前"`、選ぶとその版のスナップショットに置き換わり、以後の同期もその版から)。紐付け(`Bindings/Comp.X.xml`)は全バリアント共通。コンポーネントの名前変更でバリアントも一緒に移る
 - **表示形式**:値の紐付けに `format="¥{0:N0}"` を付けると書式付きで表示する(インスペクターの紐付け欄の「書式」。`{0}` が値、`{0:N0}` は 3 桁区切り、`{0:F2}` は小数 2 桁。この 3 つは C# と Java で同じ結果、ほかは C# だけ)
 - **選択(行のクリック)**:コンテナにも `Click` を紐付けられる(行のどこをクリックしても反応)。一覧の行の中の Click に**引数 1 つのメソッド**(`Open(Order order)`)を紐付けると、その行の要素が渡る。行の中の `Navigate:Screen.…` もその行の要素を遷移先に渡す
 - **画面遷移で値を渡す**(仕様§7):コードから `FaroApp.Navigate("Detail", order)`(Java は `FaroApp.navigate("Detail", order)`)。遷移先の紐付けは、渡した値のクラスのメンバー(`MyApp.Models.Order.Name`)ならその値を使う(`FaroApp.Parameter` でも読める)。サンプルでは一覧の行をクリックすると Detail にその注文が出る

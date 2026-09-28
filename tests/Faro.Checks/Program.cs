@@ -59,6 +59,18 @@ Check(stale.Count == 2 && stale.All(n => (string?)n.Element("Node")!.Attribute("
 ComponentSync.Sync(project).ForEach(FaroProject.Save);
 Check(ComponentSync.OutOfDate(FaroProject.Load(root)).Count == 0, "re-sync applies master edit");
 Check(FaroProject.Load(root).Screens["MainScreen"].Descendants("Override").Any(), "overrides survive sync");
+// Variants: "Comp.PrimaryButton@Outlined" is a copy of the master; an instance picks it with variant="Outlined" and shares the binds.
+var addedVariant = ProjectFiles.NewVariant(FaroProject.Load(root), "Comp.PrimaryButton", "Outlined").Single();
+File.WriteAllText(addedVariant.Key, addedVariant.Value!.Replace("<Node id=\"root\"", "<Node m3.variant=\"Outlined\" id=\"root\""));
+var variantProject = FaroProject.Load(root);
+var picked = CanvasEdit.Find(variantProject.Screens["MainScreen"], "btn1")!;
+picked.SetAttributeValue("variant", "Outlined");
+Check(addedVariant.Key.EndsWith("Comp.PrimaryButton@Outlined.xml") && ProjectFiles.Variants(variantProject, "Comp.PrimaryButton").SequenceEqual(["Outlined"])
+    && ComponentSync.OutOfDate(variantProject).Contains(picked) && ComponentSync.Sync(variantProject).Count > 0 && (string?)picked.Element("Node")!.Attribute("m3.variant") == "Outlined"
+    && variantProject.BindsFor("Comp.PrimaryButton@Outlined").SequenceEqual(variantProject.BindsFor("Comp.PrimaryButton"))
+    && Throws<ArgumentException>(() => ProjectFiles.NewVariant(variantProject, "Comp.PrimaryButton", "Outlined"))
+    && ProjectFiles.RenameComponent(variantProject, "Comp.PrimaryButton", "Comp.Btn").Keys.Any(k => k.EndsWith("Comp.Btn@Outlined.xml")), "variants: copied, picked, synced, sharing binds, renamed with their component");
+File.Delete(addedVariant.Key);
 
 // UI graph history (spec §10): a Faro-made change is one step; undo/redo restore files; external edits are never overwritten.
 project = FaroProject.Load(root);
@@ -131,9 +143,10 @@ var scheme = AppDesign.Scheme(MaterialColorUtilities.Palettes.CorePalette.Of(0xF
 Check(scheme["M3Primary"] is Avalonia.Media.ISolidColorBrush { Color: var primary } && primary == Avalonia.Media.Color.Parse("#65558F")
     && scheme["M3Surface"] is Avalonia.Media.ISolidColorBrush { Color.R: > 250 }, "M3 color roles from the seed");
 var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
-var designed = ProjectSetup.DesignChange(sampleDir, new AppDesign("Material3", "#006A6A", "Dark")).Single();
+var designed = ProjectSetup.DesignChange(sampleDir, new AppDesign("Material3", "#006A6A", "Dark"), new Dictionary<string, double> { ["space.m"] = 16 }).Single();
 Check(AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse(designed.Value!)!["design"]) == new AppDesign("Material3", "#006A6A", "Dark")
-    && !ProjectSetup.DesignChange(sampleDir, new AppDesign()).Single().Value!.Contains("design") && designed.Value!.Contains("startScreen"), "design written to faro.json");
+    && !ProjectSetup.DesignChange(sampleDir, new AppDesign(), new Dictionary<string, double>()).Single().Value!.Contains("design") && designed.Value!.Contains("startScreen"), "design written to faro.json");
+Check((double?)System.Text.Json.Nodes.JsonNode.Parse(designed.Value!)!["tokens"]!["space.m"] == 16, "tokens written to faro.json");
 var mockCopy = new System.Xml.Linq.XElement(orderList);
 MockData.SetRows(mockCopy, [["a", "1"], ["b", ""]]);
 Check(MockData.Rows(mockCopy).Count == 2 && MockData.Rows(mockCopy)[1].SequenceEqual(["b", ""]) && mockCopy.Elements("MockRow").Last().Elements("Set").Count() == 1, "mock rows written back");
@@ -172,6 +185,11 @@ Check(UiBuilder.Sides("8") == new Avalonia.Thickness(8) && UiBuilder.Sides("8 16
 Avalonia.Controls.Grid StackGrid(string xml) => (Avalonia.Controls.Grid)((Avalonia.Controls.Border)UiBuilder.Build(System.Xml.Linq.XElement.Parse(xml), new Dictionary<string, Avalonia.Controls.Control>(), root)).Child!;
 var spread = StackGrid("""<Node id="r" type="Container.Stack" direction="Horizontal" justify="SpaceBetween" gap="8"><Node id="a" type="Control.Text" /><Node id="b" type="Control.Text" alignSelf="End" /></Node>""");
 Check(spread.ColumnDefinitions.Count == 3 && spread.ColumnDefinitions[1].Width.IsStar && spread.ColumnSpacing == 0 && spread.Children[1].VerticalAlignment == Avalonia.Layout.VerticalAlignment.Bottom, "SpaceBetween spreads the leftover space; alignSelf overrides the container");
+// Tokens: "$space.m" in a number attribute is faro.json's value; an unknown token counts as no value.
+UiBuilder.Tokens = new Dictionary<string, string> { ["space.m"] = "12" };
+var tokened = StackGrid("""<Node id="r" type="Container.Stack" gap="$space.m"><Node id="a" type="Control.Text" margin="$space.m 4" maxWidth="$nope" /></Node>""");
+Check(tokened.RowSpacing == 12 && tokened.Children[0].Margin == new Avalonia.Thickness(4, 12, 4, 12) && double.IsPositiveInfinity(tokened.Children[0].MaxWidth), "tokens resolve in number attributes");
+UiBuilder.Tokens = new Dictionary<string, string>();
 var centered = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" /></Node>""");
 var weighted = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" heightSizing="Fill" weight="2" /><Node id="b" type="Control.Text" heightSizing="Fill" minHeight="10" maxWidth="90" margin="4 8" /></Node>""");
 Check(centered.VerticalAlignment == Avalonia.Layout.VerticalAlignment.Center && weighted.RowDefinitions[0].Height == new Avalonia.Controls.GridLength(2, Avalonia.Controls.GridUnitType.Star)

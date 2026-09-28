@@ -157,8 +157,13 @@ public final class UiBuilder {
         return list;
     }
 
+    /** faro.json "tokens" ({"space.m": 16}): a number attribute may name one as "$space.m" (set when the project loads). */
+    public static Map<String, String> tokens = Map.of();
+
+    private static String token(String value) { return value.startsWith("$") ? tokens.getOrDefault(value.substring(1), value) : value; }
+
     private static Double number(Element node, String name) {
-        try { return node.hasAttribute(name) ? Double.valueOf(node.getAttribute(name)) : null; }
+        try { return node.hasAttribute(name) ? Double.valueOf(token(node.getAttribute(name).trim())) : null; }
         catch (NumberFormatException e) { return null; }
     }
 
@@ -358,7 +363,7 @@ public final class UiBuilder {
         var parts = text == null ? new String[0] : text.trim().split("[,\\s]+");
         var v = new double[parts.length];
         for (var i = 0; i < parts.length; i++) {
-            try { v[i] = Double.parseDouble(parts[i]); } catch (NumberFormatException e) { v[i] = 0; }
+            try { v[i] = Double.parseDouble(token(parts[i])); } catch (NumberFormatException e) { v[i] = 0; }
         }
         return switch (v.length) {
             case 1 -> new Insets(v[0]);

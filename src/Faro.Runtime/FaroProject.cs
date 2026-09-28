@@ -21,6 +21,9 @@ public sealed class FaroProject
     /// <summary>"design" in faro.json: the app's design language, seed color and light/dark theme.</summary>
     public AppDesign Design { get; private set; } = new();
 
+    /// <summary>"tokens" in faro.json: named sizes ("space.m": 16) that number attributes use as "$space.m", so one change restyles every screen.</summary>
+    public Dictionary<string, string> Tokens { get; private set; } = [];
+
     /// <summary>Every bind in the project (for project-wide follow-ups such as class renames).</summary>
     public IEnumerable<XElement> Binds => BindingFiles.SelectMany(d => d.Root!.Elements("Bind"));
 
@@ -30,9 +33,9 @@ public sealed class FaroProject
     /// <summary>A screen or a component master by id (both are edited on the canvas).</summary>
     public XDocument? Graph(string id) => Screens.GetValueOrDefault(id) ?? Components.GetValueOrDefault(id);
 
-    /// <summary>Binds of a screen, or of a component master (those apply inside every instance, spec §5).</summary>
+    /// <summary>Binds of a screen, or of a component master (those apply inside every instance, spec §5; a variant "Comp.X@Outlined" shares Comp.X's).</summary>
     public IEnumerable<XElement> BindsFor(string screenId) =>
-        BindingFiles.Where(d => ScreenOf(d) == screenId).SelectMany(d => d.Root!.Elements("Bind"));
+        BindingFiles.Where(d => ScreenOf(d) == screenId.Split('@')[0]).SelectMany(d => d.Root!.Elements("Bind"));
 
     public static FaroProject Load(string root)
     {
@@ -52,6 +55,8 @@ public sealed class FaroProject
         var json = File.Exists(meta) ? JsonNode.Parse(File.ReadAllText(meta)) : null;
         project.StartScreen = (string?)json?["startScreen"];
         project.Design = AppDesign.Read(json?["design"]);
+        project.Tokens = json?["tokens"] is JsonObject tokens ? tokens.ToDictionary(t => t.Key, t => t.Value?.ToString() ?? "") : [];
+        UiBuilder.Tokens = project.Tokens; // every build follows a load
         return project;
     }
 

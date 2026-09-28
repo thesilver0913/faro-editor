@@ -151,6 +151,11 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        // Tokens and variants
+        ["Tokens"] = "トークン", ["One per line: name = number. Gap, padding, margin and sizes take \"$name\" (e.g. $space.m), so changing a token restyles every screen."] = "1 行に 1 つ: 名前 = 数値。間隔・内側/外側の余白・サイズに \"$名前\"(例: $space.m)と書くと、トークンを変えるだけで全画面に反映されます。",
+        ["No token {0} (File › Project Design… › Tokens)."] = "トークン {0} がありません(ファイル › プロジェクトのデザイン… › トークン)。",
+        ["Component"] = "コンポーネント", ["Component variant"] = "バリアント", ["(default)"] = "(既定)", ["New variant…"] = "新しいバリアント…", ["New variant"] = "新しいバリアント", ["Variant name for {0}:"] = "{0} のバリアント名:",
+        ["Copy the component as a variant (edit it like a master; bindings are shared)"] = "コンポーネントをバリアントとして複製(マスターと同じように編集。紐付けは共通)",
         // Binding format
         ["Format, e.g. ¥{0:N0}"] = "書式(例: ¥{0:N0})", ["{0} is the value; {0:N0} adds thousands separators, {0:F2} two decimals"] = "{0} が値。{0:N0} で 3 桁区切り、{0:F2} で小数 2 桁",
         // Compare and data preview (canvas)
