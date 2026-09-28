@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -110,6 +111,18 @@ public sealed class CanvasView : UserControl
         SelectionChanged?.Invoke();
     }
 
+    readonly ScrollViewer viewport = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+    readonly LayoutTransformControl zoomHost = new();
+    readonly TextBlock zoomLabel = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 44, TextAlignment = TextAlignment.Center, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+    double zoom = 1;
+
+    void SetZoom(double value)
+    {
+        zoom = Math.Clamp(value, 0.25, 4);
+        zoomHost.LayoutTransform = new ScaleTransform(zoom, zoom);
+        zoomLabel.Text = $"{Math.Round(zoom * 100)}%";
+    }
+
     static readonly Dictionary<string, (double Width, double Height)> Sizes = new()
     {
         ["Phone"] = (390, 844),
@@ -131,6 +144,7 @@ public sealed class CanvasView : UserControl
     public CanvasView()
     {
         Focusable = true;
+        zoomHost.Child = artboard;
         run.Click += (_, _) => ConsoleView.RunOrStop();
         sync.Click += (_, _) => SyncComponents();
         screens.SelectionChanged += (_, _) =>
@@ -230,9 +244,25 @@ public sealed class CanvasView : UserControl
             ApplySize();
         };
         ApplySize();
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, add, delete, up, down, sync, run, status } };
+        // Zoom: −/+, Fit (to the pane width), Ctrl+wheel. The artboard's own coordinates don't change, so selection and drops still line up.
+        var zoomOut = new Button { Content = "−" };
+        var zoomIn = new Button { Content = "+" };
+        var fit = new Button { Content = L.T("Fit") };
+        zoomOut.Click += (_, _) => SetZoom(zoom / 1.25);
+        zoomIn.Click += (_, _) => SetZoom(zoom * 1.25);
+        fit.Click += (_, _) => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (artboard.Width + artboard.Margin.Left + artboard.Margin.Right)));
+        zoomLabel.PointerPressed += (_, _) => SetZoom(1); // click the percentage: back to 100%
+        viewport.AddHandler(PointerWheelChangedEvent, (_, e) =>
+        {
+            if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+            SetZoom(zoom * Math.Pow(1.1, e.Delta.Y));
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        var zoomBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { zoomOut, zoomLabel, zoomIn, fit } };
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
-        Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
+        viewport.Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = zoomHost };
+        Content = new DockPanel { Children = { bar, viewport } };
     }
 
     void ShowRunState()
