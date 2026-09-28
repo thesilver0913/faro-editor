@@ -171,6 +171,34 @@ public sealed class InspectorView : UserControl
         foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
         body.Children.Add(AddBindRow(id, [id, .. InnerPaths(node, id)]));
+        GroupSections();
+    }
+
+    static readonly HashSet<string> collapsedSections = [];
+
+    /// <summary>Each section title and the rows under it become a collapsible group (remembered while Faro runs).</summary>
+    void GroupSections()
+    {
+        var children = body.Children.ToList();
+        body.Children.Clear();
+        Panel target = body;
+        foreach (var child in children)
+        {
+            if (child is TextBlock { Tag: "section", Text: { } title })
+            {
+                var content = new StackPanel { Spacing = body.Spacing };
+                var expander = new Expander { Header = title, Content = content, IsExpanded = !collapsedSections.Contains(title), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                expander.PropertyChanged += (_, e) =>
+                {
+                    if (e.Property != Expander.IsExpandedProperty) return;
+                    if (expander.IsExpanded) collapsedSections.Remove(title); else collapsedSections.Add(title);
+                };
+                body.Children.Add(expander);
+                target = content;
+                continue;
+            }
+            target.Children.Add(child);
+        }
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>
@@ -183,8 +211,7 @@ public sealed class InspectorView : UserControl
     Control Sizing(XElement node, string axis)
     {
         var id = (string)node.Attribute("id")!;
-        var mode = new ComboBox { ItemsSource = new[] { "Fill", "Hug", "Fixed" }, SelectedItem = UiBuilder.Sizing(node, axis), MinWidth = 90 };
-        mode.SelectionChanged += (_, _) => EditNode(id, $"Set {axis}", n => CanvasEdit.SetAttribute(n, axis + "Sizing", (string)mode.SelectedItem!));
+        var mode = Segmented(["Fill", "Hug", "Fixed"], UiBuilder.Sizing(node, axis), value => EditNode(id, $"Set {axis}", n => CanvasEdit.SetAttribute(n, axis + "Sizing", value)));
         var size = AttributeField(node, axis);
         size.IsVisible = UiBuilder.Sizing(node, axis) == "Fixed";
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
@@ -205,9 +232,25 @@ public sealed class InspectorView : UserControl
     Control Choice(XElement node, string attribute, string[] values, string? unset = null)
     {
         var id = (string)node.Attribute("id")!;
-        var box = new ComboBox { ItemsSource = values, SelectedItem = (string?)node.Attribute(attribute) ?? values[0], MinWidth = 120 };
-        box.SelectionChanged += (_, _) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, (string)box.SelectedItem! == unset ? null : (string)box.SelectedItem!));
+        void Set(string value) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value == unset ? null : value));
+        var current = (string?)node.Attribute(attribute) ?? values[0];
+        if (values.Length <= 4) return Segmented(values, current, Set);
+        var box = new ComboBox { ItemsSource = values, SelectedItem = current, MinWidth = 120 };
+        box.SelectionChanged += (_, _) => Set((string)box.SelectedItem!);
         return box;
+    }
+
+    /// <summary>A few choices side by side (Figma's alignment buttons) instead of a drop-down.</summary>
+    static Control Segmented(string[] values, string current, Action<string> set)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        foreach (var value in values)
+        {
+            var button = new Avalonia.Controls.Primitives.ToggleButton { Content = L.T(value, "layout"), IsChecked = value == current, Padding = new(6, 3), FontSize = 12, MinWidth = 0 };
+            button.Click += (_, _) => { if (value != current) set(value); else button.IsChecked = true; };
+            row.Children.Add(button);
+        }
+        return row;
     }
 
     /// <param name="sides">Padding/margin: 1, 2 or 4 numbers ("8", "8 16", "8 16 8 16": top right bottom left).</param>
@@ -403,6 +446,6 @@ public sealed class InspectorView : UserControl
 
     static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 
-    static TextBlock Section(string title) => new() { Text = title, FontWeight = FontWeight.SemiBold, Margin = new(0, 10, 0, 0) };
+    static TextBlock Section(string title) => new() { Text = title, Tag = "section" };
     static TextBlock Hint(string text) => new() { Text = text, Opacity = 0.6, TextWrapping = TextWrapping.Wrap };
 }

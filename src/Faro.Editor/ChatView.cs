@@ -60,11 +60,11 @@ public sealed class ChatView : UserControl
         // Tunnel: a multi-line TextBox consumes Enter before a bubbling handler would see it.
         input.AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Control)) { Send(); e.Handled = true; } }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
-        var bar = new WrapPanel
+        var bar = Icons.Toolbar(new WrapPanel
         {
             ItemSpacing = 8, LineSpacing = 8, Margin = new(8),
             Children = { provider, model, baseUrl, new TextBlock { Text = L.T("New classes:"), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 }, lifetime, persistent },
-        };
+        });
         var bottom = new DockPanel { Margin = new(8) };
         DockPanel.SetDock(send, Avalonia.Controls.Dock.Right);
         bottom.Children.Add(send);
@@ -170,7 +170,7 @@ public sealed class ChatView : UserControl
         var syntax = java ? [] : VibeCoding.SyntaxErrors(p.Code); // ponytail: no Java syntax check before approval; the build reports errors
         var locked = CodeView.IsDirty(p.Path) ? (java ? JavaProject.ClassNames(before) : VibeCoding.ClassNames(before)).FirstOrDefault() ?? Path.GetFileName(p.Path) : null;
 
-        var diff = new SelectableTextBlock { FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"), FontSize = 12 };
+        var diff = new SelectableTextBlock { FontFamily = FontFamily.Parse(App.CodeFont), FontSize = 12 };
         foreach (var (op, line) in VibeCoding.Diff(before, p.Code))
             diff.Inlines!.Add(new Run($"{op} {line}\n") { Foreground = op switch { '+' => Brushes.LightGreen, '-' => Brushes.IndianRed, _ => Brushes.Gray } });
 

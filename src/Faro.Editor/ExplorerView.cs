@@ -47,23 +47,17 @@ public sealed class ExplorerView : UserControl
         tree.AddHandler(DragDrop.DropEvent, OnDrop);
 
         // Header buttons, as in VS Code's explorer title bar.
-        Button Tool(string text, string tip, Action action)
-        {
-            var button = new Button { Content = text, Padding = new(6, 1), [ToolTip.TipProperty] = L.T(tip) };
-            button.Click += (_, _) => action();
-            return button;
-        }
-        var bar = new WrapPanel
+        var bar = Icons.Toolbar(new WrapPanel
         {
             ItemSpacing = 4, LineSpacing = 4, Margin = new(4),
             Children =
             {
-                Tool(L.T("+ File"), "New File…", () => NewFile(TargetFolder())),
-                Tool(L.T("+ Folder"), "New Folder…", () => NewFolder(TargetFolder())),
-                Tool("⟳", "Refresh", Build),
-                Tool("⊟", "Collapse All", () => { expanded.Clear(); Build(); }),
+                Icons.Button(FluentAvalonia.UI.Controls.FASymbol.Add, "New File…", () => NewFile(TargetFolder())),
+                Icons.Button(FluentAvalonia.UI.Controls.FASymbol.Folder, "New Folder…", () => NewFolder(TargetFolder())),
+                Icons.Button(FluentAvalonia.UI.Controls.FASymbol.Refresh, "Refresh", Build),
+                Icons.Button(FluentAvalonia.UI.Controls.FASymbol.ChevronUp, "Collapse All", () => { expanded.Clear(); Build(); }),
             },
-        };
+        });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, tree } };
     }

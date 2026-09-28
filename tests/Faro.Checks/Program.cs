@@ -368,6 +368,7 @@ Directory.Delete(unbuilt, true);
 // UI language: English is the key; Japanese from the table, unknown text stays as is.
 FaroSettings.Current.Language = "ja";
 Check(L.T("_Save") == "保存(_S)" && L.F("Screen '{0}' does not exist.", "Top") == "画面 'Top' はありません。" && L.T("MyApp.Views.MyScript") == "MyApp.Views.MyScript", "Japanese UI text");
+Check(L.T("Start", "layout") == "先頭" && L.T("Start") == "始める" && L.T("Nope", "layout") == "Nope", "words translated by context");
 FaroSettings.Current.Language = "en";
 Check(L.T("_Save") == "_Save", "English UI text");
 string[] ordered = ["0.1.8-dev1", "0.1.8-dev2", "0.1.8-canary.3", "0.1.8-canary.10", "0.1.8-beta.1", "0.1.8", "0.1.9-dev1", "0.1.10"];

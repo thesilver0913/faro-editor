@@ -18,6 +18,10 @@
     <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" />
     <AvaloniaResource Include="../../assets/faro-splash.png" Link="Assets/faro-splash.png" />
     <AvaloniaResource Include="../../assets/fonts/Inter-Regular.ttf" Link="Assets/Fonts/Inter-Regular.ttf" />
+    <!-- The editor's UI font: Noto Sans JP (Latin and Japanese in one family, so weights match). -->
+    <AvaloniaResource Include="../../assets/fonts/NotoSansJP-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
+    <!-- Java projects' Material 3 font (Faro.Runtime carries it for C#): copied into .faro/fonts. -->
+    <None Include="../../assets/fonts/GoogleSansFlex-*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Shipped with the editor for new projects: the runtime package and the sample template. -->
     <None Include="../Faro.Runtime/bin/$(Configuration)/Faro.Runtime.$(Version).nupkg" Link="runtime/Faro.Runtime.$(Version).nupkg" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/UI/**" LinkBase="templates/Sample/UI" CopyToOutputDirectory="PreserveNewest" />

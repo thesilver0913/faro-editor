@@ -55,7 +55,7 @@ public sealed class CodeView : UserControl
     readonly TextEditor editor = new()
     {
         ShowLineNumbers = true,
-        FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"),
+        FontFamily = FontFamily.Parse(App.CodeFont),
         IsEnabled = false,
     };
 
@@ -67,7 +67,7 @@ public sealed class CodeView : UserControl
         files.SelectionChanged += (_, _) => Show();
         save.Click += (_, _) => Save();
 
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(8), Children = { files, save, status } };
+        var bar = Icons.Toolbar(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(8), Children = { files, save, status } });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, editor } };
     }

@@ -79,7 +79,7 @@ public sealed class PreferencesWindow : Window
         {
             var value = Environment.GetEnvironmentVariable(EnvironmentVariables[i]);
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            var name = new SelectableTextBlock { Text = EnvironmentVariables[i], FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace") };
+            var name = new SelectableTextBlock { Text = EnvironmentVariables[i], FontFamily = FontFamily.Parse(App.CodeFont) };
             var state = new TextBlock
             {
                 Text = string.IsNullOrEmpty(value) ? L.T("Not set") : L.F("Set (…{0})", value[^Math.Min(4, value.Length)..]),
@@ -98,7 +98,7 @@ public sealed class PreferencesWindow : Window
             new TextBlock { Text = L.T("API keys are read from environment variables only. Faro never writes them to disk."), TextWrapping = TextWrapping.Wrap },
             grid,
             new TextBlock { Text = L.T("To set one:"), Opacity = 0.7 },
-            new SelectableTextBlock { Text = howTo, FontFamily = FontFamily.Parse("Cascadia Code,Consolas,Menlo,monospace"), TextWrapping = TextWrapping.Wrap });
+            new SelectableTextBlock { Text = howTo, FontFamily = FontFamily.Parse(App.CodeFont), TextWrapping = TextWrapping.Wrap });
     }
 
     Control ThemePage()
