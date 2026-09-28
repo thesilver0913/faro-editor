@@ -3,14 +3,14 @@ using Avalonia.Media;
 
 namespace Faro.Editor;
 
-/// <summary>VS Code-style panel: Problems, Output (the running app) and Vibe Coding as tabs side by side in one pane.</summary>
+/// <summary>VS Code-style panel: Problems, Output (the running app) and AI Chat as tabs side by side in one pane.</summary>
 public sealed class ConsoleView : UserControl
 {
     public enum Tab { Problems, Output, VibeCoding }
 
     static event Action<Tab>? Requested;
 
-    /// <summary>Switches the console to a tab (e.g. Vibe Coding when a request is pre-filled).</summary>
+    /// <summary>Switches the console to a tab (e.g. AI Chat when a request is pre-filled).</summary>
     public static void Show(Tab tab) => Requested?.Invoke(tab);
 
     /// <summary>Run / Stop (canvas button, F5): the output shows while it runs.</summary>
@@ -27,7 +27,7 @@ public sealed class ConsoleView : UserControl
 
     public ConsoleView()
     {
-        tabs.ItemsSource = new[] { problems, Item(L.T("Output"), output), Item(L.T("Vibe Coding"), new ChatView()) };
+        tabs.ItemsSource = new[] { problems, Item(L.T("Output"), output), Item(L.T("AI Chat"), new ChatView()) };
         tabs.SelectedIndex = (int)Tab.VibeCoding;
         Content = tabs;
     }

@@ -144,7 +144,7 @@ public sealed class InspectorView : UserControl
             body.Children.Add(Row(L.T("Class"), classBox));
             if (cls.Length > 0 && !Workspace.ScriptClasses.Contains(cls))
             {
-                var create = new Button { Content = L.T("Create with vibe coding") };
+                var create = new Button { Content = L.T("Create with AI Chat") };
                 create.Click += (_, _) => ChatView.Prefill($"Create `{cls}`: a public class deriving from Faro.Runtime.FaroScript whose Build() returns the Avalonia control for Script node `{id}` on screen {CanvasView.CurrentScreen}.");
                 body.Children.Add(create);
             }
@@ -254,7 +254,7 @@ public sealed class InspectorView : UserControl
             }
             if (CanvasView.ControlOf(nodeId) is { } control && CanvasView.VibeRequest(issue, control) is { } request)
             {
-                var create = new Button { Content = L.T("Create with vibe coding") };
+                var create = new Button { Content = L.T("Create with AI Chat") };
                 create.Click += (_, _) => ChatView.Prefill(request);
                 panel.Children.Add(create);
             }

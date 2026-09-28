@@ -25,6 +25,7 @@
       <MenuItem x:Name="UndoItem" Header="_Undo" Click="Undo" InputGesture="Ctrl+Z" />
       <MenuItem x:Name="RedoItem" Header="_Redo" Click="Redo" InputGesture="Ctrl+Y" />
       <Separator />
+      <MenuItem Header="Cu_t" Click="CutNodes" InputGesture="Ctrl+X" />
       <MenuItem Header="_Copy" Click="CopyNodes" InputGesture="Ctrl+C" />
       <MenuItem Header="_Paste" Click="PasteNodes" InputGesture="Ctrl+V" />
       <MenuItem Header="D_uplicate" Click="DuplicateNodes" InputGesture="Ctrl+D" />
@@ -49,7 +50,7 @@
       <MenuItem Header="Co_nsole">
         <MenuItem Header="_Problems" Click="ShowProblems" />
         <MenuItem Header="_Output" Click="ShowOutput" />
-        <MenuItem Header="_Vibe Coding" Click="ShowChat" />
+        <MenuItem Header="_AI Chat" Click="ShowChat" />
       </MenuItem>
       <Separator />
       <MenuItem Header="_Reset Layout" Click="ResetLayout" />

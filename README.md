@@ -39,6 +39,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
 - **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較。PR ごとに 0.0.1 ずつ上がり、0.1.9 の次は 0.2.0。作業中の Runtime は `0.1.8-dev1`, `-dev2` … とし、リリース版より前に並ぶ)
 - **初回起動のウィザード**:言語(English / 日本語、選ぶとその場で切り替わる)・テーマ・プラグイン(今後対応の案内)を選ぶ。言語は環境設定の「言語」タブでも変えられる(開いているメニューは再起動で切り替わる)。画面の文言は英語をキーにした表 `src/Faro.Editor/L.cs` で訳す
+- **キャンバスのズーム**:−/+、全体表示(Fit、パネル幅に合わせる)、Ctrl+ホイール、倍率をクリックで 100%
+- **キャンバスの右クリックメニュー**:追加・切り取り(Ctrl+X)・コピー・貼り付け・複製・削除・前後へ移動・親を選択・コンテナで囲む(Stack/Overlay/Grid、ID と紐付けはそのまま)・名前の変更・マスターを編集(インスタンス)
+- **エクスプローラー(VSCode 風)**:プロジェクトフォルダ全体を表示(bin/obj/.git は非表示)。C# 以外のテキストファイル(faro.json、.csproj、XML など)もコードエディタで開ける(言語サーバーは C# だけ)。新しいファイル/フォルダ、切り取り・コピー・貼り付け、名前の変更(F2)、削除(Del)、ドラッグで移動、OS のファイルマネージャーからドロップしてコピー、パスのコピー、ファイルマネージャーで表示。UI/ と Bindings/ のファイルは画面に属するため、普通のファイルとしては移動・貼り付けしない(画面・コンポーネントの名前変更と削除は従来どおり参照も追従)
 - **キャンバスの便利機能**:Node のコピー(Ctrl+C)・貼り付け(Ctrl+V)・複製(Ctrl+D)。ID がかぶるものは番号を振り直し、紐付けも新しい ID で複製する。プレビューの大きさを Phone / Tablet / Desktop で切り替え(アプリ全体の設定に保存)
 - **画像**:Image の Source などは Assets/ の画像から選べる。エクスプローラーの画像をキャンバスへドラッグすると Image Node として追加。モック行で画像の Source も差し替えられる
 - **Run / Stop**:キャンバスの Run(F5)で `dotnet watch run` を起動し、出力を Console の Output タブに表示。もう一度押す(または Shift+F5)と止まる。エディターを閉じるとアプリも止まる
@@ -61,18 +64,18 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - 書き込み先は `Source/` 配下の `.cs` のみ(モデル出力のパスは検証する)
 - 承認した変更はコードエディタのバッファ経由で保存 → 手動編集と同じ Undo 履歴に入り(Ctrl+Z で戻せる)、リネーム追従も効く
 - 新規クラスの生存期間(ScreenScoped/Singleton/Transient)と永続化をチャット欄で選択。生成クラスは `FaroObject` を継承し、変更通知を埋め込む
-- キャンバスの赤バッジをクリックすると、その Node を選択してインスペクターに**再紐づけパネル**(仕様§6)が出る:近い名前の候補をボタンで並べ、押すとその候補に付け替える。メンバーが存在しない場合は「Create with vibe coding」で、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
+- キャンバスの赤バッジをクリックすると、その Node を選択してインスペクターに**再紐づけパネル**(仕様§6)が出る:近い名前の候補をボタンで並べ、押すとその候補に付け替える。メンバーが存在しない場合は「Create with AI Chat」で、Node・イベント／プロパティと型を埋めた依頼文がチャットに入る
 
 ## キャンバス編集とインスペクター
 
-- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜Console、右端にインスペクター。Console は VSCode 風に Problems／Output／Vibe Coding をタブで切り替える(依頼文を入れると Vibe Coding、Run で Output に切り替わる)
+- 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜Console、右端にインスペクター。Console は VSCode 風に Problems／Output／AI Chat をタブで切り替える(依頼文を入れると AI Chat、Run で Output に切り替わる)
 - **コンポーネントのマスター編集**:キャンバスの画面リスト(またはエクスプローラー)からコンポーネントを開くと、画面と同じようにマスターを編集できる。インスタンスへの反映は「Sync components」(明示同期)。マスターの紐付けは `Bindings/<コンポーネントID>.xml` に保存され、**全インスタンス共通**で実行時に各インスタンス内の Node に適用される(仕様§5 の 2 階建て。インスタンス固有の紐付けは画面の Bindings でインスタンス ID に付ける。インスタンスの**中の Node** にも `nodeId="orderList/price"` のようにパスで付けられ、インスペクターではインスタンスを選ぶと対象 Node を選べる。ID 変更・削除にも追従)
-- **Script 部品**(`Control.Script`):見た目もボタンも動作も全部コードで書きたい人向け。`class` 属性に `FaroScript` を継承したクラスを指定し、`public override Control Build()` が返す Avalonia のコントロールがその場所に入る(生存期間の属性も有効)。キャンバスは**最後のビルド結果**(`bin/` の DLL)を読み込んで実物を表示し、未ビルドや失敗時は枠とメッセージ。クラスが見つからなければ Problems に出て、インスペクターから「Create with vibe coding」。サンプルの Detail 画面に `MyApp.Views.Stamp` の例がある
+- **Script 部品**(`Control.Script`):見た目もボタンも動作も全部コードで書きたい人向け。`class` 属性に `FaroScript` を継承したクラスを指定し、`public override Control Build()` が返す Avalonia のコントロールがその場所に入る(生存期間の属性も有効)。キャンバスは**最後のビルド結果**(`bin/` の DLL)を読み込んで実物を表示し、未ビルドや失敗時は枠とメッセージ。クラスが見つからなければ Problems に出て、インスペクターから「Create with AI Chat」。サンプルの Detail 画面に `MyApp.Views.Stamp` の例がある
 - **Problems タブ**(仕様§11、Console 内。件数をタブ名に表示):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択。Run 中のビルドエラー(C# のコンパイルエラー)も「Build」として並び、クリックでコードエディタの該当行へ。次のビルドが始まると消える
 - **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
-- 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with vibe coding」
+- 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with AI Chat」
 - Node を削除すると、その Node を指す紐付けも一緒に削除(1 手で元に戻せる)
 
 ## エクスプローラー
@@ -89,7 +92,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
-- **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Output・Vibe Coding タブ)の各パネルを前面に／全画面(F11)
+- **Window**:Explorer／Canvas／Inspector／Code／Console(Problems・Output・AI Chat タブ)の各パネルを前面に／全画面(F11)
 - **Help**:Faro について
 - **環境設定**(`ApplicationData/Faro/settings.json`、アプリ全体で共通)
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)

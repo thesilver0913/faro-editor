@@ -20,14 +20,14 @@ public static class L
         ["_File"] = "ファイル(_F)", ["_Edit"] = "編集(_E)", ["_Select"] = "選択(_S)", ["_Window"] = "ウィンドウ(_W)", ["_Help"] = "ヘルプ(_H)",
         ["_Open Folder…"] = "フォルダを開く(_O)…", ["_Close Project"] = "プロジェクトを閉じる(_C)", ["_Trust Project…"] = "プロジェクトを信頼(_T)…",
         ["_Save"] = "保存(_S)", ["Save _As…"] = "名前を付けて保存(_A)…", ["_Run"] = "実行(_R)", ["S_top"] = "停止(_T)", ["E_xit"] = "終了(_X)",
-        ["_Undo"] = "元に戻す(_U)", ["_Redo"] = "やり直し(_R)", ["_Copy"] = "コピー(_C)", ["_Paste"] = "貼り付け(_P)", ["D_uplicate"] = "複製(_U)",
+        ["_Undo"] = "元に戻す(_U)", ["_Redo"] = "やり直し(_R)", ["Cu_t"] = "切り取り(_T)", ["_Copy"] = "コピー(_C)", ["_Paste"] = "貼り付け(_P)", ["D_uplicate"] = "複製(_U)",
         ["_Delete"] = "削除(_D)", ["_Sync Components"] = "コンポーネントを同期(_S)", ["_Preferences…"] = "環境設定(_P)…",
         ["_All Nodes"] = "すべての Node(_A)", ["_None"] = "選択解除(_N)", ["Node by _ID…"] = "ID で Node を選択(_I)…", ["Nodes with _Broken Bindings"] = "紐付けが壊れた Node(_B)",
         ["_Explorer"] = "エクスプローラー(_E)", ["_Canvas"] = "キャンバス(_C)", ["_Inspector"] = "インスペクター(_I)", ["C_ode"] = "コード(_O)", ["Co_nsole"] = "コンソール(_N)",
-        ["_Problems"] = "問題(_P)", ["_Output"] = "出力(_O)", ["_Vibe Coding"] = "バイブコーディング(_V)", ["_Reset Layout"] = "レイアウトを初期化(_R)",
+        ["_Problems"] = "問題(_P)", ["_Output"] = "出力(_O)", ["_AI Chat"] = "AI チャット(_A)", ["_Reset Layout"] = "レイアウトを初期化(_R)",
         ["_Full Screen"] = "全画面(_F)", ["_About Faro"] = "Faro について(_A)",
         ["Explorer"] = "エクスプローラー", ["Canvas"] = "キャンバス", ["Inspector"] = "インスペクター", ["Code"] = "コード", ["Console"] = "コンソール",
-        ["Problems"] = "問題", ["Output"] = "出力", ["Vibe Coding"] = "バイブコーディング",
+        ["Problems"] = "問題", ["Output"] = "出力", ["AI Chat"] = "AI チャット",
 
         // Welcome, wizard, projects
         ["Welcome to Faro"] = "Faro へようこそ", ["Recent"] = "最近のプロジェクト", ["New Project…"] = "新規プロジェクト…", ["New Project"] = "新規プロジェクト",
@@ -53,6 +53,9 @@ public static class L
 
         // Explorer
         ["New Screen…"] = "新しい画面…", ["New Component…"] = "新しいコンポーネント…", ["New C# Class…"] = "新しい C# クラス…", ["New Folder…"] = "新しいフォルダ…",
+        ["+ File"] = "+ ファイル", ["+ Folder"] = "+ フォルダ", ["New File…"] = "新しいファイル…", ["New File"] = "新しいファイル", ["File name:"] = "ファイル名:", ["Refresh"] = "最新の情報に更新", ["Collapse All"] = "すべて折りたたむ",
+        ["Open as Text"] = "テキストとして開く", ["Copy Path"] = "パスをコピー", ["Copy Relative Path"] = "相対パスをコピー", ["Reveal in File Manager"] = "ファイルマネージャーで表示",
+        ["Move"] = "移動", ["{0} has unsaved changes. Save it first."] = "{0} に未保存の変更があります。先に保存してください。",
         ["Rename…"] = "名前の変更…", ["Delete"] = "削除", ["New Screen"] = "新しい画面", ["New Component"] = "新しいコンポーネント", ["ID:"] = "ID:",
         ["New C# Class"] = "新しい C# クラス", ["Class name:"] = "クラス名:", ["New Folder"] = "新しいフォルダ", ["Folder name:"] = "フォルダ名:",
         ["Rename Screen"] = "画面の名前変更", ["Rename Component"] = "コンポーネントの名前変更", ["New ID (references follow):"] = "新しい ID(参照も追従):",
@@ -76,7 +79,7 @@ public static class L
         ["Justify has no effect while a child fills the main axis: it takes the free space."] = "Fill の子がいると並べ方は効きません(その子が空きを使うため)。",
         ["Properties"] = "プロパティ", ["Overrides"] = "上書き", ["Script"] = "Script", ["Class"] = "クラス", ["Repeatable (list)"] = "繰り返し(リスト)",
         ["Mock rows (canvas only): {0}"] = "モック行(キャンバスのみ): {0}", ["Bindings"] = "紐付け", ["+ Add binding"] = "+ 紐付けを追加",
-        ["Create with vibe coding"] = "バイブコーディングで作る", ["Did you mean"] = "もしかして",
+        ["Create with AI Chat"] = "AI チャットで作る", ["Did you mean"] = "もしかして",
         ["Numbers only."] = "数値だけを入力してください。", ["One number."] = "数値は1つだけです。", ["A whole number (0 or more)."] = "0 以上の整数を入力してください。",
         ["1, 2 or 4 numbers (top right bottom left)."] = "数値を 1・2・4 個(上 右 下 左)で入力してください。",
         ["Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\"."] = "\"Auto, *, 2*, 120px\" のような指定か、\"3\" のような数を入力してください。",
@@ -118,6 +121,8 @@ public static class L
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
         ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
+        ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

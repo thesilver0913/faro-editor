@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -60,6 +61,95 @@ public sealed class CanvasView : UserControl
         return [screen];
     });
 
+    /// <summary>Node types and components for "+ Add" and the context menu's Add (into the selected container, or after the node).</summary>
+    static List<MenuItem> AddItems()
+    {
+        var items = new List<MenuItem>();
+        foreach (var type in CanvasEdit.AddableTypes)
+        {
+            var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? L.T(" (container)") : "") };
+            item.Click += (_, _) => AddNode(type);
+            items.Add(item);
+        }
+        foreach (var component in Workspace.Project?.Components.Keys.Where(c => c != CurrentScreen).Order() ?? Enumerable.Empty<string>())
+        {
+            var item = new MenuItem { Header = component };
+            item.Click += (_, _) => AddNode("Instance", component);
+            items.Add(item);
+        }
+        return items;
+    }
+
+    /// <summary>The canvas right-click menu, on the selection.</summary>
+    void ContextMenuAt(Avalonia.Input.PointerPressedEventArgs e)
+    {
+        var any = Selection.Count > 0;
+        var single = Selection.Count == 1 && CurrentGraph() is { } g ? CanvasEdit.Find(g, Selection.First()) : null;
+        var isRoot = single is not null && single.Parent?.Name != "Node";
+        MenuItem Item(string header, string? gesture, Action action, bool enabled = true)
+        {
+            var item = new MenuItem { Header = L.T(header), InputGesture = gesture is null ? null : Avalonia.Input.KeyGesture.Parse(gesture), IsEnabled = enabled };
+            item.Click += (_, _) => action();
+            return item;
+        }
+        var addMenu = new MenuItem { Header = L.T("Add") };
+        foreach (var item in AddItems()) addMenu.Items.Add(item);
+        var wrap = new MenuItem { Header = L.T("Wrap in"), IsEnabled = any && !isRoot };
+        foreach (var type in new[] { "Container.Stack", "Container.Overlay", "Container.Grid" })
+            wrap.Items.Add(Item(type.Split('.')[^1], null, () => WrapSelection(type)));
+        var menu = new MenuFlyout
+        {
+            Items =
+            {
+                addMenu,
+                new Separator(),
+                Item("Cut", "Ctrl+X", CutSelection, any && !isRoot),
+                Item("Copy", "Ctrl+C", CopySelection, any),
+                Item("Paste", "Ctrl+V", PasteClipboard, clipboard is not null),
+                Item("Duplicate", "Ctrl+D", DuplicateSelection, any && !isRoot),
+                Item("Delete", "Delete", DeleteSelection, any && !isRoot),
+                new Separator(),
+                Item("Move up", "Alt+Up", () => MoveSelection(-1), single is not null && !isRoot),
+                Item("Move down", "Alt+Down", () => MoveSelection(+1), single is not null && !isRoot),
+                Item("Select parent", null, () => Select([(string)single!.Parent!.Attribute("id")!]), single is not null && !isRoot),
+                wrap,
+                Item("Rename…", null, RenameSelection, single is not null),
+            },
+        };
+        if ((string?)single?.Attribute("type") == "Instance")
+            menu.Items.Add(Item("Edit master component", null, () => ShowScreen((string)single!.Attribute("component")!)));
+        menu.ShowAt(artboard, showAtPointer: true);
+    }
+
+    public static void CutSelection()
+    {
+        CopySelection();
+        DeleteSelection();
+    }
+
+    static void WrapSelection(string type) => Edit(L.T("Wrap in") + " " + type.Split('.')[^1], (_, screen) =>
+    {
+        if (CanvasEdit.Wrap(screen, Selection, type) is not { } container) return [];
+        Select([(string)container.Attribute("id")!]);
+        return [screen];
+    });
+
+    async void RenameSelection()
+    {
+        if (Selection.Count != 1 || TopLevel.GetTopLevel(this) is not Window owner) return;
+        var id = Selection.First();
+        if (await Dialogs.Prompt(owner, L.T("Rename"), L.T("New ID (references follow):"), id) is not { Length: > 0 } newId) return;
+        string? error = null;
+        Edit("Rename node", (project, screen) =>
+        {
+            var (err, changed) = CanvasEdit.Rename(project, screen, id, newId);
+            error = err;
+            if (err is null && changed.Count > 0) Select([newId.Trim()]);
+            return changed;
+        });
+        if (error is not null) await Dialogs.Info(owner, L.T("Rename"), new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+    }
+
     static CanvasEdit.Clip? clipboard;
 
     /// <summary>An Assets/ image path dragged from the explorer (in-process drag and drop).</summary>
@@ -110,6 +200,18 @@ public sealed class CanvasView : UserControl
         SelectionChanged?.Invoke();
     }
 
+    readonly ScrollViewer viewport = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+    readonly LayoutTransformControl zoomHost = new();
+    readonly TextBlock zoomLabel = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 44, TextAlignment = TextAlignment.Center, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+    double zoom = 1;
+
+    void SetZoom(double value)
+    {
+        zoom = Math.Clamp(value, 0.25, 4);
+        zoomHost.LayoutTransform = new ScaleTransform(zoom, zoom);
+        zoomLabel.Text = $"{Math.Round(zoom * 100)}%";
+    }
+
     static readonly Dictionary<string, (double Width, double Height)> Sizes = new()
     {
         ["Phone"] = (390, 844),
@@ -131,6 +233,7 @@ public sealed class CanvasView : UserControl
     public CanvasView()
     {
         Focusable = true;
+        zoomHost.Child = artboard;
         run.Click += (_, _) => ConsoleView.RunOrStop();
         sync.Click += (_, _) => SyncComponents();
         screens.SelectionChanged += (_, _) =>
@@ -146,19 +249,7 @@ public sealed class CanvasView : UserControl
         add.Click += (_, _) =>
         {
             var menu = new MenuFlyout();
-            foreach (var type in CanvasEdit.AddableTypes)
-            {
-                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? L.T(" (container)") : "") };
-                item.Click += (_, _) => AddNode(type);
-                menu.Items.Add(item);
-            }
-            menu.Items.Add(new Separator());
-            foreach (var component in Workspace.Project?.Components.Keys.Where(c => c != CurrentScreen).Order() ?? Enumerable.Empty<string>())
-            {
-                var item = new MenuItem { Header = component };
-                item.Click += (_, _) => AddNode("Instance", component);
-                menu.Items.Add(item);
-            }
+            foreach (var item in AddItems()) menu.Items.Add(item);
             menu.ShowAt(add);
         };
         var delete = new Button { Content = L.T("Delete"), [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
@@ -171,6 +262,15 @@ public sealed class CanvasView : UserControl
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
             var id = NodeAt(e.GetPosition(overlay), new HashSet<string?>()); // by bounds: text without a background isn't hit-testable itself
+            if (e.GetCurrentPoint(artboard).Properties.IsRightButtonPressed)
+            {
+                // Right-click: act on the node under the pointer (keeping a multi-selection that includes it).
+                if (id is null || !Selection.Contains(id)) Select(id is null ? [] : [id]);
+                Focus();
+                ContextMenuAt(e);
+                e.Handled = true;
+                return;
+            }
             if (!e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) Select(id is null ? [] : [id]);
             else if (id is not null) Select(Selection.Contains(id) ? Selection.Except([id]).ToList() : [.. Selection, id]);
             Focus(); // keyboard (Delete, Alt+arrows, Ctrl+Z) now goes to the canvas, not a text box elsewhere
@@ -230,9 +330,25 @@ public sealed class CanvasView : UserControl
             ApplySize();
         };
         ApplySize();
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, add, delete, up, down, sync, run, status } };
+        // Zoom: −/+, Fit (to the pane width), Ctrl+wheel. The artboard's own coordinates don't change, so selection and drops still line up.
+        var zoomOut = new Button { Content = "−" };
+        var zoomIn = new Button { Content = "+" };
+        var fit = new Button { Content = L.T("Fit") };
+        zoomOut.Click += (_, _) => SetZoom(zoom / 1.25);
+        zoomIn.Click += (_, _) => SetZoom(zoom * 1.25);
+        fit.Click += (_, _) => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (artboard.Width + artboard.Margin.Left + artboard.Margin.Right)));
+        zoomLabel.PointerPressed += (_, _) => SetZoom(1); // click the percentage: back to 100%
+        viewport.AddHandler(PointerWheelChangedEvent, (_, e) =>
+        {
+            if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+            SetZoom(zoom * Math.Pow(1.1, e.Delta.Y));
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        var zoomBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { zoomOut, zoomLabel, zoomIn, fit } };
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
-        Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
+        viewport.Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = zoomHost };
+        Content = new DockPanel { Children = { bar, viewport } };
     }
 
     void ShowRunState()
