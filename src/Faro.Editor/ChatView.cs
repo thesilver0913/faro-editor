@@ -27,21 +27,21 @@ public sealed class ChatView : UserControl
 
     readonly StackPanel transcript = new() { Spacing = 10, Margin = new(12) };
     readonly ScrollViewer scroller;
-    readonly TextBox input = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 60, MaxHeight = 160, PlaceholderText = "Describe the class or method you need… (Ctrl+Enter to send)" };
-    readonly Button send = new() { Content = "Send", VerticalAlignment = VerticalAlignment.Stretch };
+    readonly TextBox input = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 60, MaxHeight = 160, PlaceholderText = L.T("Describe the class or method you need… (Ctrl+Enter to send)") };
+    readonly Button send = new() { Content = L.T("Send"), VerticalAlignment = VerticalAlignment.Stretch };
     readonly ComboBox lifetime = new() { ItemsSource = Enum.GetNames<Lifetime>(), SelectedItem = nameof(Lifetime.ScreenScoped) };
-    readonly CheckBox persistent = new() { Content = "Persistent" };
+    readonly CheckBox persistent = new() { Content = L.T("Persistent") };
 
     public ChatView()
     {
         var provider = new ComboBox { ItemsSource = new[] { "Claude", "OpenAI-compatible" }, SelectedItem = settings.Provider };
         var model = new TextBox { MinWidth = 160 };
-        var baseUrl = new TextBox { MinWidth = 220, PlaceholderText = "Base URL" };
+        var baseUrl = new TextBox { MinWidth = 220, PlaceholderText = L.T("Base URL") };
         void ShowSettings()
         {
             var claude = settings.Provider == "Claude";
             model.Text = claude ? settings.ClaudeModel : settings.OpenAiModel;
-            model.PlaceholderText = claude ? "Model" : "Model name";
+            model.PlaceholderText = L.T(claude ? "Model" : "Model name");
             baseUrl.Text = settings.OpenAiBaseUrl;
             baseUrl.IsVisible = !claude;
         }
@@ -63,7 +63,7 @@ public sealed class ChatView : UserControl
         var bar = new WrapPanel
         {
             ItemSpacing = 8, LineSpacing = 8, Margin = new(8),
-            Children = { provider, model, baseUrl, new TextBlock { Text = "New classes:", VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 }, lifetime, persistent },
+            Children = { provider, model, baseUrl, new TextBlock { Text = L.T("New classes:"), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 }, lifetime, persistent },
         };
         var bottom = new DockPanel { Margin = new(8) };
         DockPanel.SetDock(send, Avalonia.Controls.Dock.Right);
@@ -104,7 +104,7 @@ public sealed class ChatView : UserControl
         if (string.IsNullOrEmpty(text) || running is not null || Workspace.Project is not { } project) return;
         if (LockedClasses().FirstOrDefault(c => text.Contains(c)) is { } locked)
         {
-            error = $"`{locked}` is being edited in the code editor (unsaved changes). Save it first, then ask again.";
+            error = L.F("`{0}` is being edited in the code editor (unsaved changes). Save it first, then ask again.", locked);
             Changed?.Invoke();
             return;
         }
@@ -125,9 +125,9 @@ public sealed class ChatView : UserControl
             }
             foreach (var file in VibeCoding.ParseFiles(history[^1].Text))
                 if (VibeCoding.ResolvePath(Workspace.Root, file.Path) is { } path) pending.Add(new(path, file.Path, file.Code));
-                else error = $"Ignored {file.Path}: generated files must be .cs files under Source/.";
+                else error = L.F("Ignored {0}: generated files must be .cs files under Source/.", file.Path);
         }
-        catch (OperationCanceledException) { error = "Stopped."; }
+        catch (OperationCanceledException) { error = L.T("Stopped."); }
         catch (Exception e) { error = e.Message; }
         finally
         {
@@ -147,7 +147,7 @@ public sealed class ChatView : UserControl
     void Render()
     {
         input.Text = draft;
-        send.Content = running is null ? "Send" : "Stop";
+        send.Content = L.T(running is null ? "Send" : "Stop");
         transcript.Children.Clear();
         foreach (var turn in history)
             transcript.Children.Add(new Border
@@ -173,8 +173,8 @@ public sealed class ChatView : UserControl
         foreach (var (op, line) in VibeCoding.Diff(before, p.Code))
             diff.Inlines!.Add(new Run($"{op} {line}\n") { Foreground = op switch { '+' => Brushes.LightGreen, '-' => Brushes.IndianRed, _ => Brushes.Gray } });
 
-        var approve = new Button { Content = "Approve", IsEnabled = syntax.Count == 0 && locked is null };
-        var reject = new Button { Content = "Reject" };
+        var approve = new Button { Content = L.T("Approve"), IsEnabled = syntax.Count == 0 && locked is null };
+        var reject = new Button { Content = L.T("Reject") };
         approve.Click += (_, _) =>
         {
             CodeView.ApplyGenerated(p.Path, p.Code);
@@ -183,7 +183,7 @@ public sealed class ChatView : UserControl
         };
         reject.Click += (_, _) => { pending.Remove(p); Changed?.Invoke(); };
 
-        var notes = syntax.Select(e => "Syntax error, " + e).ToList();
+        var notes = syntax.Select(e => L.T("Syntax error, ") + e).ToList();
         if (locked is not null) notes.Add($"`{locked}` is being edited in the code editor (unsaved changes). Save it to approve.");
         return new Border
         {
@@ -193,7 +193,7 @@ public sealed class ChatView : UserControl
                 Spacing = 6,
                 Children =
                 {
-                    new TextBlock { Text = (before.Length == 0 ? "New file: " : "Change: ") + p.Relative, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = L.T(before.Length == 0 ? "New file: " : "Change: ") + p.Relative, FontWeight = FontWeight.SemiBold },
                     new ScrollViewer { MaxHeight = 320, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = diff },
                     new TextBlock { Text = string.Join("\n", notes), Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap, IsVisible = notes.Count > 0 },
                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { approve, reject } },

@@ -55,15 +55,15 @@ public sealed class InspectorView : UserControl
         var screen = CanvasView.CurrentScreen is { } s ? project?.Graph(s) : null;
         if (project is null || screen is null || CanvasView.Selection.Count != 1 || CanvasEdit.Find(screen, CanvasView.Selection.First()) is not { } node)
         {
-            body.Children.Add(Hint(CanvasView.Selection.Count > 1 ? $"{CanvasView.Selection.Count} nodes selected." : "Select a node on the canvas."));
+            body.Children.Add(Hint(CanvasView.Selection.Count > 1 ? L.F("{0} nodes selected.", CanvasView.Selection.Count) : L.T("Select a node on the canvas.")));
             return;
         }
         var id = (string)node.Attribute("id")!;
         var type = (string?)node.Attribute("type") ?? "";
 
-        body.Children.Add(new TextBlock { Text = type == "Instance" ? $"Instance of {(string?)node.Attribute("component")}" : type, FontWeight = FontWeight.SemiBold, FontSize = 15 });
+        body.Children.Add(new TextBlock { Text = type == "Instance" ? L.F("Instance of {0}", (string?)node.Attribute("component")) : type, FontWeight = FontWeight.SemiBold, FontSize = 15 });
         var idError = new TextBlock { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
-        body.Children.Add(Row("ID", Field(id, value =>
+        body.Children.Add(Row(L.T("ID"), Field(id, value =>
         {
             string? error = null;
             CanvasView.Edit("Rename node", (p, sc) =>
@@ -77,49 +77,49 @@ public sealed class InspectorView : UserControl
         })));
         body.Children.Add(idError);
 
-        body.Children.Add(Section("Layout"));
-        body.Children.Add(Row("Width", Sizing(node, "width")));
-        body.Children.Add(Row("Height", Sizing(node, "height")));
+        body.Children.Add(Section(L.T("Layout")));
+        body.Children.Add(Row(L.T("Width"), Sizing(node, "width")));
+        body.Children.Add(Row(L.T("Height"), Sizing(node, "height")));
         // Placement in the parent: anchors in an Overlay, alignment and fill weight in a Stack.
         var parentType = (string?)node.Parent?.Attribute("type");
         if (parentType == "Container.Overlay")
         {
-            body.Children.Add(Row("Anchor X", Choice(node, "anchorX", ["Left", "Center", "Right"])));
-            body.Children.Add(Row("Anchor Y", Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
+            body.Children.Add(Row(L.T("Anchor X"), Choice(node, "anchorX", ["Left", "Center", "Right"])));
+            body.Children.Add(Row(L.T("Anchor Y"), Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
         }
         else if (parentType == "Container.Grid")
         {
-            body.Children.Add(Row("Row / Col", Pair(AttributeField(node, "row", integer: true), AttributeField(node, "column", integer: true))));
-            body.Children.Add(Row("Span R / C", Pair(AttributeField(node, "rowSpan", integer: true), AttributeField(node, "columnSpan", integer: true))));
-            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+            body.Children.Add(Row(L.T("Row / Col"), Pair(AttributeField(node, "row", integer: true), AttributeField(node, "column", integer: true))));
+            body.Children.Add(Row(L.T("Span R / C"), Pair(AttributeField(node, "rowSpan", integer: true), AttributeField(node, "columnSpan", integer: true))));
+            body.Children.Add(Row(L.T("Align self"), Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
         }
         else if (parentType == "Container.Stack")
         {
-            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+            body.Children.Add(Row(L.T("Align self"), Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
             var mainAxis = (string?)node.Parent!.Attribute("direction") == "Horizontal" ? "width" : "height";
-            if (UiBuilder.Sizing(node, mainAxis) == "Fill") body.Children.Add(Row("Fill weight", AttributeField(node, "weight")));
+            if (UiBuilder.Sizing(node, mainAxis) == "Fill") body.Children.Add(Row(L.T("Fill weight"), AttributeField(node, "weight")));
         }
-        body.Children.Add(Row("Min W / H", Pair(AttributeField(node, "minWidth"), AttributeField(node, "minHeight"))));
-        body.Children.Add(Row("Max W / H", Pair(AttributeField(node, "maxWidth"), AttributeField(node, "maxHeight"))));
-        body.Children.Add(Row("Margin", AttributeField(node, "margin", sides: true)));
+        body.Children.Add(Row(L.T("Min W / H"), Pair(AttributeField(node, "minWidth"), AttributeField(node, "minHeight"))));
+        body.Children.Add(Row(L.T("Max W / H"), Pair(AttributeField(node, "maxWidth"), AttributeField(node, "maxHeight"))));
+        body.Children.Add(Row(L.T("Margin"), AttributeField(node, "margin", sides: true)));
         if (CanvasEdit.IsContainer(node))
         {
-            if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
+            if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row(L.T("Direction"), Choice(node, "direction", ["Vertical", "Horizontal"])));
             if (type == "Container.Grid")
             {
-                string? TrackError(string v) => UiBuilder.Tracks(v) is null ? "Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\"." : null;
-                body.Children.Add(Row("Columns", CheckedField(node, "columns", 160, TrackError)));
-                body.Children.Add(Row("Rows", CheckedField(node, "rows", 160, TrackError)));
+                string? TrackError(string v) => UiBuilder.Tracks(v) is null ? L.T("Tracks like \"Auto, *, 2*, 120px\", or a count like \"3\".") : null;
+                body.Children.Add(Row(L.T("Columns"), CheckedField(node, "columns", 160, TrackError)));
+                body.Children.Add(Row(L.T("Rows"), CheckedField(node, "rows", 160, TrackError)));
             }
-            if (type != "Container.Overlay") body.Children.Add(Row("Gap", AttributeField(node, "gap")));
-            body.Children.Add(Row("Padding", AttributeField(node, "padding", sides: true)));
-            if (type != "Container.Overlay") body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
+            if (type != "Container.Overlay") body.Children.Add(Row(L.T("Gap"), AttributeField(node, "gap")));
+            body.Children.Add(Row(L.T("Padding"), AttributeField(node, "padding", sides: true)));
+            if (type != "Container.Overlay") body.Children.Add(Row(L.T("Alignment"), Choice(node, "alignment", ["Start", "Center", "End"])));
             if (type == "Container.Stack")
             {
-                body.Children.Add(Row("Justify", Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
+                body.Children.Add(Row(L.T("Justify"), Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
                 var mainAxis = (string?)node.Attribute("direction") == "Horizontal" ? "width" : "height";
                 if (node.Elements("Node").Any(c => UiBuilder.Sizing(c, mainAxis) == "Fill"))
-                    body.Children.Add(Hint("Justify has no effect while a child fills the main axis: it takes the free space."));
+                    body.Children.Add(Hint(L.T("Justify has no effect while a child fills the main axis: it takes the free space.")));
             }
         }
 
@@ -128,35 +128,37 @@ public sealed class InspectorView : UserControl
             : PropsByType.GetValueOrDefault(type, []);
         if (props.Length > 0)
         {
-            body.Children.Add(Section(type == "Instance" ? "Overrides" : "Properties"));
+            body.Children.Add(Section(L.T(type == "Instance" ? "Overrides" : "Properties")));
             foreach (var prop in props)
-                body.Children.Add(Row(prop, Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
+                body.Children.Add(Row(prop, prop is "Source" or "BackgroundTexture"
+                    ? AssetField(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))
+                    : Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
         if (type == "Control.Script")
         {
             // The class that builds this node in code (a FaroScript in Source/).
-            body.Children.Add(Section("Script"));
+            body.Children.Add(Section(L.T("Script")));
             var cls = (string?)node.Attribute("class") ?? "";
-            var classBox = new AutoCompleteBox { Text = cls, ItemsSource = Workspace.ScriptClasses, FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = "MyApp.Views.MyScript" };
+            var classBox = new AutoCompleteBox { Text = cls, ItemsSource = Workspace.ScriptClasses, FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = L.T("MyApp.Views.MyScript") };
             Commit(classBox, () => classBox.Text ?? "", value => EditNode(id, "Set script class", n => n.SetAttributeValue("class", value.Trim())));
-            body.Children.Add(Row("Class", classBox));
+            body.Children.Add(Row(L.T("Class"), classBox));
             if (cls.Length > 0 && !Workspace.ScriptClasses.Contains(cls))
             {
-                var create = new Button { Content = "Create with vibe coding" };
+                var create = new Button { Content = L.T("Create with vibe coding") };
                 create.Click += (_, _) => ChatView.Prefill($"Create `{cls}`: a public class deriving from Faro.Runtime.FaroScript whose Build() returns the Avalonia control for Script node `{id}` on screen {CanvasView.CurrentScreen}.");
                 body.Children.Add(create);
             }
         }
         if (type == "Instance")
         {
-            var repeatable = new CheckBox { Content = "Repeatable (list)", IsChecked = (string?)node.Attribute("repeatable") == "true" };
+            var repeatable = new CheckBox { Content = L.T("Repeatable (list)"), IsChecked = (string?)node.Attribute("repeatable") == "true" };
             repeatable.IsCheckedChanged += (_, _) => EditNode(id, "Set repeatable", n => CanvasEdit.SetAttribute(n, "repeatable", repeatable.IsChecked == true ? "true" : null));
             body.Children.Add(repeatable);
             if (repeatable.IsChecked == true && MockData.Fields(node) is { Count: > 0 } fields)
                 body.Children.Add(MockRows(id, node, fields));
         }
 
-        body.Children.Add(Section("Bindings"));
+        body.Children.Add(Section(L.T("Bindings")));
         // An instance also lists the bindings of its inner nodes ("orderList/price").
         foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
@@ -194,8 +196,8 @@ public sealed class InspectorView : UserControl
         CheckedField(node, attribute, 80, value =>
         {
             var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
-            return numbers.Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? (integer ? "A whole number (0 or more)." : "Numbers only.")
-                : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? (sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
+            return numbers.Any(v => integer ? !int.TryParse(v, out var i) || i < 0 : !double.TryParse(v, out _)) ? L.T(integer ? "A whole number (0 or more)." : "Numbers only.")
+                : numbers.Length > 1 && !(sides && numbers.Length is 2 or 4) ? L.T(sides ? "1, 2 or 4 numbers (top right bottom left)." : "One number.")
                 : null;
         });
 
@@ -229,7 +231,7 @@ public sealed class InspectorView : UserControl
             mode.SelectionChanged += (_, _) => EditBind(bind, "Set binding mode", b => b.SetAttributeValue("mode", (string)mode.SelectedItem!));
             row.Children.Add(mode);
         }
-        var remove = new Button { Content = "✕", [ToolTip.TipProperty] = "Remove binding" };
+        var remove = new Button { Content = L.T("✕"), [ToolTip.TipProperty] = "Remove binding" };
         remove.Click += (_, _) => EditBind(bind, "Remove binding", b => b.Remove());
         row.Children.Add(remove);
 
@@ -241,7 +243,7 @@ public sealed class InspectorView : UserControl
             // Re-binding (spec §6): one click applies a near-name candidate.
             if (issue.Fix.Length > 0 && issue.Suggestions.Count > 0)
             {
-                var candidates = new WrapPanel { ItemSpacing = 4, LineSpacing = 4, Children = { new TextBlock { Text = "Did you mean", VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 } } };
+                var candidates = new WrapPanel { ItemSpacing = 4, LineSpacing = 4, Children = { new TextBlock { Text = L.T("Did you mean"), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 } } };
                 foreach (var suggestion in issue.Suggestions)
                 {
                     var apply = new Button { Content = new TextBlock { Text = suggestion, TextWrapping = TextWrapping.Wrap }, Padding = new(6, 2) };
@@ -252,7 +254,7 @@ public sealed class InspectorView : UserControl
             }
             if (CanvasView.ControlOf(nodeId) is { } control && CanvasView.VibeRequest(issue, control) is { } request)
             {
-                var create = new Button { Content = "Create with vibe coding" };
+                var create = new Button { Content = L.T("Create with vibe coding") };
                 create.Click += (_, _) => ChatView.Prefill(request);
                 panel.Children.Add(create);
             }
@@ -264,7 +266,7 @@ public sealed class InspectorView : UserControl
     Control AddBindRow(string id, List<string> nodes)
     {
         var at = new ComboBox { ItemsSource = nodes, SelectedIndex = 0, IsVisible = nodes.Count > 1 };
-        var kind = new ComboBox { ItemsSource = new[] { "Event", "Property" }, SelectedIndex = 0 };
+        var kind = new ComboBox { ItemsSource = new[] { L.T("Event"), L.T("Property") }, SelectedIndex = 0 };
         var name = new AutoCompleteBox { MinWidth = 140, FilterMode = AutoCompleteFilterMode.ContainsOrdinal };
         void Names()
         {
@@ -277,7 +279,7 @@ public sealed class InspectorView : UserControl
         Names();
         kind.SelectionChanged += (_, _) => Names();
         at.SelectionChanged += (_, _) => Names();
-        var add = new Button { Content = "+ Add binding" };
+        var add = new Button { Content = L.T("+ Add binding") };
         add.Click += (_, _) =>
         {
             var member = string.IsNullOrWhiteSpace(name.Text) ? name.PlaceholderText ?? "" : name.Text.Trim();
@@ -337,7 +339,7 @@ public sealed class InspectorView : UserControl
             Spacing = 4,
             Children =
             {
-                new TextBlock { Text = $"Mock rows (canvas only): {string.Join(" | ", fields)}", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = L.F("Mock rows (canvas only): {0}", string.Join(" | ", fields)), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
                 box,
             },
         };
@@ -371,6 +373,14 @@ public sealed class InspectorView : UserControl
     static IEnumerable<string> InnerPaths(XElement instance, string prefix) =>
         CanvasEdit.InnerNodes(instance).Where(n => n != instance.Element("Node"))
             .SelectMany(n => InnerPaths(n, $"{prefix}/{(string?)n.Attribute("id")}").Prepend($"{prefix}/{(string?)n.Attribute("id")}"));
+
+    /// <summary>An image path picked from Assets/ (typing a path still works).</summary>
+    static Control AssetField(string value, Action<string> commit)
+    {
+        var box = new AutoCompleteBox { Text = value, ItemsSource = ProjectFiles.Images(Workspace.Root), FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = L.T("Assets/…"), MinimumPrefixLength = 0 };
+        Commit(box, () => box.Text ?? "", commit);
+        return box;
+    }
 
     static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 

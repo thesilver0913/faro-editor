@@ -23,11 +23,25 @@ public partial class App : Application
         FaroSettings.Current.ApplyTheme();
         // Discarded untitled projects go once no earlier Faro process holds their files.
         _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(() => ProjectSetup.DeletePending(Workspace.Root.Length > 0 ? Workspace.Root : null)));
-        if (root is not null) { OpenProject(desktop, root, null); return; }
+        if (FaroSettings.Current.SetupDone) Start(desktop, null);
+        else
+        {
+            // First run: the setup wizard (language, theme, plugins), then the usual start.
+            var setup = new SetupWindow();
+            setup.Done += () => Start(desktop, setup);
+            desktop.MainWindow = setup;
+            setup.Show();
+        }
+    }
+
+    static void Start(IClassicDesktopStyleApplicationLifetime desktop, Window? previous)
+    {
+        if (root is not null) { OpenProject(desktop, root, previous); return; }
         var welcome = new WelcomeWindow();
         welcome.ProjectChosen += dir => OpenProject(desktop, dir, welcome);
         desktop.MainWindow = welcome;
         welcome.Show();
+        previous?.Close();
     }
 
     /// <summary>Splash with loading progress, then the editor on the project (spec §4 folder).</summary>
@@ -39,16 +53,16 @@ public partial class App : Application
         splash.Show();
         previous?.Close(); // after the splash is up, so closing the last window doesn't end the app
         // Workspace trust, before anything runs the project's code (restore, language server, Script previews).
-        if (!ProjectSetup.IsTrusted(dir) && await Dialogs.Choose(splash, "Trust this project?",
-                $"{dir}\n\nFaro restores, builds and runs a project's code (language server, Script previews, Run). Trust it only if you know where it comes from. In restricted mode you can still view and edit it.",
-                ["Trust", "Restricted Mode"], cancel: false) == 0)
+        if (!ProjectSetup.IsTrusted(dir) && await Dialogs.Choose(splash, L.T("Trust this project?"),
+                $"{dir}\n\n" + L.T("Faro restores, builds and runs a project's code (language server, Script previews, Run). Trust it only if you know where it comes from. In restricted mode you can still view and edit it."),
+                [L.T("Trust"), L.T("Restricted Mode")], cancel: false) == 0)
             ProjectSetup.Trust(dir);
         await Task.Run(() => Workspace.Open(dir, splash.Report));
         var updated = false;
         try
         {
-            if (ProjectSetup.RuntimeUpdateAvailable(dir) && await Dialogs.Confirm(splash, "Faro.Runtime update",
-                $"This project uses Faro.Runtime {ProjectSetup.ProjectRuntime(dir)}. This Faro ships {ProjectSetup.BundledRuntime().Version}. Update the project to it?", "Update"))
+            if (ProjectSetup.RuntimeUpdateAvailable(dir) && await Dialogs.Confirm(splash, L.T("Faro.Runtime update"),
+                L.F("This project uses Faro.Runtime {0}. This Faro ships {1}. Update the project to it?", ProjectSetup.ProjectRuntime(dir), ProjectSetup.BundledRuntime().Version), L.T("Update")))
             {
                 ProjectSetup.UpdateRuntime(dir);
                 updated = true;
@@ -72,7 +86,7 @@ public partial class App : Application
         catch (Exception) { } // the code pane shows why; the editor still opens
         splash.Report("Ready", 100);
 
-        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? " (not saved)" : "")}{(Workspace.Trusted ? "" : " (Restricted Mode)")}" };
+        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? L.T(" (not saved)") : "")}{(Workspace.Trusted ? "" : L.T(" (Restricted Mode)"))}" };
         desktop.MainWindow.Show();
         splash.Close();
     }

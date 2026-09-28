@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -59,6 +60,38 @@ public sealed class CanvasView : UserControl
         return [screen];
     });
 
+    static CanvasEdit.Clip? clipboard;
+
+    /// <summary>An Assets/ image path dragged from the explorer (in-process drag and drop).</summary>
+    public static readonly DataFormat<string> AssetFormat = DataFormat.CreateInProcessFormat<string>("faro-asset");
+
+    public static void CopySelection()
+    {
+        if (CurrentGraph() is { } graph && Workspace.Project is { } project && Selection.Count > 0) clipboard = CanvasEdit.Copy(project, graph, Selection);
+    }
+
+    public static void PasteClipboard() => Paste(clipboard, after: false);
+
+    /// <summary>Duplicate: copy and paste right after the selection, in one undo step.</summary>
+    public static void DuplicateSelection()
+    {
+        if (CurrentGraph() is { } graph && Workspace.Project is { } project && Selection.Count > 0) Paste(CanvasEdit.Copy(project, graph, Selection), after: true);
+    }
+
+    static void Paste(CanvasEdit.Clip? clip, bool after)
+    {
+        // A component master can't contain an instance of itself (as in AddNode).
+        if (clip is null || clip.Nodes.Any(n => n.DescendantsAndSelf("Node").Any(d => (string?)d.Attribute("component") == CurrentScreen))) return;
+        var anchor = after ? Selection.OrderBy(id => ScreenNodeIds.IndexOf(id)).LastOrDefault() : Selection.Count == 1 ? Selection.First() : null;
+        Edit(after ? "Duplicate" : "Paste", (project, screen) =>
+        {
+            var (added, changed) = CanvasEdit.Paste(project, screen, anchor, clip, after);
+            Selection.Clear();
+            Selection.UnionWith(added.Select(n => (string)n.Attribute("id")!));
+            return changed;
+        });
+    }
+
     public static void DeleteSelection() => Edit("Delete", (project, screen) => CanvasEdit.Delete(project, screen, Selection.ToList()));
 
     public static void MoveSelection(int delta) => Edit(delta < 0 ? "Move up" : "Move down", (_, screen) =>
@@ -77,9 +110,23 @@ public sealed class CanvasView : UserControl
         SelectionChanged?.Invoke();
     }
 
-    readonly Border artboard = new() { Width = 420, MinHeight = 720, Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
+    static readonly Dictionary<string, (double Width, double Height)> Sizes = new()
+    {
+        ["Phone"] = (390, 844),
+        ["Tablet"] = (820, 1180),
+        ["Desktop"] = (1280, 800),
+    };
 
-    readonly Button run = new() { Content = "Run" };
+    void ApplySize()
+    {
+        var (width, height) = Sizes.GetValueOrDefault(FaroSettings.Current.ArtboardSize, Sizes["Phone"]);
+        (artboard.Width, artboard.MinHeight) = (width, height);
+        Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // selection boxes follow the new layout
+    }
+
+    readonly Border artboard = new() { Background = Brushes.White, [TextElement.ForegroundProperty] = Brushes.Black, Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
+
+    readonly Button run = new() { Content = L.T("Run") };
 
     public CanvasView()
     {
@@ -95,13 +142,13 @@ public sealed class CanvasView : UserControl
             SelectionChanged?.Invoke();
         };
 
-        var add = new Button { Content = "+ Add" };
+        var add = new Button { Content = L.T("+ Add") };
         add.Click += (_, _) =>
         {
             var menu = new MenuFlyout();
             foreach (var type in CanvasEdit.AddableTypes)
             {
-                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? " (container)" : "") };
+                var item = new MenuItem { Header = type.Split('.')[^1] + (type.StartsWith("Container.") ? L.T(" (container)") : "") };
                 item.Click += (_, _) => AddNode(type);
                 menu.Items.Add(item);
             }
@@ -114,11 +161,11 @@ public sealed class CanvasView : UserControl
             }
             menu.ShowAt(add);
         };
-        var delete = new Button { Content = "Delete", [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
+        var delete = new Button { Content = L.T("Delete"), [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
         delete.Click += (_, _) => DeleteSelection();
-        var up = new Button { Content = "↑", [ToolTip.TipProperty] = "Move up (Alt+Up)" };
+        var up = new Button { Content = L.T("↑"), [ToolTip.TipProperty] = "Move up (Alt+Up)" };
         up.Click += (_, _) => MoveSelection(-1);
-        var down = new Button { Content = "↓", [ToolTip.TipProperty] = "Move down (Alt+Down)" };
+        var down = new Button { Content = L.T("↓"), [ToolTip.TipProperty] = "Move down (Alt+Down)" };
         down.Click += (_, _) => MoveSelection(+1);
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
@@ -157,16 +204,42 @@ public sealed class CanvasView : UserControl
             else DrawSelection();
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
 
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, add, delete, up, down, sync, run, status } };
+        // Images dropped from the explorer become Image nodes (in the container under the pointer, or after the node there).
+        DragDrop.SetAllowDrop(artboard, true);
+        artboard.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(AssetFormat) ? DragDropEffects.Copy : DragDropEffects.None);
+        artboard.AddHandler(DragDrop.DropEvent, (_, e) =>
+        {
+            if (e.DataTransfer.TryGetValue(AssetFormat) is not { } asset) return;
+            var at = NodeAt(e.GetPosition(artboard), new HashSet<string?>());
+            Edit("Add image", (project, screen) =>
+            {
+                var node = CanvasEdit.Add(project, screen, at, "Control.Image");
+                CanvasEdit.SetProp(node, "Source", asset);
+                Selection.Clear();
+                Selection.Add((string)node.Attribute("id")!);
+                return [screen];
+            });
+        });
+
+        // Preview sizes: check how Fill / Grid / Overlay layouts stretch on other devices.
+        var size = new ComboBox { ItemsSource = Sizes.Keys, SelectedItem = Sizes.ContainsKey(FaroSettings.Current.ArtboardSize) ? FaroSettings.Current.ArtboardSize : "Phone" };
+        size.SelectionChanged += (_, _) =>
+        {
+            FaroSettings.Current.ArtboardSize = (string)size.SelectedItem!;
+            FaroSettings.Current.Save();
+            ApplySize();
+        };
+        ApplySize();
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, add, delete, up, down, sync, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         Content = new DockPanel { Children = { bar, new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Content = new ThemeVariantScope { RequestedThemeVariant = ThemeVariant.Light, Child = artboard } } } };
     }
 
     void ShowRunState()
     {
-        run.Content = Workspace.Running ? "Stop" : "Run";
+        run.Content = L.T(Workspace.Running ? "Stop" : "Run");
         run.IsEnabled = Workspace.Trusted;
-        ToolTip.SetTip(run, Workspace.Trusted ? null : "Restricted Mode: File › Trust Project… to run it.");
+        ToolTip.SetTip(run, Workspace.Trusted ? null : L.T("Restricted Mode: File › Trust Project… to run it."));
         if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
         DrawSelection(); // refreshes the status line (unbuilt changes)
     }
@@ -204,7 +277,7 @@ public sealed class CanvasView : UserControl
         screens.ItemsSource = Workspace.Project is { } p0 ? [.. p0.Screens.Keys.Order(), .. p0.Components.Keys.Order()] : new List<string>();
         screens.SelectedItem = selected is not null && Workspace.Project?.Graph(selected) is not null ? selected : Workspace.Project?.Screens.Keys.Order().FirstOrDefault();
         var outOfDate = Workspace.Project is { } p ? ComponentSync.OutOfDate(p).Count : 0;
-        sync.Content = $"Sync components ({outOfDate})";
+        sync.Content = L.F("Sync components ({0})", outOfDate);
         sync.IsEnabled = outOfDate > 0;
         Render();
     }
@@ -213,7 +286,7 @@ public sealed class CanvasView : UserControl
     {
         if (Workspace.Project?.Graph(screens.SelectedItem as string ?? "") is not { } graph)
         {
-            artboard.Child = new TextBlock { Text = $"No UI/*.xml screens in {Workspace.Root}", Margin = new(16), Foreground = Brushes.Gray };
+            artboard.Child = new TextBlock { Text = L.F("No UI/*.xml screens in {0}", Workspace.Root), Margin = new(16), Foreground = Brushes.Gray };
             return;
         }
         byId = [];
@@ -257,7 +330,7 @@ public sealed class CanvasView : UserControl
         idOf.Where(c => !excluded.Contains(c.Value)).Select(c => (Id: c.Value, Rect: RectOf(c.Key)))
             .Where(h => h.Rect.Contains(p)).OrderBy(h => h.Rect.Width * h.Rect.Height).Select(h => h.Id).FirstOrDefault();
 
-    XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
+    static XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
 
     Rect RectOf(Control c) => c.TranslatePoint(default, overlay) is { } p ? new Rect(p, c.Bounds.Size) : default;
 
@@ -313,12 +386,12 @@ public sealed class CanvasView : UserControl
             ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())
             : null;
         var editingComponent = CurrentScreen is not null && Workspace.Project?.Components.ContainsKey(CurrentScreen) == true
-            ? $"Component master · {ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)} instance(s) to sync · " : "";
+            ? L.F("Component master · {0} instance(s) to sync · ", ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)) : "";
         status.Text = Workspace.LoadError
-            ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
-            + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members"
-            + (Workspace.Unbuilt ? " · Unbuilt code changes: new members resolve after Run" : "") // spec §11.5
-            + (Workspace.Trusted ? "" : " · Restricted Mode (File › Trust Project…)");
+            ?? (selected is not null ? L.F("Selected: {0} ({1}) · ", Selection.First(), (string?)selected.Attribute("type")) : Selection.Count > 1 ? L.F("{0} nodes selected · ", Selection.Count) : "")
+            + editingComponent + L.F("{0} broken binding(s) · {1} registry members", Workspace.Issues.Count, Workspace.Registry.Count)
+            + (Workspace.Unbuilt ? L.T(" · Unbuilt code changes: new members resolve after Run") : "") // spec §11.5
+            + (Workspace.Trusted ? "" : L.T(" · Restricted Mode (File › Trust Project…)"));
     }
 
     /// <summary>
@@ -350,6 +423,6 @@ public sealed class CanvasView : UserControl
         VerticalAlignment = VerticalAlignment.Top,
         Margin = new(0, -7, -7, 0),
         [ToolTip.TipProperty] = string.Join("\n\n", issues.Select(i =>
-            i.Message + (i.Suggestions.Count > 0 ? "\nDid you mean: " + string.Join(", ", i.Suggestions) : ""))),
+            i.Message + (i.Suggestions.Count > 0 ? "\n" + L.T("Did you mean:") + " " + string.Join(", ", i.Suggestions) : ""))),
     };
 }

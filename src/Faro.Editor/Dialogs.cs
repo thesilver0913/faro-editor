@@ -33,7 +33,7 @@ public static class Dialogs
         }
         if (cancel)
         {
-            var cancelButton = new Button { Content = "Cancel", IsCancel = true };
+            var cancelButton = new Button { Content = L.T("Cancel"), IsCancel = true };
             cancelButton.Click += (_, _) => window.Close();
             buttons.Children.Add(cancelButton);
         }

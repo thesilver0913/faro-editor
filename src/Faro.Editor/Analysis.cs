@@ -113,19 +113,19 @@ public static class BindingCheck
             foreach (var (graphId, graph) in project.Screens.Concat(project.Components))
                 foreach (var n in NodesOf(graph).Where(n => (string?)n.Attribute("type") == "Control.Script" && !scripts.Contains((string?)n.Attribute("class") ?? "")))
                     issues.Add(new((string)n.Attribute("id")!, "", ((string?)n.Attribute("class") ?? "") is { Length: > 0 } cls
-                        ? $"Script class '{cls}' (deriving from FaroScript) not found in Source/." : "No script class chosen yet.", Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
+                        ? L.F("Script class '{0}' (deriving from FaroScript) not found in Source/.", cls) : L.T("No script class chosen yet."), Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
         foreach (var (screenId, screen) in project.Screens)
             foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
-                issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
+                issues.Add(new((string)n.Attribute("id")!, "", L.F("Component '{0}' does not exist.", (string?)n.Attribute("component")), Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
 
         if (project.StartScreen is { } start && !project.Screens.ContainsKey(start))
-            issues.Add(new("", "", $"Start screen '{start}' (faro.json) does not exist.", Nearest(start, project.Screens.Keys), ""));
+            issues.Add(new("", "", L.F("Start screen '{0}' (faro.json) does not exist.", start), Nearest(start, project.Screens.Keys), ""));
         foreach (var file in project.BindingFiles)
         {
             var screenId = FaroProject.ScreenOf(file);
             if (project.Graph(screenId) is not { } screen) // a screen, or a component master (component-level bindings)
             {
-                issues.Add(new("", "", $"Bindings/{screenId}.xml doesn't belong to any screen or component.", Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
+                issues.Add(new("", "", L.F("Bindings/{0}.xml doesn't belong to any screen or component.", screenId), Nearest(screenId, project.Screens.Keys.Concat(project.Components.Keys)), screenId));
                 continue;
             }
             var nodes = NodesOf(screen).Where(n => n.Attribute("id") is not null).DistinctBy(n => (string)n.Attribute("id")!).ToDictionary(n => (string)n.Attribute("id")!);
@@ -134,22 +134,22 @@ public static class BindingCheck
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
                 if ((nodeId.Contains('/') ? CanvasEdit.FindPath(screen, nodeId) : nodes.GetValueOrDefault(nodeId)) is not { } node)
-                    issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
+                    issues.Add(new(nodeId, target, L.F("Node '{0}' does not exist on screen '{1}'.", nodeId, screenId), [], screenId));
                 else if (Unbindable(bind, node) is { } problem)
                     issues.Add(problem with { Target = target, Screen = screenId });
                 else if (target.Length == 0)
-                    issues.Add(new(nodeId, target, "No target chosen yet.", [], screenId));
+                    issues.Add(new(nodeId, target, L.T("No target chosen yet."), [], screenId));
                 else if (target.StartsWith("Navigate:"))
                 {
                     var to = FaroApp.NavigateScreenId(target, project.Screens.Keys);
                     if (!project.Screens.ContainsKey(to))
-                        issues.Add(new(nodeId, target, $"Screen '{to}' does not exist.", Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId, "target"));
+                        issues.Add(new(nodeId, target, L.F("Screen '{0}' does not exist.", to), Nearest(to, project.Screens.Keys).Select(s => $"Navigate:Screen.{s}").ToList(), screenId, "target"));
                 }
                 else
                 {
                     var isEvent = bind.Attribute("event") is not null;
                     if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
-                        issues.Add(new(nodeId, target, $"{(isEvent ? "Method" : "Property")} '{target}' not found in Source/.",
+                        issues.Add(new(nodeId, target, L.F(isEvent ? "Method '{0}' not found in Source/." : "Property '{0}' not found in Source/.", target),
                             Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId, "target"));
                 }
             }
@@ -165,9 +165,8 @@ public static class BindingCheck
         var isEvent = bind.Attribute("event") is not null;
         var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
         IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
-        var kind = isEvent ? "event" : "property";
         return names?.Contains(name) == true ? null
-            : new((string)node.Attribute("id")!, "", $"{type} has no {kind} '{name}'.", Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
+            : new((string)node.Attribute("id")!, "", L.F(isEvent ? "{0} has no event '{1}'." : "{0} has no property '{1}'.", type, name), Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
     }
 
     /// <summary>Nodes authored in one screen, excluding the master snapshots stored inside instances.</summary>
@@ -476,6 +475,68 @@ public static class CanvasEdit
         return node;
     }
 
+    /// <summary>Copied nodes (deep) and the binds that point into them, pasteable on any screen.</summary>
+    public sealed record Clip(List<XElement> Nodes, List<XElement> Binds);
+
+    /// <summary>Nodes authored in a subtree: the node and its descendants, not the synced snapshots inside instances.</summary>
+    static IEnumerable<XElement> Authored(XElement node) =>
+        node.DescendantsAndSelf("Node").Where(d => !d.Ancestors("Node").TakeWhile(a => a != node.Parent).Any(a => a != d && (string?)a.Attribute("type") == "Instance"));
+
+    public static Clip Copy(FaroProject project, XDocument screen, IEnumerable<string> ids)
+    {
+        var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
+        nodes = [.. nodes.Where(n => !n.Ancestors().Any(nodes.Contains)).OrderBy(n => n.ElementsBeforeSelf().Count())]; // a selected child goes with its selected parent
+        var copied = nodes.SelectMany(Authored).Select(n => (string?)n.Attribute("id")).ToHashSet();
+        return new([.. nodes.Select(n => new XElement(n))],
+            [.. project.BindsFor(ScreenId(screen)).Where(b => copied.Contains(((string?)b.Attribute("nodeId"))?.Split('/')[0])).Select(b => new XElement(b))]);
+    }
+
+    /// <summary>
+    /// Pastes into the selected container (or after the selected node; <paramref name="after"/> forces that, for
+    /// Duplicate). Ids that are taken on this screen get the next free number ("btn1" → "btn2"); copied binds follow.
+    /// </summary>
+    public static (List<XElement> Added, List<XDocument> Changed) Paste(FaroProject project, XDocument screen, string? selectedId, Clip clip, bool after = false)
+    {
+        var taken = IdsOf(screen);
+        var renamed = new Dictionary<string, string>();
+        string Unique(string id)
+        {
+            var stem = id.TrimEnd("0123456789".ToCharArray());
+            var fresh = taken.Contains(id) ? Enumerable.Range(2, int.MaxValue - 2).Select(i => $"{stem}{i}").First(c => !taken.Contains(c)) : id;
+            taken.Add(fresh);
+            return fresh;
+        }
+        var selected = selectedId is null ? null : Find(screen, selectedId);
+        var into = selected is not null && IsContainer(selected) && !after ? selected : null;
+        var last = into is null && selected?.Parent is XElement { Name.LocalName: "Node" } ? selected : null;
+        var added = new List<XElement>();
+        foreach (var original in clip.Nodes)
+        {
+            var node = new XElement(original);
+            foreach (var n in Authored(node).ToList())
+                n.SetAttributeValue("id", renamed[(string)n.Attribute("id")!] = Unique((string)n.Attribute("id")!));
+            if (into is not null) into.Add(node);
+            else if (last is not null) { last.AddAfterSelf(node); last = node; }
+            else screen.Root!.Element("Node")!.Add(node);
+            added.Add(node);
+        }
+        List<XDocument> changed = [screen];
+        if (clip.Binds.Count > 0)
+        {
+            var file = BindingsFileFor(project, ScreenId(screen));
+            foreach (var bind in clip.Binds)
+            {
+                var path = ((string?)bind.Attribute("nodeId") ?? "").Split('/', 2);
+                if (!renamed.TryGetValue(path[0], out var id)) continue;
+                var copy = new XElement(bind);
+                copy.SetAttributeValue("nodeId", path.Length > 1 ? $"{id}/{path[1]}" : id);
+                file.Root!.Add(copy);
+            }
+            changed.Add(file);
+        }
+        return (added, changed);
+    }
+
     /// <summary>Deletes nodes (never the screen root) and the bindings that pointed at them.</summary>
     public static List<XDocument> Delete(FaroProject project, XDocument screen, IEnumerable<string> ids)
     {
@@ -548,6 +609,15 @@ public static class CanvasEdit
 /// </summary>
 public static partial class ProjectFiles
 {
+    public static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
+
+    /// <summary>Images under Assets/ as the project-relative paths a Source prop holds ("Assets/logo.png").</summary>
+    public static List<string> Images(string root) =>
+        !Directory.Exists(Path.Combine(root, "Assets")) ? [] :
+        [.. Directory.EnumerateFiles(Path.Combine(root, "Assets"), "*", SearchOption.AllDirectories)
+            .Where(f => ImageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/')).Order()];
+
     [System.Text.RegularExpressions.GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_.]*$")]
     private static partial System.Text.RegularExpressions.Regex IdPattern();
 
@@ -660,13 +730,17 @@ public static partial class ProjectFiles
 /// <summary>
 /// Design-time mock rows for repeatable nodes (spec §10.5), stored under the node as
 /// &lt;MockRow&gt;&lt;Set node="name" value="りんご" /&gt;&lt;/MockRow&gt;. The canvas shows one copy per row;
-/// the runtime ignores them (wiring real data is deferred, spec §5). ponytail: Text only; images when needed.
+/// the runtime ignores them (wiring real data is deferred, spec §5). Values fill Text, or an image's Source.
 /// </summary>
 public static class MockData
 {
     /// <summary>Nodes a row fills: those with a Text inside the repeatable node (an instance's synced snapshot).</summary>
     public static List<string> Fields(XElement node) =>
-        [.. Inner(node).DescendantsAndSelf("Node").Where(n => Bindable.For(Bindable.TypeOf(n))?.Props.ContainsKey("Text") == true).Select(n => (string)n.Attribute("id")!).Distinct()];
+        [.. Inner(node).DescendantsAndSelf("Node").Where(n => Bindable.TypeOf(n) == "Control.Image" || Bindable.For(Bindable.TypeOf(n))?.Props.ContainsKey("Text") == true)
+            .Select(n => (string)n.Attribute("id")!).Distinct()];
+
+    /// <summary>What a row value fills: an image's Source (an Assets/ path), otherwise the Text.</summary>
+    static string PropOf(XElement node) => Bindable.TypeOf(node) == "Control.Image" ? "Source" : "Text";
 
     public static List<List<string>> Rows(XElement node) =>
         [.. node.Elements("MockRow").Select(row => Fields(node).Select(f => (string?)row.Elements("Set").FirstOrDefault(s => (string?)s.Attribute("node") == f)?.Attribute("value") ?? "").ToList())];
@@ -694,7 +768,7 @@ public static class MockData
                 if (i > 0) { shown.SetAttributeValue("id", $"{(string?)node.Attribute("id")}~{i + 1}"); last.AddAfterSelf(shown); last = shown; }
                 foreach (var set in rows[i].Elements("Set"))
                     if (Inner(shown).DescendantsAndSelf("Node").FirstOrDefault(n => (string?)n.Attribute("id") == (string?)set.Attribute("node")) is { } target)
-                        CanvasEdit.SetProp(target == Inner(shown) && shown != target ? shown : target, "Text", (string?)set.Attribute("value")); // an instance's root text is an Override
+                        CanvasEdit.SetProp(target == Inner(shown) && shown != target ? shown : target, PropOf(target), (string?)set.Attribute("value")); // an instance's root prop is an Override
             }
         }
         return copy;

@@ -25,6 +25,9 @@
       <MenuItem x:Name="UndoItem" Header="_Undo" Click="Undo" InputGesture="Ctrl+Z" />
       <MenuItem x:Name="RedoItem" Header="_Redo" Click="Redo" InputGesture="Ctrl+Y" />
       <Separator />
+      <MenuItem Header="_Copy" Click="CopyNodes" InputGesture="Ctrl+C" />
+      <MenuItem Header="_Paste" Click="PasteNodes" InputGesture="Ctrl+V" />
+      <MenuItem Header="D_uplicate" Click="DuplicateNodes" InputGesture="Ctrl+D" />
       <MenuItem Header="_Delete" Click="Delete" InputGesture="Delete" />
       <Separator />
       <MenuItem Header="_Sync Components" Click="SyncComponents" />

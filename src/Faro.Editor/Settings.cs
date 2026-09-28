@@ -25,6 +25,8 @@ public sealed class FaroSettings
     public string OpenAiBaseUrl { get; set; } = "https://api.openai.com/v1";
     public string OpenAiModel { get; set; } = "";
 
+    public string Language { get; set; } = "en"; // "en" or "ja" (L.T)
+    public bool SetupDone { get; set; } // the first-run wizard ran
     public string AppTheme { get; set; } = "Dark"; // System / Dark / Light
     public string AppThemeFile { get; set; } = ""; // user ResourceDictionary (.axaml)
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
@@ -35,6 +37,7 @@ public sealed class FaroSettings
 
     // Editor layout (spec §14: saved per app). ponytail: pane sizes and the window; docking moves, tabs and floating panes reset on restart.
     public Dictionary<string, double> PaneProportions { get; set; } = [];
+    public string ArtboardSize { get; set; } = "Phone"; // canvas preview width/height, see CanvasView.Sizes
     public double WindowWidth { get; set; }
     public double WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
