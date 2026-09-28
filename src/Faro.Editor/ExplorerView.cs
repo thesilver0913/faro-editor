@@ -25,6 +25,7 @@ public sealed class ExplorerView : UserControl
     static readonly string[] Folders = ["UI", "Source", "Bindings", "Assets"];
     static readonly string[] Hidden = ["bin", "obj", ".git", ".vs"];
     static readonly HashSet<string> expanded = [];
+    static string? openedRoot; // the Faro folders start expanded once per project; after that the user decides
     static readonly DataFormat<string> PathFormat = DataFormat.CreateInProcessFormat<string>("faro-path");
 
     /// <summary>Files cut or copied in the explorer (paths), pasted into a folder.</summary>
@@ -95,7 +96,15 @@ public sealed class ExplorerView : UserControl
         Directory.EnumerateDirectories(dir).Where(d => !Hidden.Contains(Path.GetFileName(d))).Order()
             .Concat(Directory.EnumerateFiles(dir).Order());
 
-    void Build() => tree.ItemsSource = Directory.Exists(Workspace.Root) ? Children(Workspace.Root).Select(Item).ToList() : [];
+    void Build()
+    {
+        if (openedRoot != Workspace.Root)
+        {
+            openedRoot = Workspace.Root;
+            expanded.UnionWith(Folders.Select(f => Path.Combine(Workspace.Root, f)));
+        }
+        tree.ItemsSource = Directory.Exists(Workspace.Root) ? Children(Workspace.Root).Select(Item).ToList() : [];
+    }
 
     string? Selected => tree.SelectedItem is TreeViewItem { Tag: string path } ? path : null;
 
@@ -105,7 +114,7 @@ public sealed class ExplorerView : UserControl
     TreeViewItem Item(string path)
     {
         var isDir = Directory.Exists(path);
-        var item = new TreeViewItem { Header = Path.GetFileName(path), Tag = path, IsExpanded = expanded.Contains(path) || Folders.Contains(Path.GetRelativePath(Workspace.Root, path)) };
+        var item = new TreeViewItem { Header = Path.GetFileName(path), Tag = path, IsExpanded = expanded.Contains(path) };
         item.PropertyChanged += (_, e) =>
         {
             if (e.Property != TreeViewItem.IsExpandedProperty) return;
