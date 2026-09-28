@@ -1,8 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <UIGraph id="MainScreen" version="1">
   <Node id="root" type="Container.Stack" direction="Vertical" gap="8" padding="16">
-    <Node id="title" type="Control.Text" sizing="Hug">
-      <Prop name="Text" value="Faro サンプル" />
+    <Node id="header" type="Container.Overlay" widthSizing="Fill">
+      <Node id="title" type="Control.Text" sizing="Hug" anchorY="Center">
+        <Prop name="Text" value="Faro サンプル" />
+      </Node>
+      <Node id="badge" type="Control.Text" sizing="Hug" anchorX="Right" anchorY="Center">
+        <Prop name="Text" value="β版" />
+      </Node>
     </Node>
     <Node id="txt1" type="Control.TextInput" widthSizing="Fill">
       <Prop name="Placeholder" value="名前を入力" />

@@ -28,7 +28,9 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## プロジェクトの作成と配布
 
-- 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(既定の場所は `ドキュメント/Faro/<名前>`、変更可、テンプレートは Empty か Sample、言語は C# 固定)。File メニューの「Open Folder…」「Close Project」も同じ流れ
+- 起動するとウェルカム画面:**最近のプロジェクト**／**フォルダを開く**／**新規プロジェクト**(テンプレートは Empty か Sample、言語は C# 固定)。File メニューの「Open Folder…」「Close Project」も同じ流れ
+- **新規プロジェクトは名前なし(Untitled)で始まる**:設定フォルダの `Faro/Untitled/UntitledN` に作られ、最初の **File › Save**(Ctrl+S)か **Save As…**(Ctrl+Shift+S)で名前と場所(既定は `ドキュメント/Faro`)を決める。Save As はプロジェクトを `bin/`・`obj/` 抜きで複製し、`faro.json` と `.csproj` の名前を付け替えて開き直す。保存せずに閉じようとすると「Save As… / Don't Save / Cancel」を確認し、捨てた Untitled は次の起動時に削除(削除するのは Untitled フォルダだけ)
+- **Save** はコードの未保存分をすべて保存する(キャンバスの編集は操作のたびにファイルへ書かれる)。保存済みのプロジェクトでの Save As は別名の複製を作って開く
 - Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン・開始画面 `startScreen`)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
 - **Faro.Runtime はプロジェクト内に同梱**:エディターのビルド時に `Faro.Runtime.<版>.nupkg` を作り、新規プロジェクトの `.faro/packages/` にコピーして `nuget.config` から参照する。フォルダごと別の場所・PC に移してもビルドできる(Avalonia 本体は nuget.org から取得)。`.faro/` はプロジェクトと一緒にバージョン管理する
 - 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
@@ -58,7 +60,8 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 ## キャンバス編集とインスペクター
 
 - 既定レイアウト:左端にエクスプローラー、中央上にキャンバス、中央下にコード｜Console、右端にインスペクター。Console は VSCode 風に Problems／Output／Vibe Coding をタブで切り替える(依頼文を入れると Vibe Coding、Run で Output に切り替わる)
-- **コンポーネントのマスター編集**:キャンバスの画面リスト(またはエクスプローラー)からコンポーネントを開くと、画面と同じようにマスターを編集できる。インスタンスへの反映は「Sync components」(明示同期)。マスターの紐付けは `Bindings/<コンポーネントID>.xml` に保存され、**全インスタンス共通**で実行時に各インスタンス内の Node に適用される(仕様§5 の 2 階建て。インスタンス固有の紐付けは画面の Bindings でインスタンス ID に付ける)
+- **コンポーネントのマスター編集**:キャンバスの画面リスト(またはエクスプローラー)からコンポーネントを開くと、画面と同じようにマスターを編集できる。インスタンスへの反映は「Sync components」(明示同期)。マスターの紐付けは `Bindings/<コンポーネントID>.xml` に保存され、**全インスタンス共通**で実行時に各インスタンス内の Node に適用される(仕様§5 の 2 階建て。インスタンス固有の紐付けは画面の Bindings でインスタンス ID に付ける。インスタンスの**中の Node** にも `nodeId="orderList/price"` のようにパスで付けられ、インスペクターではインスタンスを選ぶと対象 Node を選べる。ID 変更・削除にも追従)
+- **Script 部品**(`Control.Script`):見た目もボタンも動作も全部コードで書きたい人向け。`class` 属性に `FaroScript` を継承したクラスを指定し、`public override Control Build()` が返す Avalonia のコントロールがその場所に入る(生存期間の属性も有効)。キャンバスは**最後のビルド結果**(`bin/` の DLL)を読み込んで実物を表示し、未ビルドや失敗時は枠とメッセージ。クラスが見つからなければ Problems に出て、インスペクターから「Create with vibe coding」。サンプルの Detail 画面に `MyApp.Views.Stamp` の例がある
 - **Problems タブ**(仕様§11、Console 内。件数をタブ名に表示):プロジェクト全体の壊れた紐付けを画面/コンポーネントごとに一覧。クリックでその画面を開いて Node を選択。Run 中のビルドエラー(C# のコンパイルエラー)も「Build」として並び、クリックでコードエディタの該当行へ。次のビルドが始まると消える
 - **ドラッグ＆ドロップ**:キャンバス上で Node をドラッグして並べ替え・別コンテナへ移動(挿入位置を青線で表示、Auto Layout どおり座標指定はなし)
 - キャンバスのツールバー:**+ Add**(Stack/Wrap/Grid/Button/TextInput/Text/Image とコンポーネント)、Delete(Del キー)、↑ ↓(Alt+↑/↓)。追加先は選択中のコンテナ内、選択が部品ならその直後、未選択ならルート末尾
@@ -74,7 +77,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 
 ## メニューと環境設定
 
-- **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／すべて保存(Ctrl+Shift+S)／実行(F5)・停止(Shift+F5)／終了。未保存のコードがあれば確認してから閉じる
+- **File**:プロジェクトを開く(Ctrl+O、Faro を再起動して開き直す)／閉じる／保存(Ctrl+S)・名前を付けて保存(Ctrl+Shift+S)／実行(F5)・停止(Shift+F5)／終了。Untitled や未保存のコードがあれば確認してから閉じる
 - **Edit**:元に戻す(Ctrl+Z)／やり直し(Ctrl+Y・Ctrl+Shift+Z)／削除(Del)／コンポーネント同期／環境設定(Ctrl+,)
 - **Undo/Redo(仕様§10)**:Ctrl+Z / Ctrl+Y と Edit メニュー。最後に操作したペインで対象が切り替わる(右上に表示)
   - キャンバス・インスペクター → **UI グラフ履歴**:Faro が UI/・Bindings/ に書いた変更(キャンバス編集・コンポーネント同期)を 1 手ずつ。Faro 外でファイルが変更されていたら上書きせずに中止
@@ -100,6 +103,7 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
   | Control.TextInput | Changed | Text, Placeholder, Visible, Enabled |
   | Control.Text | – | Text, Visible, Enabled |
   | Control.Image | – | Visible, Enabled |
+  | Control.Script | – | Visible, Enabled |
   | Container.* | – | Visible, Enabled |
   | Instance | マスターのルート Node の種類に従う | 同左 |
 
@@ -109,6 +113,11 @@ cd samples/HelloFaro && dotnet watch run                    # アプリをホッ
 - 生存期間・永続化はC#属性で指定: `[FaroLifetime(Lifetime.Singleton, Persistent = true)]`(未指定はScreenScoped)。永続化データは `ApplicationData/Faro/<アプリ名>/<クラス名>.json`
 - `Navigate:Screen.Detail` の `Screen.` は省略可能な接頭辞で、UIGraphの `id="Detail"` を指す
 - `Container.Grid` は `columns` 属性を持つ均等グリッド
+- **絶対座標を使わないレイアウトの追加オプション**(Figma の Auto Layout／Constraints、Android の ConstraintLayout・Box、CSS flexbox に相当):
+  - Stack:`justify`(主軸の Start/Center/End/SpaceBetween)、子の `alignSelf`(交差軸の揃えを上書き)、Fill の比率 `weight`
+  - 全 Node:`minWidth`/`maxWidth`/`minHeight`/`maxHeight`、`margin`
+  - `padding`/`margin` は `8`・`8 16`(上下 左右)・`8 16 8 16`(上 右 下 左、CSS と同じ順)
+  - `Container.Overlay`:子を重ねて置き、各子を `anchorX`(Left/Center/Right)・`anchorY`(Top/Center/Bottom)で親の辺か中央に固定。Fill はその軸いっぱい、距離は `margin`。画像の上の文字、隅のバッジ、下に固定するボタンなどに使う
 
 ## リスク検証結果(仕様11.5)
 

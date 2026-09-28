@@ -165,6 +165,7 @@ public sealed class CanvasView : UserControl
     void ShowRunState()
     {
         run.Content = Workspace.Running ? "Stop" : "Run";
+        if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
         DrawSelection(); // refreshes the status line (unbuilt changes)
     }
 
@@ -227,7 +228,7 @@ public sealed class CanvasView : UserControl
             {
                 var badge = Badge(group);
                 // Clicking opens the re-binding panel (spec §6): the node's bindings in the inspector, with candidates.
-                var nodeId = group.Key;
+                var nodeId = group.Key.Split('/')[0]; // a node inside an instance selects the instance
                 if (ScreenNodeIds.Contains(nodeId))
                 {
                     badge.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
@@ -322,7 +323,7 @@ public sealed class CanvasView : UserControl
     {
         var bind = Workspace.Project?.BindsFor(CurrentScreen ?? "").FirstOrDefault(b => (string?)b.Attribute("nodeId") == issue.NodeId && (string?)b.Attribute("target") == issue.Target);
         if (bind is null || issue.Target.Length == 0 || issue.Target.StartsWith("Navigate:") || Workspace.Registry.Any(m => m.Target == issue.Target)) return null;
-        var type = Workspace.Project!.Graph(CurrentScreen ?? "")?.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == issue.NodeId)?.Attribute("type")?.Value;
+        var type = Workspace.Project!.Graph(CurrentScreen ?? "") is { } graph && CanvasEdit.FindPath(graph, issue.NodeId) is { } found ? Bindable.TypeOf(found) : null;
         var node = $"node `{issue.NodeId}` ({type})";
         if ((string?)bind.Attribute("event") is { } eventName)
             return $"Create `{issue.Target}`: a public parameterless method that runs on {eventName} of {node}.";

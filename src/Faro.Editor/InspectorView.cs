@@ -80,13 +80,30 @@ public sealed class InspectorView : UserControl
         body.Children.Add(Section("Layout"));
         body.Children.Add(Row("Width", Sizing(node, "width")));
         body.Children.Add(Row("Height", Sizing(node, "height")));
+        // Placement in the parent: anchors in an Overlay, alignment and fill weight in a Stack.
+        var parentType = (string?)node.Parent?.Attribute("type");
+        if (parentType == "Container.Overlay")
+        {
+            body.Children.Add(Row("Anchor X", Choice(node, "anchorX", ["Left", "Center", "Right"])));
+            body.Children.Add(Row("Anchor Y", Choice(node, "anchorY", ["Top", "Center", "Bottom"])));
+        }
+        else if (parentType == "Container.Stack")
+        {
+            body.Children.Add(Row("Align self", Choice(node, "alignSelf", ["Auto", "Start", "Center", "End"], unset: "Auto")));
+            var mainAxis = (string?)node.Parent!.Attribute("direction") == "Horizontal" ? "width" : "height";
+            if (UiBuilder.Sizing(node, mainAxis) == "Fill") body.Children.Add(Row("Fill weight", AttributeField(node, "weight")));
+        }
+        body.Children.Add(Row("Min W / H", Pair(AttributeField(node, "minWidth"), AttributeField(node, "minHeight"))));
+        body.Children.Add(Row("Max W / H", Pair(AttributeField(node, "maxWidth"), AttributeField(node, "maxHeight"))));
+        body.Children.Add(Row("Margin", AttributeField(node, "margin", sides: true)));
         if (CanvasEdit.IsContainer(node))
         {
-            if (type != "Container.Grid") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
-            else body.Children.Add(Row("Columns", AttributeField(node, "columns")));
-            body.Children.Add(Row("Gap", AttributeField(node, "gap")));
-            body.Children.Add(Row("Padding", AttributeField(node, "padding")));
-            body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
+            if (type is "Container.Stack" or "Container.Wrap") body.Children.Add(Row("Direction", Choice(node, "direction", ["Vertical", "Horizontal"])));
+            if (type == "Container.Grid") body.Children.Add(Row("Columns", AttributeField(node, "columns")));
+            if (type != "Container.Overlay") body.Children.Add(Row("Gap", AttributeField(node, "gap")));
+            body.Children.Add(Row("Padding", AttributeField(node, "padding", sides: true)));
+            if (type != "Container.Overlay") body.Children.Add(Row("Alignment", Choice(node, "alignment", ["Start", "Center", "End"])));
+            if (type == "Container.Stack") body.Children.Add(Row("Justify", Choice(node, "justify", ["Start", "Center", "End", "SpaceBetween"])));
         }
 
         var props = type == "Instance"
@@ -98,6 +115,21 @@ public sealed class InspectorView : UserControl
             foreach (var prop in props)
                 body.Children.Add(Row(prop, Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
+        if (type == "Control.Script")
+        {
+            // The class that builds this node in code (a FaroScript in Source/).
+            body.Children.Add(Section("Script"));
+            var cls = (string?)node.Attribute("class") ?? "";
+            var classBox = new AutoCompleteBox { Text = cls, ItemsSource = Workspace.ScriptClasses, FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 200, PlaceholderText = "MyApp.Views.MyScript" };
+            Commit(classBox, () => classBox.Text ?? "", value => EditNode(id, "Set script class", n => n.SetAttributeValue("class", value.Trim())));
+            body.Children.Add(Row("Class", classBox));
+            if (cls.Length > 0 && !Workspace.ScriptClasses.Contains(cls))
+            {
+                var create = new Button { Content = "Create with vibe coding" };
+                create.Click += (_, _) => ChatView.Prefill($"Create `{cls}`: a public class deriving from Faro.Runtime.FaroScript whose Build() returns the Avalonia control for Script node `{id}` on screen {CanvasView.CurrentScreen}.");
+                body.Children.Add(create);
+            }
+        }
         if (type == "Instance")
         {
             var repeatable = new CheckBox { Content = "Repeatable (list)", IsChecked = (string?)node.Attribute("repeatable") == "true" };
@@ -108,9 +140,10 @@ public sealed class InspectorView : UserControl
         }
 
         body.Children.Add(Section("Bindings"));
-        foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") == id).ToList())
+        // An instance also lists the bindings of its inner nodes ("orderList/price").
+        foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
-        body.Children.Add(AddBindRow(id));
+        body.Children.Add(AddBindRow(id, [id, .. CanvasEdit.InnerNodes(node).Where(n => n != node.Element("Node")).Select(n => $"{id}/{(string?)n.Attribute("id")}")]));
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>
@@ -130,20 +163,23 @@ public sealed class InspectorView : UserControl
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
 
-    Control Choice(XElement node, string attribute, string[] values)
+    /// <param name="unset">A choice that removes the attribute (e.g. "Auto": follow the container).</param>
+    Control Choice(XElement node, string attribute, string[] values, string? unset = null)
     {
         var id = (string)node.Attribute("id")!;
         var box = new ComboBox { ItemsSource = values, SelectedItem = (string?)node.Attribute(attribute) ?? values[0], MinWidth = 120 };
-        box.SelectionChanged += (_, _) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, (string)box.SelectedItem!));
+        box.SelectionChanged += (_, _) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, (string)box.SelectedItem! == unset ? null : (string)box.SelectedItem!));
         return box;
     }
 
-    Control AttributeField(XElement node, string attribute)
+    /// <param name="sides">Padding/margin: 1, 2 or 4 numbers ("8", "8 16", "8 16 8 16": top right bottom left).</param>
+    Control AttributeField(XElement node, string attribute, bool sides = false)
     {
         var id = (string)node.Attribute("id")!;
         return Field((string?)node.Attribute(attribute) ?? "", value =>
         {
-            if (value.Length > 0 && !double.TryParse(value, out _)) return; // numbers only; the canvas would fail to build otherwise
+            var numbers = value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+            if (numbers.Any(v => !double.TryParse(v, out _)) || numbers.Length > 1 && !(sides && numbers.Length is 2 or 4)) return; // the canvas would fail to build otherwise
             EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value));
         }, 80);
     }
@@ -156,7 +192,8 @@ public sealed class InspectorView : UserControl
         var target = new AutoCompleteBox { Text = (string?)bind.Attribute("target") ?? "", ItemsSource = Candidates(isEvent), FilterMode = AutoCompleteFilterMode.ContainsOrdinal, MinWidth = 220 };
         Commit(target, () => target.Text ?? "", value => EditBind(bind, "Set binding target", b => b.SetAttributeValue("target", value)));
 
-        var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { new TextBlock { Text = $"{name} {(isEvent ? "→" : "⇄")}", VerticalAlignment = VerticalAlignment.Center, MinWidth = 90 }, target } };
+        var inner = ((string?)bind.Attribute("nodeId") ?? "").Split('/', 2) is [_, var path] ? path + " · " : ""; // bound inside an instance
+        var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { new TextBlock { Text = $"{inner}{name} {(isEvent ? "→" : "⇄")}", VerticalAlignment = VerticalAlignment.Center, MinWidth = 90 }, target } };
         if (!isEvent)
         {
             var mode = new ComboBox { ItemsSource = new[] { "OneWay", "TwoWay" }, SelectedItem = (string?)bind.Attribute("mode") ?? "OneWay" };
@@ -194,21 +231,23 @@ public sealed class InspectorView : UserControl
         return panel;
     }
 
-    /// <summary>Adds a binding: event or property of the node's control, bound to a registry member.</summary>
-    Control AddBindRow(string id)
+    /// <summary>Adds a binding: event or property of the node's control (or, on an instance, of a node inside it), bound to a registry member.</summary>
+    Control AddBindRow(string id, List<string> nodes)
     {
+        var at = new ComboBox { ItemsSource = nodes, SelectedIndex = 0, IsVisible = nodes.Count > 1 };
         var kind = new ComboBox { ItemsSource = new[] { "Event", "Property" }, SelectedIndex = 0 };
         var name = new AutoCompleteBox { MinWidth = 140, FilterMode = AutoCompleteFilterMode.ContainsOrdinal };
         void Names()
         {
             // Framework-neutral names only (Faro.Runtime.Bindable), so binding files don't depend on Avalonia.
-            var bindable = CanvasView.ControlOf(id) is { } control ? Faro.Runtime.Bindable.For(control) : null;
+            var bindable = CanvasView.ControlOf((string)at.SelectedItem!) is { } control ? Faro.Runtime.Bindable.For(control) : null;
             var names = (kind.SelectedIndex == 0 ? bindable?.Events.Keys.ToArray() : bindable?.Props.Keys.ToArray()) ?? [];
             name.ItemsSource = names;
             name.PlaceholderText = names.FirstOrDefault() ?? "";
         }
         Names();
         kind.SelectionChanged += (_, _) => Names();
+        at.SelectionChanged += (_, _) => Names();
         var add = new Button { Content = "+ Add binding" };
         add.Click += (_, _) =>
         {
@@ -218,12 +257,12 @@ public sealed class InspectorView : UserControl
             CanvasView.Edit("Add binding", (project, _) =>
             {
                 var file = CanvasEdit.BindingsFileFor(project, CanvasView.CurrentScreen!);
-                file.Root!.Add(new XElement("Bind", new XAttribute("nodeId", id), new XAttribute(isEvent ? "event" : "prop", member), new XAttribute("target", ""),
+                file.Root!.Add(new XElement("Bind", new XAttribute("nodeId", (string)at.SelectedItem!), new XAttribute(isEvent ? "event" : "prop", member), new XAttribute("target", ""),
                     isEvent ? null : new XAttribute("mode", "OneWay")));
                 return [file];
             });
         };
-        return new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { kind, name, add } };
+        return new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { at, kind, name, add } };
     }
 
     static void EditBind(XElement bind, string label, Action<XElement> change) => CanvasView.Edit(label, (_, _) =>
@@ -255,7 +294,7 @@ public sealed class InspectorView : UserControl
             AcceptsReturn = true,
             MinHeight = 60,
             Text = string.Join("\n", MockData.Rows(node).Select(r => string.Join(" | ", r))),
-            Watermark = string.Join(" | ", fields.Select(_ => "…")),
+            PlaceholderText = string.Join(" | ", fields.Select(_ => "…")),
         };
         var last = box.Text;
         box.LostFocus += (_, _) =>
@@ -298,6 +337,8 @@ public sealed class InspectorView : UserControl
         grid.Children.Add(editor);
         return grid;
     }
+
+    static Control Pair(Control a, Control b) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { a, b } };
 
     static TextBlock Section(string title) => new() { Text = title, FontWeight = FontWeight.SemiBold, Margin = new(0, 10, 0, 0) };
     static TextBlock Hint(string text) => new() { Text = text, Opacity = 0.6, TextWrapping = TextWrapping.Wrap };

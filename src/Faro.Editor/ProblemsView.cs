@@ -70,6 +70,7 @@ public sealed class ProblemsView : UserControl
     {
         if (Workspace.Project?.Graph(issue.Screen) is null) return; // e.g. a bindings file with no screen
         CanvasView.ShowScreen(issue.Screen);
-        CanvasView.Select(issue.NodeId.Length > 0 && CanvasView.ScreenNodeIds.Contains(issue.NodeId) ? [issue.NodeId] : []);
+        var nodeId = issue.NodeId.Split('/')[0]; // inside an instance: select the instance
+        CanvasView.Select(nodeId.Length > 0 && CanvasView.ScreenNodeIds.Contains(nodeId) ? [nodeId] : []);
     }
 }

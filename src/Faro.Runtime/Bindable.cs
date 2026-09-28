@@ -21,6 +21,7 @@ public static class Bindable
     static readonly Entry[] entries =
     [
         new("Control.Button", typeof(Button), new() { ["Click"] = Button.ClickEvent }, Common(("Text", ContentControl.ContentProperty))),
+        new("Control.Script", typeof(ContentControl), [], Common()), // after Button, which is a ContentControl too
         new("Control.TextInput", typeof(TextBox), new() { ["Changed"] = TextBox.TextChangedEvent },
             Common(("Text", TextBox.TextProperty), ("Placeholder", TextBox.PlaceholderTextProperty))),
         new("Control.Text", typeof(TextBlock), [], Common(("Text", TextBlock.TextProperty))),

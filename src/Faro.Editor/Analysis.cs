@@ -24,13 +24,23 @@ public static class Registry
         !Directory.Exists(sourceDir) ? [] :
         [.. Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).SelectMany(f => Parse(File.ReadAllText(f)))];
 
+    /// <summary>Classes deriving from FaroScript (for Script nodes), by the same syntax-only scan.</summary>
+    public static List<string> ScriptClasses(string sourceDir) =>
+        !Directory.Exists(sourceDir) ? [] :
+        [.. from file in Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories)
+            from cls in CSharpSyntaxTree.ParseText(File.ReadAllText(file)).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+            where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
+                && cls.BaseList?.Types.Any(t => t.Type.ToString().Split('.')[^1] == "FaroScript") == true
+            let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
+            select ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text];
+
     public static IEnumerable<RegistryMember> Parse(string code) =>
         from cls in CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
         where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
         let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
         let fullName = ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text
         from member in cls.Members
-        where IsPublic(member.Modifiers)
+        where IsPublic(member.Modifiers) && !member.Modifiers.Any(SyntaxKind.OverrideKeyword) // e.g. a script's Build(): not a binding target
         let entry = member switch
         {
             MethodDeclarationSyntax m => new RegistryMember($"{fullName}.{m.Identifier}", true, $"{m.ReturnType} {m.Identifier}{m.ParameterList}"),
@@ -95,9 +105,15 @@ public static class Registry
 public static class BindingCheck
 {
     /// <summary>Finds broken bindings (red badges, spec §6) with up to 3 near-name suggestions each.</summary>
-    public static List<BindingIssue> Check(FaroProject project, List<RegistryMember> registry)
+    /// <param name="scripts">FaroScript classes in Source/: Script nodes naming another class are reported (null: not checked).</param>
+    public static List<BindingIssue> Check(FaroProject project, List<RegistryMember> registry, IReadOnlyCollection<string>? scripts = null)
     {
         var issues = new List<BindingIssue>();
+        if (scripts is not null)
+            foreach (var (graphId, graph) in project.Screens.Concat(project.Components))
+                foreach (var n in NodesOf(graph).Where(n => (string?)n.Attribute("type") == "Control.Script" && !scripts.Contains((string?)n.Attribute("class") ?? "")))
+                    issues.Add(new((string)n.Attribute("id")!, "", ((string?)n.Attribute("class") ?? "") is { Length: > 0 } cls
+                        ? $"Script class '{cls}' (deriving from FaroScript) not found in Source/." : "No script class chosen yet.", Nearest((string?)n.Attribute("class") ?? "", scripts), graphId));
         foreach (var (screenId, screen) in project.Screens)
             foreach (var n in NodesOf(screen).Where(n => (string?)n.Attribute("type") == "Instance" && !project.Components.ContainsKey((string?)n.Attribute("component") ?? "")))
                 issues.Add(new((string)n.Attribute("id")!, "", $"Component '{(string?)n.Attribute("component")}' does not exist.", Nearest((string?)n.Attribute("component") ?? "", project.Components.Keys), screenId));
@@ -117,7 +133,7 @@ public static class BindingCheck
             {
                 var nodeId = (string?)bind.Attribute("nodeId") ?? "";
                 var target = (string?)bind.Attribute("target") ?? "";
-                if (!nodes.TryGetValue(nodeId, out var node))
+                if ((nodeId.Contains('/') ? CanvasEdit.FindPath(screen, nodeId) : nodes.GetValueOrDefault(nodeId)) is not { } node)
                     issues.Add(new(nodeId, target, $"Node '{nodeId}' does not exist on screen '{screenId}'.", [], screenId));
                 else if (Unbindable(bind, node) is { } problem)
                     issues.Add(problem with { Target = target, Screen = screenId });
@@ -228,6 +244,8 @@ public static partial class VibeCoding
 
             Rules:
             - Event bindings (e.g. Click) call public parameterless methods. Property bindings use public properties.
+            - A Script node's class inherits Faro.Runtime.FaroScript and overrides `public override Control Build()`, returning the
+              Avalonia control (look and behaviour) shown in the node's place (`using Avalonia.Controls;`).
             - Classes are public, top-level, and inherit Faro.Runtime.FaroObject (`using Faro.Runtime;`). Property setters raise
               change notifications: `public string Name { get; set => Set(ref field, value); }`. When a computed property depends on
               others, keep it in a field and update it with Set(ref ..., ..., nameof(Computed)) from those setters.
@@ -370,9 +388,30 @@ public static class UiHistory
 public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
-        ["Container.Stack", "Container.Wrap", "Container.Grid", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image"];
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
+
+    /// <summary>
+    /// A bind's node: a screen node ("price"), or a node inside an instance's synced snapshot by path
+    /// ("orderList/price", nested "card/ok/root") — the same keys the runtime registers.
+    /// </summary>
+    public static XElement? FindPath(XDocument graph, string path)
+    {
+        XElement? node = null;
+        foreach (var part in path.Split('/'))
+        {
+            var scope = node is null ? BindingCheck.NodesOf(graph) : InnerNodes(node);
+            if ((node = scope.FirstOrDefault(n => (string?)n.Attribute("id") == part)) is null) return null;
+        }
+        return node;
+    }
+
+    /// <summary>The nodes of an instance's snapshot one level deep (a nested instance counts as one node).</summary>
+    public static IEnumerable<XElement> InnerNodes(XElement instance) =>
+        (string?)instance.Attribute("type") == "Instance" && instance.Element("Node") is { } root
+            ? root.DescendantsAndSelf("Node").Where(n => !n.Ancestors("Node").TakeWhile(a => a != root).Any(a => (string?)a.Attribute("type") == "Instance"))
+            : [];
 
     /// <summary>A node authored in the screen (not inside an instance's master snapshot).</summary>
     public static XElement? Find(XDocument screen, string id) =>
@@ -427,6 +466,7 @@ public static class CanvasEdit
             node.Add(new XElement(project.Components[component].Root!.Element("Node")!)); // initial snapshot of the master
         }
         else if (type.StartsWith("Container.")) { node.SetAttributeValue("gap", "8"); node.SetAttributeValue("padding", "8"); }
+        else if (type == "Control.Script") node.SetAttributeValue("class", "");
         else if (type is "Control.Button" or "Control.Text") node.Add(new XElement("Prop", new XAttribute("name", "Text"), new XAttribute("value", type == "Control.Button" ? "Button" : "Text")));
 
         var selected = selectedId is null ? null : Find(screen, selectedId);
@@ -441,7 +481,7 @@ public static class CanvasEdit
     {
         var nodes = ids.Select(id => Find(screen, id)).OfType<XElement>().Where(n => n.Parent?.Name == "Node").ToList();
         var gone = nodes.SelectMany(n => n.DescendantsAndSelf("Node")).Select(n => (string?)n.Attribute("id")).ToHashSet();
-        var binds = project.BindsFor(ScreenId(screen)).Where(b => gone.Contains((string?)b.Attribute("nodeId"))).ToList();
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => gone.Contains(((string?)b.Attribute("nodeId"))?.Split('/')[0])).ToList(); // "orderList/price" goes with orderList
         var changed = binds.Select(b => b.Document!).Distinct().Append(screen).ToList();
         nodes.ForEach(n => n.Remove());
         binds.ForEach(b => b.Remove());
@@ -483,8 +523,8 @@ public static class CanvasEdit
         if (IdsOf(screen).Contains(newId)) return ($"'{newId}' is already used on this screen.", []);
         if (Find(screen, oldId) is not { } node) return ($"'{oldId}' not found.", []);
         node.SetAttributeValue("id", newId);
-        var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") == oldId).ToList();
-        binds.ForEach(b => b.SetAttributeValue("nodeId", newId));
+        var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == oldId || n.StartsWith(oldId + "/"))).ToList();
+        binds.ForEach(b => b.SetAttributeValue("nodeId", newId + ((string)b.Attribute("nodeId")!)[oldId.Length..]));
         return (null, [screen, .. binds.Select(b => b.Document!).Distinct()]);
     }
 

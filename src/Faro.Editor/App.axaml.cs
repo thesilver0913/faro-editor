@@ -21,6 +21,8 @@ public partial class App : Application
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
 
         FaroSettings.Current.ApplyTheme();
+        // Discarded untitled projects go once no earlier Faro process holds their files.
+        _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(() => ProjectSetup.DeletePending(Workspace.Root.Length > 0 ? Workspace.Root : null)));
         if (root is not null) { OpenProject(desktop, root, null); return; }
         var welcome = new WelcomeWindow();
         welcome.ProjectChosen += dir => OpenProject(desktop, dir, welcome);
@@ -65,7 +67,7 @@ public partial class App : Application
         catch (Exception) { } // the code pane shows why; the editor still opens
         splash.Report("Ready", 100);
 
-        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}" };
+        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? " (not saved)" : "")}" };
         desktop.MainWindow.Show();
         splash.Close();
     }

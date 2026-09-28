@@ -111,6 +111,50 @@ Check(!mockBuilt.Keys.Any(k => k.Contains('~')) && mockBuilt.ContainsKey("orderL
 var mockCopy = new System.Xml.Linq.XElement(orderList);
 MockData.SetRows(mockCopy, [["a", "1"], ["b", ""]]);
 Check(MockData.Rows(mockCopy).Count == 2 && MockData.Rows(mockCopy)[1].SequenceEqual(["b", ""]) && mockCopy.Elements("MockRow").Last().Elements("Set").Count() == 1, "mock rows written back");
+// Bindings to nodes inside an instance ("orderList/price"): checked against the snapshot, followed on rename/delete.
+var mainGraph = project.Screens["MainScreen"];
+Check(CanvasEdit.FindPath(mainGraph, "orderList/price") is { } innerPrice && (string?)innerPrice.Attribute("type") == "Control.Text"
+    && CanvasEdit.FindPath(mainGraph, "orderList/nope") is null && CanvasEdit.FindPath(mainGraph, "price") is null, "node paths reach inside instance snapshots only");
+var innerFile = project.BindingFiles.First(d => FaroProject.ScreenOf(d) == "MainScreen");
+innerFile.Root!.Elements("Bind").Where(b => (string?)b.Attribute("event") == "OnClick").Remove();
+innerFile.Root!.Add(System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/price" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" />"""),
+    System.Xml.Linq.XElement.Parse("""<Bind nodeId="orderList/nope" prop="Text" target="MyApp.Services.OrderService.Summary" />"""));
+var innerIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "MainScreen").ToList();
+Check(innerIssues.Count == 1 && innerIssues[0].NodeId == "orderList/nope", "a bind inside an instance is checked like any other");
+CanvasEdit.Rename(project, mainGraph, "orderList", "items");
+Check(project.BindsFor("MainScreen").Count(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true) == 3 && !project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("orderList") == true), "renaming an instance follows binds inside it");
+CanvasEdit.Delete(project, mainGraph, ["items"]);
+Check(!project.BindsFor("MainScreen").Any(b => ((string?)b.Attribute("nodeId"))?.StartsWith("items/") == true), "deleting an instance removes binds inside it");
+project = FaroProject.Load(root);
+// Script nodes: a FaroScript class builds the control; the runtime wraps it so bindings see a Script node.
+Check(Registry.ScriptClasses(Path.Combine(root, "Source")).SequenceEqual(["MyApp.Views.Stamp"]) && !registry.Any(m => m.Target.EndsWith(".Build")), "script classes found; their Build() isn't a binding target");
+var scriptGraph = System.Xml.Linq.XElement.Parse("""<Node id="s" type="Control.Script" class="MyApp.Views.Stamp" />""");
+UiBuilder.ScriptFactory = null;
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border } placeholder
+    && Bindable.For(placeholder)!.Type == "Control.Script", "a script without a factory shows a placeholder");
+UiBuilder.ScriptFactory = name => ((FaroScript)Activator.CreateInstance(typeof(MyApp.Views.Stamp).Assembly.GetType(name)!)!).Build();
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border { Child: Avalonia.Controls.StackPanel } }, "a script builds its control in code");
+UiBuilder.ScriptFactory = _ => throw new InvalidOperationException("boom");
+Check(UiBuilder.Build(scriptGraph, new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.ContentControl { Content: Avalonia.Controls.Border { Child: Avalonia.Controls.TextBlock { Text: var failed } } } && failed!.Contains("boom"), "a failing script shows its error in place");
+UiBuilder.ScriptFactory = null;
+var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
+Check(ScriptPreview.Build(sampleDir, "MyApp.Views.Stamp") is Avalonia.Controls.Border && Throws<InvalidOperationException>(() => ScriptPreview.Build(sampleDir, "MyApp.Views.Nope")), "the canvas previews scripts from the last build");
+CanvasEdit.Find(project.Screens["Detail"], "stamp")!.SetAttributeValue("class", "MyApp.Views.Stmp");
+Check(BindingCheck.Check(project, registry, Registry.ScriptClasses(Path.Combine(root, "Source"))).Any(i => i.NodeId == "stamp" && i.Suggestions[0] == "MyApp.Views.Stamp"), "a script node naming a missing class is a problem");
+project = FaroProject.Load(root);
+// Layout options without coordinates: justify / weight / alignSelf / min-max / sides in Stacks, anchors in Overlays.
+Check(UiBuilder.Sides("8") == new Avalonia.Thickness(8) && UiBuilder.Sides("8 16") == new Avalonia.Thickness(16, 8, 16, 8) && UiBuilder.Sides("1 2 3 4") == new Avalonia.Thickness(4, 1, 2, 3), "padding/margin use CSS order");
+Avalonia.Controls.Grid StackGrid(string xml) => (Avalonia.Controls.Grid)((Avalonia.Controls.Border)UiBuilder.Build(System.Xml.Linq.XElement.Parse(xml), new Dictionary<string, Avalonia.Controls.Control>(), root)).Child!;
+var spread = StackGrid("""<Node id="r" type="Container.Stack" direction="Horizontal" justify="SpaceBetween" gap="8"><Node id="a" type="Control.Text" /><Node id="b" type="Control.Text" alignSelf="End" /></Node>""");
+Check(spread.ColumnDefinitions.Count == 3 && spread.ColumnDefinitions[1].Width.IsStar && spread.ColumnSpacing == 0 && spread.Children[1].VerticalAlignment == Avalonia.Layout.VerticalAlignment.Bottom, "SpaceBetween spreads the leftover space; alignSelf overrides the container");
+var centered = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" /></Node>""");
+var weighted = StackGrid("""<Node id="r" type="Container.Stack" justify="Center"><Node id="a" type="Control.Text" heightSizing="Fill" weight="2" /><Node id="b" type="Control.Text" heightSizing="Fill" minHeight="10" maxWidth="90" margin="4 8" /></Node>""");
+Check(centered.VerticalAlignment == Avalonia.Layout.VerticalAlignment.Center && weighted.RowDefinitions[0].Height == new Avalonia.Controls.GridLength(2, Avalonia.Controls.GridUnitType.Star)
+    && weighted.VerticalAlignment == Avalonia.Layout.VerticalAlignment.Stretch && weighted.Children[1] is { MinHeight: 10, MaxWidth: 90 } b && b.Margin == new Avalonia.Thickness(8, 4, 8, 4), "justify packs, Fill weight shares, min/max/margin apply");
+var overlay = StackGrid("""<Node id="o" type="Container.Overlay"><Node id="bg" type="Control.Text" sizing="Fill" /><Node id="badge" type="Control.Text" anchorX="Right" anchorY="Top" margin="8" /><Node id="cta" type="Control.Button" anchorX="Center" anchorY="Bottom" /></Node>""");
+Check(overlay.RowDefinitions.Count == 0 && overlay.Children[0] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Stretch, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Stretch }
+    && overlay.Children[1] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Top }
+    && overlay.Children[2] is { HorizontalAlignment: Avalonia.Layout.HorizontalAlignment.Center, VerticalAlignment: Avalonia.Layout.VerticalAlignment.Bottom }, "Overlay layers children at their anchors");
 var rowMaster = project.Components["Comp.OrderRow"];
 CanvasEdit.Add(project, rowMaster, "root", "Control.Text");
 Check(ComponentSync.OutOfDate(project).Any(n => (string?)n.Attribute("id") == "orderList"), "editing a master leaves instances to sync");
@@ -195,6 +239,22 @@ File.WriteAllText(Path.Combine(existing, "Mine.csproj"), "<Project />");
 ProjectSetup.Initialize(existing);
 Check(ProjectSetup.IsFaroProject(existing) && File.ReadAllText(Path.Combine(existing, "Program.cs")) == "// mine" && Directory.EnumerateFiles(existing, "*.csproj").Count() == 1
     && new[] { "UI", "Source", "Bindings", "Assets" }.All(f => Directory.Exists(Path.Combine(existing, f))), "initializing a folder adds what's missing and keeps existing files");
+// Untitled projects and Save As: new projects start untitled; Save As copies to a name and place, the untitled one is discarded.
+ProjectSetup.UntitledRoot = Path.Combine(projects, "untitled-root");
+var untitled1 = ProjectSetup.CreateUntitled("Sample");
+File.WriteAllText(Path.Combine(untitled1, "bin-marker.txt"), "");
+Directory.CreateDirectory(Path.Combine(untitled1, "bin/Debug"));
+File.WriteAllText(Path.Combine(untitled1, "bin/Debug/App.dll"), "");
+Check(Path.GetFileName(untitled1) == "Untitled1" && Path.GetFileName(ProjectSetup.CreateUntitled("Empty")) == "Untitled2" && ProjectSetup.IsUntitled(untitled1) && !ProjectSetup.IsUntitled(empty), "new projects start untitled");
+var shop = ProjectSetup.SaveAs(untitled1, projects, "Shop");
+Check(File.Exists(Path.Combine(shop, "Shop.csproj")) && !File.Exists(Path.Combine(shop, "Untitled1.csproj")) && File.ReadAllText(Path.Combine(shop, "faro.json")).Contains("\"Shop\"")
+    && File.Exists(Path.Combine(shop, "bin-marker.txt")) && Directory.Exists(Path.Combine(shop, "Assets")) && !Directory.Exists(Path.Combine(shop, "bin")) && FaroProject.Load(shop).Screens.Count == 2, "Save As copies the project under the new name, without build output");
+Check(FaroSettings.Current.PendingDeletes.Contains(untitled1) && Directory.Exists(untitled1), "the untitled original is queued, not deleted while open");
+ProjectSetup.DeletePending();
+Check(!Directory.Exists(untitled1) && !FaroSettings.Current.PendingDeletes.Contains(untitled1), "queued untitled projects are deleted later");
+ProjectSetup.Discard(shop);
+Check(!FaroSettings.Current.PendingDeletes.Contains(shop) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, projects, "Shop")) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, shop, "Inside")), "only untitled folders are ever discarded; Save As validates the target");
+
 // Runtime update check: an older project gets the newer bundled package (versions compared numerically).
 var fakeApp = Path.Combine(projects, "app");
 Directory.CreateDirectory(Path.Combine(fakeApp, "runtime"));
@@ -239,7 +299,7 @@ Check(Registry.Renames(code, renamed.Replace("class OrderService", "class Orders
 Check(Registry.Renames(code, code.Replace("public void Submit() => SubmitCount++;", "public void A() { }\n    public void B() { }")).Count == 0, "ambiguous change is not a rename");
 project = FaroProject.Load(root);
 Check(Registry.FollowRenames(project, [("MyApp.Services.OrderService", "MyApp.Services.Orders")]).Count == 2, "class rename rewrites both binding files");
-Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 2, "targets follow class rename");
+Check(project.Binds.Count(b => ((string?)b.Attribute("target"))!.StartsWith("MyApp.Services.Orders.")) == 3, "targets follow class rename");
 
 // Vibe coding: parse generated files, keep writes inside Source/, block broken syntax, diff.
 var reply = "Here you go.\n\nFile: Source/Services/Cart.cs\n```csharp\nnamespace MyApp.Services;\npublic class Cart { }\n```\n**File: `../Evil.cs`**\n```csharp\nclass X { }\n```";

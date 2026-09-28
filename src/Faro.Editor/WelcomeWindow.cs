@@ -10,7 +10,8 @@ namespace Faro.Editor;
 
 /// <summary>
 /// Start screen (GIMP / Adobe style): recent projects, open a folder (initializing it as a Faro project
-/// if needed), or create a new project in Documents/Faro (or a chosen location) from a template.
+/// if needed), or create a new project from a template. A new project starts untitled; File > Save As gives it
+/// a name and a place (Documents/Faro by default).
 /// </summary>
 public sealed class WelcomeWindow : Window
 {
@@ -38,7 +39,7 @@ public sealed class WelcomeWindow : Window
             {
                 new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 88, Height = 88, HorizontalAlignment = HorizontalAlignment.Left },
                 new TextBlock { Text = "Faro", FontSize = 30, FontWeight = FontWeight.SemiBold },
-                new TextBlock { Text = Assembly.GetEntryAssembly()!.GetName().Version?.ToString(3), Opacity = 0.6, Margin = new(0, -8, 0, 16) },
+                new TextBlock { Text = App.Version, Opacity = 0.6, Margin = new(0, -8, 0, 16) },
                 create,
                 open,
             },
@@ -76,14 +77,6 @@ public sealed class WelcomeWindow : Window
 
     Control NewProjectForm()
     {
-        var name = new TextBox { Text = "MyFaroApp" };
-        var location = new TextBox { Text = ProjectSetup.DefaultLocation };
-        var browse = new Button { Content = "Browse…" };
-        browse.Click += async (_, _) =>
-        {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Project Location" });
-            if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) location.Text = path;
-        };
         var template = new ComboBox { ItemsSource = ProjectSetup.Templates, SelectedIndex = 0, MinWidth = 160 };
         // Spec §2: the language is chosen when a project is created and can't change later; the prototype supports C# only.
         var language = new ComboBox { ItemsSource = new[] { "C#" }, SelectedIndex = 0, IsEnabled = false, MinWidth = 160 };
@@ -93,17 +86,15 @@ public sealed class WelcomeWindow : Window
         cancel.Click += (_, _) => right.Content = Recent();
         create.Click += (_, _) =>
         {
-            try { ProjectChosen?.Invoke(ProjectSetup.Create(location.Text ?? "", (name.Text ?? "").Trim(), (string)template.SelectedItem!)); }
+            try { ProjectChosen?.Invoke(ProjectSetup.CreateUntitled((string)template.SelectedItem!)); }
             catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException) { error.Text = e.Message; }
         };
-        DockPanel.SetDock(browse, Avalonia.Controls.Dock.Right);
         var form = new StackPanel
         {
             Spacing = 10,
             Children =
             {
-                Label("Name"), name,
-                Label("Location"), new DockPanel { Children = { browse, location } },
+                new TextBlock { Text = "The project starts untitled. Give it a name and a place with File › Save (or Save As…).", Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
                 Label("Template"), template,
                 Label("Language"), language,
                 error,

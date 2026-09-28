@@ -30,6 +30,7 @@ public sealed class FaroSettings
     public string EditorTheme { get; set; } = BuiltInEditorTheme; // or a TextMate ThemeName, or CustomEditorTheme
     public string EditorThemeFile { get; set; } = ""; // .tmTheme or VS Code .json
     public List<string> RecentProjects { get; set; } = [];
+    public List<string> PendingDeletes { get; set; } = []; // discarded untitled projects (ProjectSetup.DeletePending)
 
     // Editor layout (spec §14: saved per app). ponytail: pane sizes and the window; docking moves, tabs and floating panes reset on restart.
     public Dictionary<string, double> PaneProportions { get; set; } = [];

@@ -11,7 +11,9 @@
     <MenuItem Header="_File">
       <MenuItem Header="_Open Folder…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
       <MenuItem Header="_Close Project" Click="CloseProject" />
-      <MenuItem Header="Save _All" Click="SaveAll" InputGesture="Ctrl+Shift+S" HotKey="Ctrl+Shift+S" />
+      <Separator />
+      <MenuItem Header="_Save" Click="Save" InputGesture="Ctrl+S" />
+      <MenuItem Header="Save _As…" Click="SaveAs" InputGesture="Ctrl+Shift+S" />
       <Separator />
       <MenuItem Header="_Run" Click="Run" InputGesture="F5" HotKey="F5" />
       <MenuItem Header="S_top" Click="Stop" InputGesture="Shift+F5" HotKey="Shift+F5" />
