@@ -28,9 +28,9 @@ public sealed class WelcomeWindow : Window
         Height = 500;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-        var create = new Button { Content = L.T("New Project…"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var create = new Button { Content = Icons.Label(FluentAvalonia.UI.Controls.FASymbol.Add, L.T("New Project…")), HorizontalAlignment = HorizontalAlignment.Stretch, Classes = { "accent" } };
         create.Click += (_, _) => right.Content = NewProjectForm();
-        var open = new Button { Content = L.T("Open Folder…"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var open = new Button { Content = Icons.Label(FluentAvalonia.UI.Controls.FASymbol.OpenFolder, L.T("Open Folder…")), HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => await OpenFolder(this, dir => ProjectChosen?.Invoke(dir));
         var left = new StackPanel
         {
@@ -54,14 +54,31 @@ public sealed class WelcomeWindow : Window
         var list = new StackPanel { Spacing = 4 };
         foreach (var dir in FaroSettings.Current.RecentProjects.Where(Directory.Exists))
         {
+            var language = JavaProject.Is(dir) ? "Java" : "C#";
             var item = new Button
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Content = new StackPanel { Children = { new TextBlock { Text = Path.GetFileName(dir), FontWeight = FontWeight.SemiBold }, new TextBlock { Text = dir, Opacity = 0.6, FontSize = 12 } } },
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = Path.GetFileName(dir), FontWeight = FontWeight.SemiBold }, new TextBlock { Text = language, Opacity = 0.5, FontSize = 12, VerticalAlignment = VerticalAlignment.Center } } },
+                        new TextBlock { Text = dir, Opacity = 0.6, FontSize = 12, TextTrimming = TextTrimming.PathSegmentEllipsis },
+                    },
+                },
             };
             item.Click += (_, _) => ProjectChosen?.Invoke(dir);
-            list.Children.Add(item);
+            // Remove from the list (the folder itself stays).
+            var forget = Icons.Button(FluentAvalonia.UI.Controls.FASymbol.Dismiss, "Remove from Recent", () =>
+            {
+                FaroSettings.Current.RecentProjects.Remove(dir);
+                FaroSettings.Current.Save();
+                right.Content = Recent();
+            });
+            forget.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(forget, Avalonia.Controls.Dock.Right);
+            list.Children.Add(new DockPanel { Children = { forget, item } });
         }
         // Unsaved projects from an earlier session (a crash, or closed without deciding): reopen or discard.
         foreach (var dir in ProjectSetup.LeftoverUntitled())
@@ -96,7 +113,7 @@ public sealed class WelcomeWindow : Window
         // Spec §2: the language is chosen when a project is created and can't change later.
         var language = new ComboBox { ItemsSource = new[] { "C# (Avalonia)", "Java (JavaFX)" }, SelectedIndex = 0, MinWidth = 160 };
         var error = new TextBlock { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
-        var create = new Button { Content = L.T("Create"), IsDefault = true };
+        var create = new Button { Content = L.T("Create"), IsDefault = true, Classes = { "accent" } };
         var cancel = new Button { Content = L.T("Cancel") };
         cancel.Click += (_, _) => right.Content = Recent();
         create.Click += (_, _) =>

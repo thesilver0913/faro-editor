@@ -45,6 +45,8 @@
     </MenuItem>
     <MenuItem Header="_Window">
       <MenuItem Header="_Explorer" Click="ShowExplorer" />
+      <MenuItem Header="_Layers" Click="ShowLayers" />
+      <MenuItem Header="_Parts" Click="ShowPalette" />
       <MenuItem Header="_Canvas" Click="ShowCanvas" />
       <MenuItem Header="_Inspector" Click="ShowInspector" />
       <MenuItem Header="C_ode" Click="ShowCode" />
@@ -64,7 +66,7 @@
     </MenuItem>
   </Menu>
   </DockPanel>
-  <!-- Default layout (spec §14 + explorer/inspector): explorer left, canvas top-center, code | console (problems, vibe coding tabs) bottom-center, inspector right. -->
+  <!-- Default layout (spec §14 + explorer/inspector): explorer and layers | parts left, canvas top-center, code | console (problems, vibe coding tabs) bottom-center, inspector right. -->
   <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
@@ -72,9 +74,19 @@
     <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
       <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
         <ProportionalDock Id="LeftPane" Proportion="0.15" Orientation="Vertical">
-          <ToolDock Id="ExplorerPane" Alignment="Left">
+          <ToolDock Id="ExplorerPane" Alignment="Left" Proportion="0.5">
             <Tool Id="Explorer" Title="Explorer" CanClose="False">
               <local:ExplorerView />
+            </Tool>
+          </ToolDock>
+          <ProportionalDockSplitter />
+          <!-- The screen's node tree and the parts to add (Figma's layers / assets). -->
+          <ToolDock Id="LayersPane" Alignment="Left" Proportion="0.5">
+            <Tool Id="Layers" Title="Layers" CanClose="False">
+              <local:LayersView />
+            </Tool>
+            <Tool Id="Palette" Title="Parts" CanClose="False">
+              <local:PaletteView />
             </Tool>
           </ToolDock>
         </ProportionalDock>

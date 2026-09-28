@@ -14,6 +14,9 @@ public static class L
 
     public static string F(string english, params object?[] args) => string.Format(T(english), args);
 
+    /// <summary>A word whose translation depends on where it's used ("Start" of an alignment isn't "Start" the app): "context|English" in the table.</summary>
+    public static string T(string english, string context) => Japanese && Ja.TryGetValue(context + "|" + english, out var japanese) ? japanese : english;
+
     static readonly Dictionary<string, string> Ja = new()
     {
         // Menus (MainWindow.axaml) and panels
@@ -26,6 +29,18 @@ public static class L
         ["_Explorer"] = "エクスプローラー(_E)", ["_Canvas"] = "キャンバス(_C)", ["_Inspector"] = "インスペクター(_I)", ["C_ode"] = "コード(_O)", ["Co_nsole"] = "コンソール(_N)",
         ["_Problems"] = "問題(_P)", ["_Output"] = "出力(_O)", ["_AI Chat"] = "AI チャット(_A)", ["_Reset Layout"] = "レイアウトを初期化(_R)",
         ["_Full Screen"] = "全画面(_F)", ["_About Faro"] = "Faro について(_A)",
+        ["Add a node (or drag one from Parts)"] = "Node を追加(パーツからドラッグでも)", ["Delete the selected nodes (Del)"] = "選択した Node を削除(Del)",
+        ["Move up (Alt+Up)"] = "前へ移動(Alt+↑)", ["Move down (Alt+Down)"] = "後ろへ移動(Alt+↓)", ["Zoom out (Ctrl+wheel)"] = "縮小(Ctrl+ホイール)", ["Zoom in (Ctrl+wheel)"] = "拡大(Ctrl+ホイール)",
+        ["Fit to the pane width"] = "パネルの幅に合わせる", ["Run the app (F5) / Stop (Shift+F5)"] = "アプリを実行(F5)/停止(Shift+F5)",
+        ["layout|false"] = "オフ", ["layout|true"] = "オン", ["layout|Start"] = "先頭", ["layout|Center"] = "中央", ["layout|End"] = "末尾", ["layout|SpaceBetween"] = "両端", ["layout|Auto"] = "自動",
+        ["layout|Vertical"] = "縦", ["layout|Horizontal"] = "横", ["layout|Left"] = "左", ["layout|Right"] = "右", ["layout|Top"] = "上", ["layout|Bottom"] = "下",
+        ["layout|Fill"] = "Fill", ["layout|Hug"] = "Hug", ["layout|Fixed"] = "Fixed", ["layout|Round"] = "丸", ["layout|Square"] = "角", ["layout|Filled"] = "Filled", ["layout|Outlined"] = "Outlined",
+        ["Preview"] = "プレビュー", ["Try the screen here: typing, clicks and Navigate bindings work; code isn't run (Run does that)"] = "ここで画面を試す:入力・クリック・Navigate の紐付けが動く(コードは実行しない。実行は「実行」で)",
+        ["Remove from Recent"] = "最近の一覧から外す", ["Layers"] = "レイヤー", ["Parts"] = "パーツ", ["_Layers"] = "レイヤー(_L)", ["_Parts"] = "パーツ(_P)", ["Containers"] = "コンテナ", ["Controls"] = "コントロール", ["Components"] = "コンポーネント",
+        ["Children in a column or a row (auto layout)"] = "子を縦か横に並べる(オートレイアウト)", ["Children in rows that wrap"] = "子を折り返して並べる",
+        ["Children in rows and columns"] = "子を行と列に並べる", ["Children stacked on top of each other, anchored to edges"] = "子を重ね、端や中央に固定する",
+        ["A button (Click event)"] = "ボタン(Click イベント)", ["A text field (Text, Changed)"] = "テキスト入力(Text、Changed)", ["A label"] = "文字", ["An image from Assets/"] = "Assets/ の画像",
+        ["A part built in code (FaroScript)"] = "コードで作る部品(FaroScript)",
         ["Explorer"] = "エクスプローラー", ["Canvas"] = "キャンバス", ["Inspector"] = "インスペクター", ["Code"] = "コード", ["Console"] = "コンソール",
         ["Problems"] = "問題", ["Output"] = "出力", ["AI Chat"] = "AI チャット",
 

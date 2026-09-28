@@ -3,6 +3,7 @@
              xmlns:sty="using:FluentAvalonia.Styling"
              xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              xmlns:cc="using:AvaloniaEdit.CodeCompletion"
+             xmlns:dockc="using:Dock.Avalonia.Controls"
              x:Class="Faro.Editor.App"
              RequestedThemeVariant="Dark">
   <!-- Fluent base with an Adobe Spectrum-like accent (spec §13). -->
@@ -13,6 +14,13 @@
     <!-- Thin light-gray separators between the docked panels. -->
     <Style Selector="ProportionalStackPanelSplitter">
       <Setter Property="Background" Value="#5C5C5C" />
+    </Style>
+    <!-- Inactive tool tabs (Layers | Parts) keep a readable label under FluentAvalonia. -->
+    <Style Selector="dockc|ToolTabStripItem">
+      <Setter Property="Foreground" Value="#A0A0A0" />
+    </Style>
+    <Style Selector="dockc|ToolTabStripItem:selected">
+      <Setter Property="Foreground" Value="#1473E6" />
     </Style>
     <!-- Under FluentAvalonia the completion popup has no background of its own. -->
     <Style Selector="cc|CompletionListBox">

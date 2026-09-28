@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System.Xml.Linq;
 using Faro.Runtime;
+using FluentAvalonia.UI.Controls;
 
 namespace Faro.Editor;
 
@@ -80,8 +81,16 @@ public sealed class CanvasView : UserControl
         return items;
     }
 
+    static CanvasView? instance;
+
+    /// <summary>The canvas menu at the pointer over another control (the layers panel's right-click).</summary>
+    public static void ShowMenu(Control at) => instance?.Menu().ShowAt(at, showAtPointer: true);
+
+    /// <summary>Rename… for the selected node (F2 in the layers panel).</summary>
+    public static void RenameSelected() => instance?.RenameSelection();
+
     /// <summary>The canvas right-click menu, on the selection.</summary>
-    void ContextMenuAt(Avalonia.Input.PointerPressedEventArgs e)
+    MenuFlyout Menu()
     {
         var any = Selection.Count > 0;
         var single = Selection.Count == 1 && CurrentGraph() is { } g ? CanvasEdit.Find(g, Selection.First()) : null;
@@ -118,7 +127,7 @@ public sealed class CanvasView : UserControl
         };
         if ((string?)single?.Attribute("type") == "Instance")
             menu.Items.Add(Item("Edit master component", null, () => ShowScreen((string)single!.Attribute("component")!)));
-        menu.ShowAt(artboard, showAtPointer: true);
+        return menu;
     }
 
     public static void CutSelection()
@@ -251,10 +260,11 @@ public sealed class CanvasView : UserControl
         }
     }
 
-    readonly Button run = new() { Content = L.T("Run") };
+    readonly Button run = new() { Classes = { "accent" }, Padding = new(8, 4), [ToolTip.TipProperty] = L.T("Run the app (F5) / Stop (Shift+F5)") };
 
     public CanvasView()
     {
+        instance = this;
         Focusable = true;
         zoomHost.Child = artboard;
         run.Click += (_, _) => ConsoleView.RunOrStop();
@@ -268,29 +278,35 @@ public sealed class CanvasView : UserControl
             SelectionChanged?.Invoke();
         };
 
-        var add = new Button { Content = L.T("+ Add") };
-        add.Click += (_, _) =>
+        Button? add = null;
+        add = Icons.Button(FASymbol.Add, "Add a node (or drag one from Parts)", () =>
         {
             var menu = new MenuFlyout();
             foreach (var item in AddItems()) menu.Items.Add(item);
-            menu.ShowAt(add);
-        };
-        var delete = new Button { Content = L.T("Delete"), [ToolTip.TipProperty] = "Delete the selected nodes (Del)" };
-        delete.Click += (_, _) => DeleteSelection();
-        var up = new Button { Content = L.T("↑"), [ToolTip.TipProperty] = "Move up (Alt+Up)" };
-        up.Click += (_, _) => MoveSelection(-1);
-        var down = new Button { Content = L.T("↓"), [ToolTip.TipProperty] = "Move down (Alt+Down)" };
-        down.Click += (_, _) => MoveSelection(+1);
+            menu.ShowAt(add!);
+        });
+        var delete = Icons.Button(FASymbol.Delete, "Delete the selected nodes (Del)", DeleteSelection);
+        var up = Icons.Button(FASymbol.ChevronUp, "Move up (Alt+Up)", () => MoveSelection(-1));
+        var down = Icons.Button(FASymbol.ChevronDown, "Move down (Alt+Down)", () => MoveSelection(+1));
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
+            if (preview) return; // the controls themselves take the clicks
+            // The selection's handles (right edge, bottom edge, corner) resize it to a fixed width / height.
+            if (e.GetCurrentPoint(artboard).Properties.IsLeftButtonPressed && Handle(e.GetPosition(overlay)) is { } axes && byId.GetValueOrDefault(Selection.First()) is { } resized)
+            {
+                (resizeId, resizeAxes, resizeFrom, pressAt) = (Selection.First(), axes, resized.Bounds.Size, e.GetPosition(overlay));
+                e.Pointer.Capture(artboard);
+                e.Handled = true;
+                return;
+            }
             var id = NodeAt(e.GetPosition(overlay), new HashSet<string?>()); // by bounds: text without a background isn't hit-testable itself
             if (e.GetCurrentPoint(artboard).Properties.IsRightButtonPressed)
             {
                 // Right-click: act on the node under the pointer (keeping a multi-selection that includes it).
                 if (id is null || !Selection.Contains(id)) Select(id is null ? [] : [id]);
                 Focus();
-                ContextMenuAt(e);
+                Menu().ShowAt(artboard, showAtPointer: true);
                 e.Handled = true;
                 return;
             }
@@ -307,8 +323,25 @@ public sealed class CanvasView : UserControl
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         artboard.AddHandler(PointerMovedEvent, (_, e) =>
         {
-            if (dragId is null) return;
             var p = e.GetPosition(overlay);
+            if (resizeId is not null && byId.GetValueOrDefault(resizeId) is { } resizing)
+            {
+                if (resizeAxes.W) resizing.Width = Math.Max(8, Math.Round(resizeFrom.Width + p.X - pressAt.X));
+                if (resizeAxes.H) resizing.Height = Math.Max(8, Math.Round(resizeFrom.Height + p.Y - pressAt.Y));
+                Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded);
+                return;
+            }
+            if (dragId is null)
+            {
+                artboard.Cursor = preview ? null : Handle(p) switch
+                {
+                    (true, true) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.BottomRightCorner),
+                    (true, false) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeWestEast),
+                    (false, true) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeNorthSouth),
+                    _ => null,
+                };
+                return;
+            }
             if (!dragging && Math.Abs(p.X - pressAt.X) + Math.Abs(p.Y - pressAt.Y) < 5) return; // a click, not a drag yet
             dragging = true;
             artboard.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.DragMove);
@@ -317,6 +350,21 @@ public sealed class CanvasView : UserControl
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         artboard.AddHandler(PointerReleasedEvent, (_, e) =>
         {
+            if (preview) return; // don't take the pointer capture away from a pressed control
+            if (resizeId is { } rid && byId.GetValueOrDefault(rid) is { } sized)
+            {
+                resizeId = null;
+                e.Pointer.Capture(null);
+                var (w, h, axes) = (sized.Width, sized.Height, resizeAxes);
+                Edit("Resize", (_, screen) =>
+                {
+                    if (CanvasEdit.Find(screen, rid) is not { } n) return [];
+                    if (axes.W) { CanvasEdit.SetAttribute(n, "widthSizing", "Fixed"); CanvasEdit.SetAttribute(n, "width", w.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+                    if (axes.H) { CanvasEdit.SetAttribute(n, "heightSizing", "Fixed"); CanvasEdit.SetAttribute(n, "height", h.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+                    return [screen];
+                });
+                return;
+            }
             var (id, target) = (dragId, dragging ? drop : null);
             dragId = null;
             dragging = false;
@@ -329,11 +377,18 @@ public sealed class CanvasView : UserControl
 
         // Images dropped from the explorer become Image nodes (in the container under the pointer, or after the node there).
         DragDrop.SetAllowDrop(artboard, true);
-        artboard.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(AssetFormat) ? DragDropEffects.Copy : DragDropEffects.None);
+        // Parts from the palette are added the same way.
+        artboard.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(AssetFormat) || e.DataTransfer.Contains(PaletteView.PartFormat) ? DragDropEffects.Copy : DragDropEffects.None);
         artboard.AddHandler(DragDrop.DropEvent, (_, e) =>
         {
-            if (e.DataTransfer.TryGetValue(AssetFormat) is not { } asset) return;
             var at = NodeAt(e.GetPosition(artboard), new HashSet<string?>());
+            if (e.DataTransfer.TryGetValue(PaletteView.PartFormat) is { } part)
+            {
+                Select(at is null ? [] : [at]);
+                PaletteView.Add(part);
+                return;
+            }
+            if (e.DataTransfer.TryGetValue(AssetFormat) is not { } asset) return;
             Edit("Add image", (project, screen) =>
             {
                 var node = CanvasEdit.Add(project, screen, at, "Control.Image");
@@ -354,12 +409,9 @@ public sealed class CanvasView : UserControl
         };
         ApplySize();
         // Zoom: −/+, Fit (to the pane width), Ctrl+wheel. The artboard's own coordinates don't change, so selection and drops still line up.
-        var zoomOut = new Button { Content = "−" };
-        var zoomIn = new Button { Content = "+" };
-        var fit = new Button { Content = L.T("Fit") };
-        zoomOut.Click += (_, _) => SetZoom(zoom / 1.25);
-        zoomIn.Click += (_, _) => SetZoom(zoom * 1.25);
-        fit.Click += (_, _) => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (artboard.Width + artboard.Margin.Left + artboard.Margin.Right)));
+        var zoomOut = Icons.Button(FASymbol.ZoomOut, "Zoom out (Ctrl+wheel)", () => SetZoom(zoom / 1.25));
+        var zoomIn = Icons.Button(FASymbol.ZoomIn, "Zoom in (Ctrl+wheel)", () => SetZoom(zoom * 1.25));
+        var fit = Icons.Button(FASymbol.FullScreenMaximize, "Fit to the pane width", () => SetZoom(Math.Min(1, (viewport.Bounds.Width - 24) / (artboard.Width + artboard.Margin.Left + artboard.Margin.Right))));
         zoomLabel.PointerPressed += (_, _) => SetZoom(1); // click the percentage: back to 100%
         viewport.AddHandler(PointerWheelChangedEvent, (_, e) =>
         {
@@ -368,7 +420,15 @@ public sealed class CanvasView : UserControl
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
         var zoomBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { zoomOut, zoomLabel, zoomIn, fit } };
-        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, run, status } };
+        // Preview (Figma's prototype mode): try the screen with its mock data — type, click, and follow Navigate bindings.
+        var previewToggle = new Avalonia.Controls.Primitives.ToggleButton { Content = Icons.Label(FASymbol.SlideShow, L.T("Preview")), Padding = new(8, 4), [ToolTip.TipProperty] = L.T("Try the screen here: typing, clicks and Navigate bindings work; code isn't run (Run does that)") };
+        previewToggle.IsCheckedChanged += (_, _) =>
+        {
+            preview = previewToggle.IsChecked == true;
+            if (preview) Select([]);
+            Render();
+        };
+        var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, zoomBar, add, delete, up, down, sync, previewToggle, run, status } };
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         designScope.Child = zoomHost;
         viewport.Content = designScope;
@@ -377,7 +437,7 @@ public sealed class CanvasView : UserControl
 
     void ShowRunState()
     {
-        run.Content = L.T(Workspace.Running ? "Stop" : "Run");
+        run.Content = Icons.Label(Workspace.Running ? FASymbol.Stop : FASymbol.Play, L.T(Workspace.Running ? "Stop" : "Run"));
         run.IsEnabled = Workspace.Trusted;
         ToolTip.SetTip(run, Workspace.Trusted ? null : L.T("Restricted Mode: File › Trust Project… to run it."));
         if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
@@ -417,9 +477,23 @@ public sealed class CanvasView : UserControl
         screens.ItemsSource = Workspace.Project is { } p0 ? [.. p0.Screens.Keys.Order(), .. p0.Components.Keys.Order()] : new List<string>();
         screens.SelectedItem = selected is not null && Workspace.Project?.Graph(selected) is not null ? selected : Workspace.Project?.Screens.Keys.Order().FirstOrDefault();
         var outOfDate = Workspace.Project is { } p ? ComponentSync.OutOfDate(p).Count : 0;
-        sync.Content = L.F("Sync components ({0})", outOfDate);
+        sync.Content = Icons.Label(FASymbol.Sync, outOfDate.ToString());
+        ToolTip.SetTip(sync, L.F("Sync components ({0})", outOfDate));
         sync.IsEnabled = outOfDate > 0;
         Render();
+    }
+
+    static bool preview;
+
+    /// <summary>In preview, Click bindings to Navigate:… switch the canvas to that screen.</summary>
+    void WirePreview(string screenId)
+    {
+        foreach (var bind in Workspace.Project!.BindsFor(screenId).Where(b => (string?)b.Attribute("event") == "Click" && ((string?)b.Attribute("target"))?.StartsWith("Navigate:") == true))
+            if (byId.GetValueOrDefault((string?)bind.Attribute("nodeId") ?? "") is Button button)
+            {
+                var to = FaroApp.NavigateScreenId((string)bind.Attribute("target")!, Workspace.Project.Screens.Keys);
+                button.Click += (_, _) => { if (Workspace.Project.Screens.ContainsKey(to)) screens.SelectedItem = to; };
+            }
     }
 
     void Render()
@@ -438,6 +512,7 @@ public sealed class CanvasView : UserControl
         Selection.IntersectWith(ScreenNodeIds);
         (overlay.Parent as Panel)?.Children.Remove(overlay);
         artboard.Child = new Panel { Children = { built, overlay } };
+        if (preview) WirePreview(CurrentScreen ?? "");
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
         foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
             if (byId.TryGetValue(group.Key, out var control))
@@ -471,7 +546,7 @@ public sealed class CanvasView : UserControl
         idOf.Where(c => !excluded.Contains(c.Value)).Select(c => (Id: c.Value, Rect: RectOf(c.Key)))
             .Where(h => h.Rect.Contains(p)).OrderBy(h => h.Rect.Width * h.Rect.Height).Select(h => h.Id).FirstOrDefault();
 
-    static XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
+    public static XDocument? CurrentGraph() => CurrentScreen is null ? null : Workspace.Project?.Graph(CurrentScreen);
 
     Rect RectOf(Control c) => c.TranslatePoint(default, overlay) is { } p ? new Rect(p, c.Bounds.Size) : default;
 
@@ -505,9 +580,26 @@ public sealed class CanvasView : UserControl
         return ((string)container.Attribute("id")!, index, line);
     }
 
+    string? resizeId;
+    (bool W, bool H) resizeAxes;
+    Size resizeFrom;
+
+    /// <summary>The single selection's box on the overlay (null for none or several).</summary>
+    Rect? SelectedBox() => Selection.Count == 1 && byId.GetValueOrDefault(Selection.First()) is { } c && c.TranslatePoint(default, overlay) is { } p
+        ? new Rect(p, c.Bounds.Size) : null;
+
+    /// <summary>Which resize handle is under the pointer: the right edge (width), the bottom edge (height) or the corner (both).</summary>
+    (bool W, bool H)? Handle(Point p)
+    {
+        if (SelectedBox() is not { } box || !box.Inflate(6).Contains(p)) return null;
+        var (w, h) = (Math.Abs(p.X - box.Right) <= 6, Math.Abs(p.Y - box.Bottom) <= 6);
+        return w || h ? (w, h) : null;
+    }
+
     void DrawSelection()
     {
         overlay.Children.Clear();
+        overlay.IsVisible = !preview;
         if (drop is { } d)
         {
             var marker = new Avalonia.Controls.Shapes.Rectangle { Width = d.Line.Width, Height = d.Line.Height, Fill = new SolidColorBrush(Color.Parse("#1473E6")) };
@@ -522,6 +614,14 @@ public sealed class CanvasView : UserControl
                 Canvas.SetLeft(box, p.X);
                 Canvas.SetTop(box, p.Y);
                 overlay.Children.Add(box);
+            }
+        if (SelectedBox() is { } sel) // resize handles
+            foreach (var (x, y) in new[] { (sel.Right, sel.Center.Y), (sel.Center.X, sel.Bottom), (sel.Right, sel.Bottom) })
+            {
+                var handle = new Avalonia.Controls.Shapes.Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Stroke = new SolidColorBrush(Color.Parse("#1473E6")), StrokeThickness = 1.5 };
+                Canvas.SetLeft(handle, x - 4);
+                Canvas.SetTop(handle, y - 4);
+                overlay.Children.Add(handle);
             }
         var selected = Selection.Count == 1 && CurrentGraph() is { } graph
             ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())

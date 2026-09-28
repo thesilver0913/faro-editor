@@ -32,7 +32,7 @@ public sealed class SetupWindow : Window
             settings.AppTheme = themes[theme.SelectedIndex];
             settings.ApplyTheme();
         };
-        var start = new Button { Content = L.T("Start"), IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
+        var start = new Button { Content = L.T("Start"), IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right, Classes = { "accent" } };
         start.Click += (_, _) =>
         {
             settings.SetupDone = true;

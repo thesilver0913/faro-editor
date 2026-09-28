@@ -302,6 +302,8 @@ public partial class MainWindow : Window
     void ShowProblems(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Problems); }
     void ShowCanvas(object? sender, RoutedEventArgs e) => Activate("Canvas");
     void ShowInspector(object? sender, RoutedEventArgs e) => Activate("Inspector");
+    void ShowLayers(object? sender, RoutedEventArgs e) => Activate("Layers");
+    void ShowPalette(object? sender, RoutedEventArgs e) => Activate("Palette");
     void ShowCode(object? sender, RoutedEventArgs e) => Activate("Code");
     void ShowChat(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.VibeCoding); }
     void ShowOutput(object? sender, RoutedEventArgs e) { Activate("Console"); ConsoleView.Show(ConsoleView.Tab.Output); }

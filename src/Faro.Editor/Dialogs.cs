@@ -28,6 +28,7 @@ public static class Dialogs
         {
             var index = i;
             var button = new Button { Content = choices[i], IsDefault = i == 0 };
+            if (i == 0) button.Classes.Add("accent");
             button.Click += (_, _) => { result = index; window.Close(); };
             buttons.Children.Add(button);
         }
@@ -50,7 +51,7 @@ public static class Dialogs
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         if (ok is not null)
         {
-            var okButton = new Button { Content = ok, IsDefault = true };
+            var okButton = new Button { Content = ok, IsDefault = true, Classes = { "accent" } };
             okButton.Click += (_, _) => { result = (content as TextBox)?.Text ?? ""; window.Close(); };
             buttons.Children.Add(okButton);
         }
