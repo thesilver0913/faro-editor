@@ -106,6 +106,11 @@ public partial class App : Application
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args is ["--version"]) // the installers' smoke test: the launcher found .NET and Faro starts
+        {
+            Console.WriteLine(Version);
+            return;
+        }
         Log.Start();
         if (!OperatingSystem.IsWindows()) ImportShellPath();
         // The .NET SDK the installer put next to Faro also builds and runs the projects (dotnet restore / watch run).
