@@ -165,6 +165,8 @@ public sealed class CanvasView : UserControl
     void ShowRunState()
     {
         run.Content = Workspace.Running ? "Stop" : "Run";
+        run.IsEnabled = Workspace.Trusted;
+        ToolTip.SetTip(run, Workspace.Trusted ? null : "Restricted Mode: File › Trust Project… to run it.");
         if (ScriptPreview.Outdated(Workspace.Root)) Render(); // a new build: redraw Script nodes
         DrawSelection(); // refreshes the status line (unbuilt changes)
     }
@@ -271,6 +273,9 @@ public sealed class CanvasView : UserControl
         var container = hit is null ? graph.Root!.Element("Node")! : CanvasEdit.IsContainer(hit) ? hit : hit.Parent!;
         if (!CanvasEdit.IsContainer(container) || excluded.Contains((string?)container.Attribute("id"))) return null;
 
+        var containerBox = RectOf(byId[(string)container.Attribute("id")!]);
+        if ((string?)container.Attribute("type") == "Container.Overlay") // children overlap: a drop goes on top (last in z-order)
+            return ((string)container.Attribute("id")!, container.Elements("Node").Count(n => n != dragged), new Rect(containerBox.X + 4, containerBox.Y + 4, containerBox.Width - 8, 2));
         var horizontal = (string?)container.Attribute("direction") == "Horizontal" && (string?)container.Attribute("type") == "Container.Stack";
         var reading = (string?)container.Attribute("type") != "Container.Stack"; // wrap / grid: rows, then left to right
         var children = container.Elements("Node").Where(n => n != dragged).Select(n => RectOf(byId[(string)n.Attribute("id")!])).ToList();
@@ -312,7 +317,8 @@ public sealed class CanvasView : UserControl
         status.Text = Workspace.LoadError
             ?? (selected is not null ? $"Selected: {Selection.First()} ({(string?)selected.Attribute("type")}) · " : Selection.Count > 1 ? $"{Selection.Count} nodes selected · " : "")
             + editingComponent + $"{Workspace.Issues.Count} broken binding(s) · {Workspace.Registry.Count} registry members"
-            + (Workspace.Unbuilt ? " · Unbuilt code changes: new members resolve after Run" : ""); // spec §11.5
+            + (Workspace.Unbuilt ? " · Unbuilt code changes: new members resolve after Run" : "") // spec §11.5
+            + (Workspace.Trusted ? "" : " · Restricted Mode (File › Trust Project…)");
     }
 
     /// <summary>

@@ -3,6 +3,9 @@ using System.Xml.Linq;
 using Faro.Editor;
 using Faro.Runtime;
 
+// Settings go to a scratch file: the checks never touch the user's Faro settings.
+Environment.SetEnvironmentVariable("FARO_SETTINGS", Path.Combine(Directory.CreateTempSubdirectory("faro-settings").FullName, "settings.json"));
+
 // Runs against a scratch copy of samples/HelloFaro so the sample itself is never modified.
 var sample = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
 var root = Directory.CreateTempSubdirectory("faro-check").FullName;
@@ -250,8 +253,13 @@ var shop = ProjectSetup.SaveAs(untitled1, projects, "Shop");
 Check(File.Exists(Path.Combine(shop, "Shop.csproj")) && !File.Exists(Path.Combine(shop, "Untitled1.csproj")) && File.ReadAllText(Path.Combine(shop, "faro.json")).Contains("\"Shop\"")
     && File.Exists(Path.Combine(shop, "bin-marker.txt")) && Directory.Exists(Path.Combine(shop, "Assets")) && !Directory.Exists(Path.Combine(shop, "bin")) && FaroProject.Load(shop).Screens.Count == 2, "Save As copies the project under the new name, without build output");
 Check(FaroSettings.Current.PendingDeletes.Contains(untitled1) && Directory.Exists(untitled1), "the untitled original is queued, not deleted while open");
+var untitled2 = Path.Combine(ProjectSetup.UntitledRoot, "Untitled2");
+Check(ProjectSetup.LeftoverUntitled().SequenceEqual([untitled2]), "leftover untitled projects are offered, discarded ones aren't");
 ProjectSetup.DeletePending();
 Check(!Directory.Exists(untitled1) && !FaroSettings.Current.PendingDeletes.Contains(untitled1), "queued untitled projects are deleted later");
+Check(ProjectSetup.IsTrusted(untitled1) && !ProjectSetup.IsTrusted(empty) && ProjectSetup.IsTrusted(shop), "untitled projects and their Save As copies are trusted; other folders aren't until asked");
+ProjectSetup.Trust(empty);
+Check(ProjectSetup.IsTrusted(empty) && !ProjectSetup.IsTrusted(Path.Combine(projects, "SampleApp")), "trust is per folder");
 ProjectSetup.Discard(shop);
 Check(!FaroSettings.Current.PendingDeletes.Contains(shop) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, projects, "Shop")) && Throws<ArgumentException>(() => ProjectSetup.SaveAs(shop, shop, "Inside")), "only untitled folders are ever discarded; Save As validates the target");
 

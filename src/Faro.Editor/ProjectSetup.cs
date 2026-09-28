@@ -97,9 +97,15 @@ public static partial class ProjectSetup
             json["name"] = name;
             File.WriteAllText(meta, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         }
+        if (IsTrusted(dir)) Trust(target); // the copy holds the same code
         if (IsUntitled(dir)) Discard(dir);
         return target;
     }
+
+    /// <summary>Untitled projects left behind (e.g. Faro closed abruptly): offered on the welcome screen to reopen or discard.</summary>
+    public static List<string> LeftoverUntitled() =>
+        !Directory.Exists(UntitledRoot) ? [] :
+        [.. Directory.EnumerateDirectories(UntitledRoot).Select(Path.GetFullPath).Where(d => IsFaroProject(d) && !FaroSettings.Current.PendingDeletes.Contains(d)).Order()];
 
     /// <summary>Queues an untitled project for deletion; it happens on a later start, when no process holds its files.</summary>
     public static void Discard(string dir)
@@ -235,6 +241,19 @@ public static partial class ProjectSetup
     }
 
     /// <summary>Most recent first, without duplicates, at most 10 (kept in the app settings).</summary>
+    /// <summary>
+    /// Workspace trust: opening a project restores it (MSBuild), starts the language server and loads its build for
+    /// Script previews, all of which run the project's code. Untitled projects are Faro's own and always trusted.
+    /// </summary>
+    public static bool IsTrusted(string dir) => IsUntitled(dir) || FaroSettings.Current.TrustedProjects.Contains(Path.GetFullPath(dir));
+
+    public static void Trust(string dir)
+    {
+        if (IsTrusted(dir)) return;
+        FaroSettings.Current.TrustedProjects = [.. FaroSettings.Current.TrustedProjects.Append(Path.GetFullPath(dir))];
+        FaroSettings.Current.Save();
+    }
+
     public static void Remember(string dir)
     {
         if (IsUntitled(dir)) return;

@@ -298,7 +298,8 @@ public sealed class CodeView : UserControl
     static string Uri(string path) => new Uri(path).AbsoluteUri;
 
     /// <summary>Starts (or returns) the shared language server; also called by the splash screen.</summary>
-    public static Task<LspClient> Lsp() => lsp ??= StartLsp();
+    public static Task<LspClient> Lsp() => Workspace.Trusted ? lsp ??= StartLsp()
+        : Task.FromException<LspClient>(new InvalidOperationException("off in restricted mode (File › Trust Project…)"));
 
     static async Task<LspClient> StartLsp()
     {
