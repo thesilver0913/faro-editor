@@ -129,7 +129,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 
 - **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `tar.gz`(展開して `Faro.Editor` を実行)。どちらも .NET 10 SDK が必要(Faro 自体とプロジェクトのビルドに使う)
 - **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux はリリースページを開く
-- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる
+- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる
 - **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。次の起動時に「予期せず終了しました」と知らせ、レポートを開くか GitHub の Issue を作れる。どこにも自動送信はしない
 - **コード署名**:未対応(Windows で SmartScreen の警告が出る)
 

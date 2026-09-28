@@ -1,7 +1,8 @@
 # Builds the Windows installer and the Linux archive. A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
 # "v0.2.4-canary.1" (Canary) publishes them as a GitHub Release, which Faro's update check reads.
 # PRs that touch the installer or this workflow build them as a dry run (artifacts only, no release).
-# Run it by hand (Actions › Release › Run workflow) with a tag to release the chosen branch's head under that tag.
+# Run it by hand (Actions › Release › Run workflow) with a tag to release the chosen branch's head under that tag,
+# or, for a tag that already exists (e.g. made on GitHub's release page), to build that tag and attach the files.
 name: Release
 
 on:
@@ -25,6 +26,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Existing tag
+        if: github.event.inputs.tag != ''
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        # A manual run for a tag that already exists re-publishes that tag's build (e.g. files missing from its release).
+        run: if git rev-parse -q --verify "refs/tags/$INPUT_TAG" > /dev/null; then git checkout -q "$INPUT_TAG"; fi
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
@@ -69,6 +79,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
+          # A release already made on GitHub's release page (which creates the tag) just gets the files.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            exit
+          fi
           flags=(--generate-notes --target "$GITHUB_SHA") # a new tag (manual run) is created on the built commit
           [[ "$TAG" == *-* ]] && flags+=(--prerelease)
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"
