@@ -1,0 +1,4 @@
+<Bindings>
+  <Bind nodeId="count" prop="Text" target="MyApp.Services.OrderService.Summary" mode="OneWay" />
+  <Bind nodeId="back" event="OnClick" target="Navigate:Screen.MainScreen" />
+</Bindings>
