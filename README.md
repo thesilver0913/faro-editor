@@ -1,5 +1,7 @@
 # Faro
 
+**はじめての方は [はじめてガイド](docs/guide.md) から。** インストール、画面の作り方、コードとの紐付け、実行とデバッグまでを順に説明しています。
+
 <img src="assets/faro-icon.png" width="96" align="right" alt="Faro icon">
 
 「Figma × UI Binding × Vibe Coding」を統合するUI/UXビジュアルエディタのプロトタイプです。
