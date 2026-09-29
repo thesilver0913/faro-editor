@@ -47,7 +47,7 @@
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
 - **デバッガー**は `src/Faro.Editor/Debugger.cs`(DAP):C# は netcoredbg(ビルドした dll を `dotnet` で起動)、Java は jdtls に `bundles` で読み込ませた java-debug(`vscode.java.startDebugSession` のポートに TCP で接続し、`Main` を起動)。どちらも `Components` が入れる。画面は `DebugView`(Console の Debug タブ)とコードエディタのブレークポイント欄
 - 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat・History・Debug をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
-- 詳細はREADMEを参照。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある
+- 詳細は `docs/development.md`(開発者向けドキュメント。旧 README の内容)を参照。README は利用者向けの入口。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある
 
 ## ブランチとバージョン
 

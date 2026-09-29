@@ -119,7 +119,7 @@ public partial class MainWindow : Window
         RedoItem.IsEnabled = canRedo;
         UndoItem.Header = codeHistory || UiHistory.UndoLabel is null ? L.T("_Undo") : $"{L.T("_Undo")} {UiHistory.UndoLabel}";
         RedoItem.Header = codeHistory || UiHistory.RedoLabel is null ? "_Redo" : $"_Redo {UiHistory.RedoLabel}";
-        HistoryLabel.Text = codeHistory ? L.F("History: Code — {0}", CodeView.HistoryFile ?? L.T("no file")) : L.T("History: UI graph");
+        HistoryLabel.Text = codeHistory ? L.F("Undo: Code — {0}", CodeView.HistoryFile ?? L.T("no file")) : L.T("Undo: Canvas");
     }
 
     async void Undo(object? sender, RoutedEventArgs e)
@@ -417,8 +417,17 @@ public partial class MainWindow : Window
         {
             new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = $"Faro {App.Version}", FontSize = 20, FontWeight = FontWeight.SemiBold },
-            new TextBlock { Text = L.T("Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse."), TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = L.T("MIT License. Third-party components: see THIRD-PARTY-NOTICES.md."), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("A visual UI editor: draw your app's screens and bind them to your C# or Java code.\n“Faro” is Italian for lighthouse."), TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("MIT License. The open-source components Faro uses are under Licenses."), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
+            new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children =
+                {
+                    new HyperlinkButton { Content = "GitHub", NavigateUri = new($"https://github.com/{Updates.Repository}") },
+                    new HyperlinkButton { Content = L.T("Licenses"), NavigateUri = new($"https://github.com/{Updates.Repository}/blob/main/THIRD-PARTY-NOTICES.md") },
+                },
+            },
         },
     });
 }

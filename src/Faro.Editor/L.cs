@@ -72,8 +72,8 @@ public static class L
         [" (Restricted Mode)"] = "(制限モード)", ["Faro.Runtime update"] = "Faro.Runtime の更新", ["Update"] = "更新",
         ["This project uses Faro.Runtime {0}. This Faro ships {1}. Update the project to it?"] = "このプロジェクトは Faro.Runtime {0} を使っています。この Faro には {1} が入っています。更新しますか？",
         ["About Faro"] = "Faro について",
-        ["Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse."] = "Figma × UI Binding × Vibe Coding を統合した UI エディタのプロトタイプ。\n「Faro」はイタリア語で灯台。",
-        ["MIT License. Third-party components: see THIRD-PARTY-NOTICES.md."] = "MIT License。第三者のコンポーネントは THIRD-PARTY-NOTICES.md を参照。",
+        ["A visual UI editor: draw your app's screens and bind them to your C# or Java code.\n“Faro” is Italian for lighthouse."] = "アプリの画面を描いて、C# / Java のコードに紐付けるビジュアル UI エディターです。\n“Faro” はイタリア語で灯台のことです。",
+        ["MIT License. The open-source components Faro uses are under Licenses."] = "MIT ライセンス。Faro が使っているオープンソースは「ライセンス」から見られます。", ["Licenses"] = "ライセンス",
 
         // Explorer
         ["New Screen…"] = "新しい画面…", ["New Component…"] = "新しいコンポーネント…", ["New C# Class…"] = "新しい C# クラス…", ["New Folder…"] = "新しいフォルダ…",
@@ -100,7 +100,7 @@ public static class L
         // Canvas
         ["+ Add"] = "+ 追加", ["Run"] = "実行", ["Stop"] = "停止", [" (container)"] = "(コンテナ)", ["Sync components ({0})"] = "コンポーネントを同期 ({0})",
         ["Selected: {0} ({1}) · "] = "選択中: {0} ({1}) · ", ["{0} nodes selected · "] = "{0} 個の Node を選択中 · ",
-        ["{0} broken binding(s) · {1} registry members"] = "壊れた紐付け {0} 件 · レジストリ {1} 件", ["Component master · {0} instance(s) to sync · "] = "コンポーネントのマスター · 同期待ちのインスタンス {0} 個 · ",
+        ["{0} broken binding(s) · {1} bindable members"] = "壊れた紐付け {0} 件 · 紐付けできるメンバー {1} 件", ["Component master · {0} instance(s) to sync · "] = "コンポーネントのマスター · 同期待ちのインスタンス {0} 個 · ",
         [" · Unbuilt code changes: new members resolve after Run"] = " · 未ビルドのコード変更あり(新しいメンバーは実行後に解決)",
         [" · Restricted Mode (File › Trust Project…)"] = " · 制限モード(ファイル › プロジェクトを信頼)", ["Restricted Mode: File › Trust Project… to run it."] = "制限モード: ファイル › プロジェクトを信頼 で実行できるようになります。",
         ["No UI/*.xml screens in {0}"] = "{0} に UI/*.xml の画面がありません", ["Did you mean:"] = "もしかして:",
@@ -148,13 +148,13 @@ public static class L
         ["Code editor theme"] = "コードエディタのテーマ", ["Clear"] = "クリア", ["Base URL"] = "ベース URL", ["Not set"] = "未設定", ["Set (…{0})"] = "設定済み(…{0})", ["To set one:"] = "設定方法:",
         ["API keys are read from environment variables only. Faro never writes them to disk."] = "API キーは環境変数からだけ読みます。Faro がキーをディスクに書くことはありません。",
         ["Custom theme file (Avalonia ResourceDictionary .axaml, overrides the colors above)"] = "テーマファイル(Avalonia の ResourceDictionary .axaml。上の色を上書き)",
-        ["Plugins are planned for a later version (spec §12: outside the prototype scope)."] = "プラグインは今後のバージョンで対応予定です(仕様§12: プロトタイプの範囲外)。",
+        ["Plugins are coming in a later version."] = "プラグインは今後のバージョンで対応予定です。",
         ["(none)"] = "(なし)", ["Language changes apply to windows opened from now on; restart Faro to update the menus."] = "言語の変更はこれから開くウィンドウに反映されます。メニューは Faro を再起動すると切り替わります。",
 
         // First-run wizard
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
-        ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        ["Undo: Code — {0}"] = "元に戻す対象: コード — {0}", ["no file"] = "ファイルなし", ["Undo: Canvas"] = "元に戻す対象: キャンバス",
         // Debugger
         ["_Debug"] = "デバッグ(_D)", ["_Start Debugging"] = "デバッグ開始(_S)", ["S_top Debugging"] = "デバッグ停止(_T)", ["_Continue"] = "続行(_C)", ["Step _Over"] = "ステップオーバー(_O)",
         ["Step _Into"] = "ステップイン(_I)", ["Toggle _Breakpoint"] = "ブレークポイントの切り替え(_B)", ["Debug"] = "デバッグ",

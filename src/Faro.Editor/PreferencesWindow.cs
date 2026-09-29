@@ -6,7 +6,7 @@ using TextMateSharp.Grammars;
 
 namespace Faro.Editor;
 
-/// <summary>Edit ▸ Preferences: environment variables (read-only status), themes, plugins (placeholder).</summary>
+/// <summary>Edit ▸ Preferences: environment variables (read-only status), themes, plugins (coming later).</summary>
 public sealed class PreferencesWindow : Window
 {
     static readonly string[] EnvironmentVariables = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"];
@@ -31,7 +31,7 @@ public sealed class PreferencesWindow : Window
                 new TabItem { Header = L.T("Tools"), Content = ComponentsPage() },
                 new TabItem { Header = L.T("Updates"), Content = UpdatesPage() },
                 new TabItem { Header = L.T("Theme"), Content = ThemePage() },
-                new TabItem { Header = L.T("Plugins"), Content = Page(new TextBlock { Text = L.T("Plugins are planned for a later version (spec §12: outside the prototype scope)."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
+                new TabItem { Header = L.T("Plugins"), Content = Page(new TextBlock { Text = L.T("Plugins are coming in a later version."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }) },
             },
         };
     }

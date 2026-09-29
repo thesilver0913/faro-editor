@@ -696,7 +696,7 @@ public sealed class CanvasView : UserControl
             ? L.F("Component master · {0} instance(s) to sync · ", ComponentSync.OutOfDate(Workspace.Project!).Count(n => (string?)n.Attribute("component") == CurrentScreen)) : "";
         status.Text = Workspace.LoadError
             ?? (selected is not null ? L.F("Selected: {0} ({1}) · ", Selection.First(), (string?)selected.Attribute("type")) : Selection.Count > 1 ? L.F("{0} nodes selected · ", Selection.Count) : "")
-            + editingComponent + L.F("{0} broken binding(s) · {1} registry members", Workspace.Issues.Count, Workspace.Registry.Count)
+            + editingComponent + L.F("{0} broken binding(s) · {1} bindable members", Workspace.Issues.Count, Workspace.Registry.Count)
             + (Workspace.Unbuilt ? L.T(" · Unbuilt code changes: new members resolve after Run") : "") // spec §11.5
             + dataNote
             + (Workspace.Trusted ? "" : L.T(" · Restricted Mode (File › Trust Project…)"));

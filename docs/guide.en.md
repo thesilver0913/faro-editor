@@ -4,7 +4,7 @@
 
 Faro is an editor where you draw your app's screens like in Figma, then **bind** their parts to classes and methods in your code (C# or Java) to make them work. This guide walks you through installing Faro, building a screen, connecting it to code, and running it to check the result.
 
-The details are in the [README](../README.md) and the [specification](../ui-editor-tool-spec.md) (both in Japanese). The screenshots in this guide show the Japanese UI; the English UI has the same layout.
+More detail is in the [developer documentation](development.md) and the [specification](../ui-editor-tool-spec.md) (both in Japanese). The screenshots in this guide show the Japanese UI; the English UI has the same layout.
 
 ---
 
