@@ -246,6 +246,10 @@ public static partial class JavaProject
             }
             .faro-screen { -fx-background-color: m3-surface; }
             .label { -fx-text-fill: m3-on-surface; }
+            .check-box:selected > .box { -fx-background-color: m3-primary; }
+            .check-box:selected > .box > .mark { -fx-background-color: m3-on-primary; }
+            .slider > .thumb { -fx-background-color: m3-primary; -fx-background-radius: 10; }
+            .slider > .track { -fx-background-color: m3-secondary-container; }
 
             .button {
                 -fx-background-color: m3-primary; -fx-text-fill: m3-on-primary; -fx-background-radius: 20; -fx-border-radius: 20;

@@ -64,6 +64,13 @@ public sealed record AppDesign(string Language = "Fluent", string SeedColor = Ap
             dictionary["M3" + role] = new SolidColorBrush(Color.FromUInt32(palette.Tone(dark ? darkTone : light)));
         var primary = Color.FromUInt32(p.Primary.Tone(dark ? 80u : 40u));
         foreach (var key in new[] { "SystemAccentColor", "SystemAccentColorDark1", "SystemAccentColorLight1" }) dictionary[key] = primary;
+        // Fluent's check boxes, switches, sliders and progress bars take their accent from these brushes, not the accent color above.
+        var accent = new SolidColorBrush(primary);
+        foreach (var state in new[] { "", "PointerOver", "Pressed" })
+            foreach (var key in new[] { "CheckBoxCheckBackgroundFillChecked", "CheckBoxCheckBackgroundStrokeChecked", "ToggleSwitchFillOn", "ToggleSwitchStrokeOn", "SliderThumbBackground", "SliderTrackValueFill" })
+                dictionary[key + state] = accent;
+        dictionary["SystemControlHighlightAccentBrush"] = accent; // the progress bar
+        dictionary["AccentFillColorDefaultBrush"] = accent; // the editor's canvas (FluentAvalonia)
         foreach (var (key, value) in TextField(p, dark, outlined: false)) dictionary[key] = value;
         return dictionary;
     }

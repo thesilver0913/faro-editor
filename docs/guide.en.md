@@ -78,7 +78,7 @@ Drag a part from the **Parts** tab onto the canvas, or click it to add it inside
 ![Parts](images/parts.png)
 
 - **Containers**: `Stack` (in a row or a column), `Wrap` (wrapping), `Grid` (rows and columns), `Overlay` (layered, pinned to a corner or the center)
-- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
+- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `CheckBox`, `Switch`, `Slider`, `Select` (a drop-down of choices), `Progress` (a progress bar), `Divider` (a thin line), `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
 
 Faro has **no absolute positions**. Where a node goes is decided by which container it's in, its order, and the settings below.
 
@@ -151,7 +151,7 @@ Select a node and add a binding under **Bindings** at the bottom of the inspecto
 ![Bindings](images/inspector-bindings.png)
 
 - **Events** (`Click`, `Changed`): call a method when it happens. `Navigate:Screen.Detail` moves to another screen
-- **Properties** (`Text`, `Visible`, `Enabled`…): show a value (`OneWay`) or also write input back (`TwoWay`)
+- **Properties** (`Text`, `Checked`, `Value`, `Selected`, `Visible`, `Enabled`…): show a value (`OneWay`) or also write input back (`TwoWay`). A `Select`'s choices can also come from a list bound to `Options`
 - **Format**: add a display format like `¥{0:N0}` (`{0:N0}` thousands separators, `{0:F2}` two decimals)
 - **Lists**: bind `Items` on a repeatable instance and it shows one row per item. Nodes inside the row bind to the row's item (for example `Order.Name`)
 - **Selecting a row**: bind the row container's `Click` to a method with one parameter (`Open(Order order)`) and it gets the clicked row's item

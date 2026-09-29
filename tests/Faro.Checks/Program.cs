@@ -600,6 +600,32 @@ Check(right == "title,_,ok" && center == "title,_,ok,_" && Kids("row") == "title
     && (string?)CanvasEdit.Find(aligned, "badge")!.Attribute("anchorX") == "Right" && (string?)CanvasEdit.Find(aligned, "badge")!.Attribute("anchorY") == "Center"
     && !CanvasEdit.Align(aligned, "root", true, "End") && UiBuilder.Sizing(new XElement("Node", new XAttribute("type", "Control.Spacer")), "width") == "Fill", "align buttons (spacers, alignSelf, anchors)");
 
+// New parts: check box, switch, slider, select, progress, divider (built from their Props, bindable by neutral names).
+var parts = XElement.Parse("""
+    <Node id="root" type="Container.Stack">
+      <Node id="agree" type="Control.CheckBox"><Prop name="Text" value="OK" /><Prop name="Checked" value="true" /></Node>
+      <Node id="wifi" type="Control.Switch"><Prop name="Text" value="Wi-Fi" /></Node>
+      <Node id="volume" type="Control.Slider"><Prop name="Minimum" value="0" /><Prop name="Maximum" value="10" /><Prop name="Value" value="7" /></Node>
+      <Node id="size" type="Control.Select"><Prop name="Options" value="S, M , L" /><Prop name="Selected" value="M" /></Node>
+      <Node id="done" type="Control.Progress"><Prop name="Value" value="40" /></Node>
+      <Node id="line" type="Control.Divider" />
+    </Node>
+    """);
+var partIds = new Dictionary<string, Avalonia.Controls.Control>();
+UiBuilder.Build(parts, partIds, root);
+Check(partIds["agree"] is Avalonia.Controls.CheckBox { IsChecked: true } && partIds["wifi"] is Avalonia.Controls.ToggleSwitch { IsChecked: false }
+    && partIds["volume"] is Avalonia.Controls.Slider { Value: 7, Maximum: 10 } && partIds["size"] is Avalonia.Controls.ComboBox { SelectedItem: "M" } select && select.ItemCount == 3
+    && partIds["done"] is Avalonia.Controls.ProgressBar { Value: 40 } && UiBuilder.Sizing(parts.Elements("Node").Last(), "width") == "Fill"
+    && Bindable.For(partIds["wifi"])!.Type == "Control.Switch" && Bindable.For(partIds["agree"])!.Props.ContainsKey("Checked")
+    && Bindable.For(partIds["volume"])!.Events.ContainsKey("Changed") && Bindable.For(partIds["size"])!.Props.ContainsKey("Options")
+    && Bindable.For(partIds["line"])!.Type == "Control.Divider" && Bindable.For(new Avalonia.Controls.Button())!.Type == "Control.Button", "new parts build and bind");
+
+// The Java sample's generated Material 3 stylesheet is committed: it must match the generator (regenerated here if not; commit the result).
+var committedCss = Path.Combine(javaSample, ".faro", "design.css");
+var cssUpToDate = File.ReadAllText(committedCss) == JavaProject.DesignCss(FaroProject.Load(javaSample).Design);
+if (!cssUpToDate) JavaProject.WriteDesignCss(javaSample, FaroProject.Load(javaSample).Design);
+Check(cssUpToDate, "samples/HelloFaroJava/.faro/design.css is up to date");
+
 // Source Control shows a UI file's change as nodes: added, removed, moved, reordered, changed attributes and texts, instance synced.
 var uiBefore = """
     <UIGraph id="Main"><Node id="root" type="Container.Stack">

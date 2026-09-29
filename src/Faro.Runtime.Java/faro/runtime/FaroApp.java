@@ -86,6 +86,7 @@ public final class FaroApp {
         public void start(Stage primary) {
             stage = primary;
             var scene = new Scene(new StackPane(), 480, 720);
+            scene.getStylesheets().add("data:text/css;base64," + java.util.Base64.getEncoder().encodeToString(UiBuilder.CSS.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             if (url(".faro/design.css") instanceof URL css) scene.getStylesheets().add(css.toExternalForm());
             stage.setScene(scene);
             stage.show();
@@ -228,7 +229,7 @@ public final class FaroApp {
             var source = source(type, item);
             var format = bind.getAttribute("format");
             Runnable pull = () -> {
-                try { fx.setValue(format.isEmpty() ? convert(getter.invoke(source), fx.getValue()) : format(format, getter.invoke(source))); }
+                try { fx.setValue(format.isEmpty() ? convert(getter.invoke(source), fx) : format(format, getter.invoke(source))); }
                 catch (ReflectiveOperationException e) { showError(target + ": " + e.getCause()); }
             };
             pull.run();
@@ -236,7 +237,7 @@ public final class FaroApp {
             if ("TwoWay".equals(bind.getAttribute("mode"))) {
                 var setter = setter(type, name, getter.getReturnType());
                 fx.addListener((o, before, after) -> {
-                    try { setter.invoke(source, after); }
+                    try { setter.invoke(source, back(after, setter.getParameterTypes()[0])); }
                     catch (ReflectiveOperationException e) { showError(target + ": " + e.getCause()); }
                 });
             }
@@ -262,6 +263,12 @@ public final class FaroApp {
             return r -> pane.addEventHandler(javafx.scene.input.MouseEvent.MOUSE_CLICKED, e -> r.run());
         if (name.equals("Changed") && control instanceof TextInputControl input)
             return r -> input.textProperty().addListener((o, a, b) -> r.run());
+        if (name.equals("Changed") && control instanceof javafx.scene.control.CheckBox box)
+            return r -> box.selectedProperty().addListener((o, a, b) -> r.run());
+        if (name.equals("Changed") && control instanceof javafx.scene.control.Slider slider)
+            return r -> slider.valueProperty().addListener((o, a, b) -> r.run());
+        if (name.equals("Changed") && control instanceof javafx.scene.control.ComboBox<?> select)
+            return r -> select.valueProperty().addListener((o, a, b) -> r.run());
         throw new IllegalStateException(control.getClass().getSimpleName() + " has no event '" + name + "'.");
     }
 
@@ -269,6 +276,29 @@ public final class FaroApp {
     private static Property<?> property(Node control, String name) {
         Property<?> property = switch (name) {
             case "Text" -> control instanceof Labeled l ? l.textProperty() : control instanceof TextInputControl t ? t.textProperty() : null;
+            case "Checked" -> control instanceof javafx.scene.control.CheckBox box ? box.selectedProperty() : null;
+            case "Value" -> control instanceof javafx.scene.control.Slider s ? s.valueProperty()
+                : control instanceof javafx.scene.control.ProgressBar bar ? percent(bar) : null;
+            case "Minimum" -> control instanceof javafx.scene.control.Slider s ? s.minProperty() : null;
+            case "Maximum" -> control instanceof javafx.scene.control.Slider s ? s.maxProperty() : null;
+            case "Selected" -> {
+                if (!(control instanceof javafx.scene.control.ComboBox<?> select)) yield null;
+                @SuppressWarnings("unchecked") var value = (javafx.beans.property.ObjectProperty<String>) (Object) select.valueProperty();
+                var text = new javafx.beans.property.SimpleStringProperty(value.get());
+                text.bindBidirectional(value);
+                yield text;
+            }
+            case "Options" -> {
+                if (!(control instanceof javafx.scene.control.ComboBox<?> select)) yield null;
+                @SuppressWarnings("unchecked") var items = (javafx.collections.ObservableList<String>) (Object) select.getItems();
+                var list = new javafx.beans.property.SimpleObjectProperty<Object>();
+                list.addListener((o, a, b) -> {
+                    var strings = new ArrayList<String>();
+                    if (b instanceof Iterable<?> each) for (var item : each) strings.add(String.valueOf(item));
+                    items.setAll(strings);
+                });
+                yield list;
+            }
             case "Placeholder" -> control instanceof TextInputControl t ? t.promptTextProperty() : null;
             case "Visible" -> control.visibleProperty();
             case "Enabled" -> {
@@ -290,8 +320,29 @@ public final class FaroApp {
             : String.format((m.group(1).equals("N") ? "%,." : "%.") + (m.group(2).isEmpty() ? "2" : m.group(2)) + "f", number.doubleValue())));
     }
 
-    private static Object convert(Object value, Object current) {
-        return current instanceof Boolean || value instanceof Boolean ? Boolean.TRUE.equals(value) : value == null ? "" : String.valueOf(value);
+    /** A member's value for a JavaFX property: its type decides (a check, a number, a text, or the value itself: a list of options). */
+    private static Object convert(Object value, Property<?> target) {
+        if (target instanceof javafx.beans.property.BooleanProperty) return Boolean.TRUE.equals(value);
+        if (target instanceof javafx.beans.property.DoubleProperty) return value instanceof Number n ? n.doubleValue() : 0.0;
+        if (target instanceof javafx.beans.property.StringProperty) return value == null ? "" : String.valueOf(value);
+        return value;
+    }
+
+    /** A control's value written back to a member of type <code>type</code> (a slider's double into an int property…). */
+    private static Object back(Object value, Class<?> type) {
+        if (value instanceof Number n) {
+            if (type == int.class || type == Integer.class) return (int) Math.round(n.doubleValue());
+            if (type == long.class || type == Long.class) return Math.round(n.doubleValue());
+            if (type == double.class || type == Double.class) return n.doubleValue();
+        }
+        return type == String.class && value != null ? String.valueOf(value) : value;
+    }
+
+    /** A progress bar's Value (0–100) as JavaFX's progress (0–1). */
+    private static Property<?> percent(javafx.scene.control.ProgressBar bar) {
+        var value = new javafx.beans.property.SimpleDoubleProperty(bar.getProgress() * 100);
+        bar.progressProperty().bind(value.divide(100));
+        return value;
     }
 
     private static Class<?> classOf(String target) throws ClassNotFoundException {
