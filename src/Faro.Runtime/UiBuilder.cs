@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Styling;
 
 namespace Faro.Runtime;
 
@@ -38,6 +39,7 @@ public static class UiBuilder
         if (Num(node, "minHeight") is { } minH) control.MinHeight = minH;
         if (Num(node, "maxHeight") is { } maxH) control.MaxHeight = maxH;
         if (node.Attribute("margin") is { } margin) control.Margin = Sides(margin.Value);
+        if (type != "Instance") Appearance(node, control); // an instance's colors and text go to its copy of the master (Copy)
         // Design-language options ("m3.variant"="Tonal") become style classes ("m3-variant-tonal") that only that language styles.
         foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.')))
             control.Classes.Add($"{option.Name.LocalName.Replace('.', '-')}-{option.Value}".ToLowerInvariant());
@@ -250,6 +252,63 @@ public static class UiBuilder
         };
     }
 
+    static int looks;
+
+    /// <summary>The appearance attributes (<see cref="Appearance"/>); an instance's own ones override its master's, like Figma's instance fills.</summary>
+    public static readonly string[] Looks =
+        ["background", "foreground", "hoverBackground", "hoverForeground", "pressedBackground", "pressedForeground", "disabledBackground", "disabledForeground",
+         "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight"];
+
+    /// <summary>
+    /// Colors and text, like Figma fills and text styles. "background" / "foreground" take a color ("#RRGGBB", "#AARRGGBB", a name)
+    /// or a token ("$color.primary"); "hoverBackground", "pressedForeground", "disabledBackground"… color the node in that state.
+    /// "fontFamily", "fontSize", "fontWeight", "lineHeight" set the text (inherited by the node's children); "textStyle"="$text.title"
+    /// takes them from the tokens text.title.fontFamily, text.title.fontSize… (the node's own attributes win).
+    /// Colors are styles on the node (so a state's color wins over the normal one, in Fluent and Material 3 alike);
+    /// Fluent's buttons and text inputs color their inner parts from theme resources, which the node overrides as well.
+    /// </summary>
+    static void Appearance(XElement node, Control control)
+    {
+        var style = ((string?)node.Attribute("textStyle"))?.Trim().TrimStart('$');
+        string? Value(string name) => (string?)node.Attribute(name) is { } own ? Token(own.Trim()) : style is not null && Tokens.TryGetValue($"{style}.{name}", out var t) ? t : null;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        if (Value("fontFamily") is { Length: > 0 } family) control.SetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty, new FontFamily(family));
+        if (double.TryParse(Value("fontSize"), inv, out var size) && size > 0) control.SetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty, size);
+        if (Weight(Value("fontWeight")) is { } weight) control.SetValue(Avalonia.Controls.Documents.TextElement.FontWeightProperty, weight);
+        if (double.TryParse(Value("lineHeight"), inv, out var line) && line > 0) // every text inside the node
+            control.Styles.Add(new Style(x => x.Is<TextBlock>()) { Setters = { new Setter(TextBlock.LineHeightProperty, line) } });
+
+        var background = control switch
+        {
+            TemplatedControl => TemplatedControl.BackgroundProperty, Border => Border.BackgroundProperty, Panel => Panel.BackgroundProperty,
+            TextBlock => TextBlock.BackgroundProperty, _ => (AvaloniaProperty?)null,
+        };
+        var look = $"faro-look-{Interlocked.Increment(ref looks)}";
+        foreach (var (state, pseudo, fluent) in new[] { ("", null, ""), ("hover", ":pointerover", "PointerOver"), ("pressed", ":pressed", "Pressed"), ("disabled", ":disabled", "Disabled") })
+        {
+            var bg = Brush(Value(state.Length == 0 ? "background" : state + "Background"))
+                // a state's fill needs a normal one to replace, and makes the whole node hit-testable (a list row's hover)
+                ?? (state.Length == 0 && new[] { "hover", "pressed", "disabled" }.Any(s => Brush(Value(s + "Background")) is not null) ? Brushes.Transparent : null);
+            var fg = Brush(Value(state.Length == 0 ? "foreground" : state + "Foreground"));
+            if (bg is null && fg is null) continue;
+            var css = new Style(x => pseudo is null ? x.Is<Control>().Class(look) : x.Is<Control>().Class(look).Class(pseudo));
+            if (bg is not null && background is not null) css.Setters.Add(new Setter(background, bg));
+            if (fg is not null) css.Setters.Add(new Setter(Avalonia.Controls.Documents.TextElement.ForegroundProperty, fg));
+            control.Styles.Add(css);
+            control.Classes.Add(look);
+            var part = control switch { Button => "Button", TextBox => "TextControl", _ => null };
+            if (part is null || fluent.Length == 0 && control is Button) continue;
+            if (bg is not null) control.Resources[$"{part}Background{(fluent.Length == 0 ? "Focused" : fluent)}"] = bg; // a focused text input keeps its own background
+            if (fg is not null) control.Resources[$"{part}Foreground{(fluent.Length == 0 ? "Focused" : fluent)}"] = fg;
+        }
+    }
+
+    static IBrush? Brush(string? value) => value is not null && Color.TryParse(value, out var color) ? new SolidColorBrush(color) : null;
+
+    /// <summary>"Bold", "SemiBold"… or a number (100–900).</summary>
+    public static FontWeight? Weight(string? value) =>
+        Enum.TryParse<FontWeight>(value, ignoreCase: true, out var w) && (int.TryParse(value, out var n) ? n is >= 1 and <= 1000 : true) ? w : null;
+
     /// <summary>
     /// Instances render the master snapshot stored inside them (updated only by the explicit
     /// component sync, see ComponentSync) with their &lt;Override&gt;s applied.
@@ -270,8 +329,8 @@ public static class UiBuilder
             copy.Elements("Prop").Where(p => (string?)p.Attribute("name") == (string?)o.Attribute("prop")).Remove();
             copy.Add(new XElement("Prop", new XAttribute("name", (string?)o.Attribute("prop") ?? ""), new XAttribute("value", (string?)o.Attribute("value") ?? "")));
         }
-        // The instance's own design options ("m3.variant") win over its master's (or variant's): one style class each.
-        foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.'))) copy.SetAttributeValue(option.Name, option.Value);
+        // The instance's own design options ("m3.variant") and colors / text win over its master's (or variant's).
+        foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.') || Looks.Contains(a.Name.LocalName))) copy.SetAttributeValue(option.Name, option.Value);
         return Build(copy, byId, root, $"{prefix}{(string?)node.Attribute("id")}/");
     }
 

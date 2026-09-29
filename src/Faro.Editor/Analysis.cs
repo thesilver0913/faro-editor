@@ -19,22 +19,40 @@ public static class Registry
     /// Extracts public members of public top-level classes with Roslyn syntax trees only,
     /// so it works on code that has never been built (spec §3).
     /// </summary>
-    // ponytail: full re-parse of Source/ on every change; incremental parsing when projects get big (spec §11.5)
-    public static List<RegistryMember> Scan(string sourceDir) =>
-        !Directory.Exists(sourceDir) ? [] :
-        [.. Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories).SelectMany(f => Parse(File.ReadAllText(f))),
-            .. Directory.EnumerateFiles(sourceDir, "*.java", SearchOption.AllDirectories).SelectMany(f => JavaProject.Parse(File.ReadAllText(f)))];
+    /// <remarks>Each file is parsed once per change (by its write time): a UI edit reloads the project without re-parsing Source/.</remarks>
+    public static List<RegistryMember> Scan(string sourceDir) => [.. Files(sourceDir).SelectMany(f => f.Members)];
 
     /// <summary>Classes deriving from FaroScript (for Script nodes), by the same syntax-only scan.</summary>
-    public static List<string> ScriptClasses(string sourceDir) =>
-        !Directory.Exists(sourceDir) ? [] :
-        [.. from file in Directory.EnumerateFiles(sourceDir, "*.cs", SearchOption.AllDirectories)
-            from cls in CSharpSyntaxTree.ParseText(File.ReadAllText(file)).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
-            where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
-                && cls.BaseList?.Types.Any(t => t.Type.ToString().Split('.')[^1] == "FaroScript") == true
-            let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
-            select ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text,
-            .. Directory.EnumerateFiles(sourceDir, "*.java", SearchOption.AllDirectories).SelectMany(f => JavaProject.ScriptClasses(File.ReadAllText(f)))];
+    public static List<string> ScriptClasses(string sourceDir) => [.. Files(sourceDir).SelectMany(f => f.Scripts)];
+
+    static readonly Dictionary<string, (DateTime Written, List<RegistryMember> Members, List<string> Scripts)> parsed = [];
+
+    static IEnumerable<(List<RegistryMember> Members, List<string> Scripts)> Files(string sourceDir)
+    {
+        if (!Directory.Exists(sourceDir)) yield break;
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*.*", SearchOption.AllDirectories).Where(f => f.EndsWith(".cs") || f.EndsWith(".java")))
+        {
+            var written = File.GetLastWriteTimeUtc(file);
+            lock (parsed)
+            {
+                if (!parsed.TryGetValue(file, out var entry) || entry.Written != written)
+                {
+                    var code = File.ReadAllText(file);
+                    parsed[file] = entry = file.EndsWith(".java")
+                        ? (written, JavaProject.Parse(code).ToList(), JavaProject.ScriptClasses(code).ToList())
+                        : (written, Parse(code).ToList(), CSharpScripts(code).ToList());
+                }
+                yield return (entry.Members, entry.Scripts);
+            }
+        }
+    }
+
+    static IEnumerable<string> CSharpScripts(string code) =>
+        from cls in CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+        where cls.Parent is not TypeDeclarationSyntax && IsPublic(cls.Modifiers)
+            && cls.BaseList?.Types.Any(t => t.Type.ToString().Split('.')[^1] == "FaroScript") == true
+        let ns = string.Join('.', cls.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(n => n.Name.ToString()))
+        select ns.Length > 0 ? $"{ns}.{cls.Identifier}" : cls.Identifier.Text;
 
     public static IEnumerable<RegistryMember> Parse(string code) =>
         from cls in CSharpSyntaxTree.ParseText(code).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
@@ -111,6 +129,7 @@ public static class BindingCheck
     public static List<BindingIssue> Check(FaroProject project, List<RegistryMember> registry, IReadOnlyCollection<string>? scripts = null)
     {
         var issues = new List<BindingIssue>();
+        var members = registry.Select(m => (m.Target, m.IsMethod)).ToHashSet();
         if (scripts is not null)
             foreach (var (graphId, graph) in project.Screens.Concat(project.Components))
                 foreach (var n in NodesOf(graph).Where(n => (string?)n.Attribute("type") == "Control.Script" && !scripts.Contains((string?)n.Attribute("class") ?? "")))
@@ -150,7 +169,7 @@ public static class BindingCheck
                 else
                 {
                     var isEvent = bind.Attribute("event") is not null;
-                    if (!registry.Any(m => m.Target == target && m.IsMethod == isEvent))
+                    if (!members.Contains((target, isEvent)))
                         issues.Add(new(nodeId, target, L.F(isEvent ? "Method '{0}' not found in Source/." : "Property '{0}' not found in Source/.", target),
                             Nearest(target, registry.Where(m => m.IsMethod == isEvent).Select(m => m.Target)), screenId, "target"));
                 }

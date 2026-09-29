@@ -134,7 +134,7 @@ public static partial class ProjectSetup
     }
 
     /// <summary>faro.json with the new "design" (left out when it's the Fluent default), for one UI history step.</summary>
-    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design, IReadOnlyDictionary<string, double> tokens)
+    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design, IReadOnlyDictionary<string, string> tokens)
     {
         var path = Path.Combine(dir, ProjectFile);
         var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
@@ -142,7 +142,8 @@ public static partial class ProjectSetup
         if (design != new Faro.Runtime.AppDesign())
             json["design"] = new JsonObject { ["language"] = design.Language, ["seedColor"] = design.SeedColor, ["theme"] = design.Theme };
         json.Remove("tokens");
-        if (tokens.Count > 0) json["tokens"] = new JsonObject(tokens.Select(t => KeyValuePair.Create(t.Key, (JsonNode?)JsonValue.Create(t.Value))));
+        if (tokens.Count > 0) // numbers stay numbers; colors and font names are strings
+            json["tokens"] = new JsonObject(tokens.Select(t => KeyValuePair.Create(t.Key, (JsonNode?)(double.TryParse(t.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var n) ? JsonValue.Create(n) : JsonValue.Create(t.Value)))));
         return new() { [path] = json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n" };
     }
 

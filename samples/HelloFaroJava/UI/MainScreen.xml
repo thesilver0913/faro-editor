@@ -27,7 +27,7 @@
         </Node>
       </Node>
     </Node>
-    <Node id="orderList" type="Instance" component="Comp.OrderRow" widthSizing="Fill" repeatable="true">
+    <Node id="orderList" type="Instance" component="Comp.OrderRow" widthSizing="Fill" repeatable="true" hoverBackground="$color.rowHover">
       <Node id="root" type="Container.Stack" direction="Horizontal" gap="8">
         <Node id="name" type="Control.Text" widthSizing="Fill">
           <Prop name="Text" value="商品名" />

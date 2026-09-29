@@ -79,7 +79,10 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - インスペクター:ID(変更すると紐付けも追従)、幅/高さの Fill/Hug/Fixed と固定値、コンテナの向き・gap・padding・揃え・列数、Prop(インスタンスでは Override)、repeatable と**モック行**(仕様§10.5:1行1件、値は `|` 区切りで中の Text に入る。キャンバスだけに複数行で表示され、実行時は無視。UI の XML に `<MockRow><Set node="…" value="…" /></MockRow>` として保存)
 - 紐付け:イベント/プロパティごとに対象をレジストリ候補から選ぶ(入力で絞り込み)、TwoWay/OneWay、削除、追加。存在しないメンバーには「Create with AI Chat」
 - **リストの実データ**:repeatable なインスタンスに `prop="Items"` で一覧のプロパティを紐付けると、実行時に 1 件 1 行で並ぶ(C# は `ObservableCollection<T>` なら追加・削除で再描画。Java は `List` を返す getter と `changed("orders")`)。中の Node への紐付けは要素のクラスのメンバーを指す(`orderList/name` → `MyApp.Models.Order.Name`)。サンプルの「送信」で注文が 1 行増える
-- **トークン**:File › プロジェクトのデザイン… の「トークン」に `space.m = 16` のように 1 行 1 つ書くと `faro.json` の `"tokens"` に入る。間隔・内側/外側の余白・幅/高さ・最小/最大に `$space.m` と書くとその値になり、トークンを変えれば全画面に反映される(C#・Java のランタイムとも。インスペクターは存在しないトークンを赤で示す)
+- **トークン**:File › プロジェクトのデザイン… の「トークン」に `space.m = 16` のように 1 行 1 つ書くと `faro.json` の `"tokens"` に入る(数値は数値、それ以外は文字列)。間隔・内側/外側の余白・幅/高さ・最小/最大に `$space.m` と書くとその値になり、トークンを変えれば全画面に反映される(C#・Java のランタイムとも。インスペクターは存在しないトークンを赤で示す)。色(`color.primary = #6750A4`)と、文字スタイル(`text.title.fontFamily` / `.fontSize` / `.fontWeight` / `.lineHeight` をまとめて `textStyle="$text.title"`)にも使える
+- **見た目の属性**(全 Node、UiBuilder.Appearance):`background` / `foreground`(色か `$color.x`)、状態ごとの `hoverBackground` / `hoverForeground` / `pressedBackground` / `pressedForeground` / `disabledBackground` / `disabledForeground`、`fontFamily` / `fontSize` / `fontWeight`(Normal・Bold… か 100〜900)/ `lineHeight`、`textStyle`。C# は Node 自身の Styles(状態は `:pointerover` / `:pressed` / `:disabled`)と、Fluent のボタン・入力欄が内部で使うテーマのリソース(`ButtonBackgroundPointerOver` など)で色を付ける。Java はインライン CSS を状態の変化で差し替える(行の高さは JavaFX に無いので、文字の大きさの約 1.2 倍を超えた分を行間にする)。インスタンス自身の見た目の属性は、マスターの複製(スナップショット)の根に上書きされる
+- **UI の差分**(ソース管理):`UI/` と `Bindings/` の XML は、HEAD との差を Node 単位(追加・削除・移動・並べ替え、属性と Prop・Override の変化、インスタンスの同期)と紐付け単位(Node · イベント/プロパティごと)でまとめ、その下に XML の差分を出す(`GitView.UiChanges`)。プロジェクトがリポジトリのサブフォルダでも、パスはプロジェクト基準で扱う
+- **大きなプロジェクト**:`Source/` の解析はファイルの更新時刻ごとにキャッシュし(変わったファイルだけ解析し直す)、紐付けの検査はメンバーをハッシュで引く。画面 40 枚・Node 約 4,000・メンバー 4,000 で、編集後の再読み込みは 100 ms 未満(`tests/Faro.Checks` の scale 行が毎回測る)
 - **コンポーネントのバリアント**(Figma の Variants):インスタンスを選んでインスペクターの「コンポーネント › 新しいバリアント…」で、マスターのコピー `UI/Comp.X@名前.xml` ができ、キャンバスでマスターと同じように編集できる。インスタンスは「バリアント」で使う版を選ぶ(`variant="名前"`、選ぶとその版のスナップショットに置き換わり、以後の同期もその版から)。紐付け(`Bindings/Comp.X.xml`)は全バリアント共通。コンポーネントの名前変更でバリアントも一緒に移る
 - **表示形式**:値の紐付けに `format="¥{0:N0}"` を付けると書式付きで表示する(インスペクターの紐付け欄の「書式」。`{0}` が値、`{0:N0}` は 3 桁区切り、`{0:F2}` は小数 2 桁。この 3 つは C# と Java で同じ結果、ほかは C# だけ)
 - **選択(行のクリック)**:コンテナにも `Click` を紐付けられる(行のどこをクリックしても反応)。一覧の行の中の Click に**引数 1 つのメソッド**(`Open(Order order)`)を紐付けると、その行の要素が渡る。行の中の `Navigate:Screen.…` もその行の要素を遷移先に渡す
@@ -166,7 +169,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 
 ## インストールと更新、ログ
 
-- **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要)、Linux は `.deb`(`sudo apt install ./Faro-…-linux-x64.deb` で入り、`faro` コマンドとメニューから起動)と `tar.gz`(展開して `Faro.Editor` を実行)、macOS は `.pkg`(Apple Silicon は `osx-arm64`、Intel は `osx-x64`。Faro.app を「アプリケーション」に入れる)
+- **インストーラー**:Windows は Inno Setup のウィザード(`installer/faro.iss`、English / 日本語、既定はユーザーごとのインストールで管理者権限不要。そのまま Program Files などの管理者用フォルダを選ぶと、フォルダの画面で「すべてのユーザー用にインストール」に戻るよう案内して先に進まない)、Linux は `.deb`(`sudo apt install ./Faro-…-linux-x64.deb` で入り、`faro` コマンドとメニューから起動)と `tar.gz`(展開して `Faro.Editor` を実行)、macOS は `.pkg`(Apple Silicon は `osx-arm64`、Intel は `osx-x64`。Faro.app を「アプリケーション」に入れる)
 - **.NET 10 SDK は段階的に入る**:Faro 自体とプロジェクトのビルドに .NET 10 SDK が要る。入っていなければ、インストーラーが Microsoft の `dotnet-install` スクリプトで取ってくる(配布物には含めない)
   - Windows:インストーラーの「.NET 10 SDK をダウンロードして入れる」(SDK がないときだけ表示)。Faro の隣の `dotnet` フォルダに入り、管理者権限は要らない
   - Linux(.deb):インストール中に `/usr/lib/faro/dotnet` に入る(アンインストールで消える)。tar.gz では同梱の `get-dotnet.sh` を一度実行する
@@ -176,7 +179,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **Linux / macOS の PATH**:メニューや Finder から起動したアプリには、シェルの設定ファイル(`.bashrc` など。SDKMAN の Maven など)の PATH が渡らない。Faro は起動時にログインシェルから PATH を読み込む
 - **macOS で初めて開くとき**:Apple の Developer ID 署名・公証はまだないため(簡易署名のみ)、.pkg と Faro の初回は「開けません」と表示される。「システム設定 › プライバシーとセキュリティ」の「このまま開く」を押すと、以降は普通に開ける
 - **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux と macOS はリリースページを開く
-- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる。`docs/release-notes/<タグ>.md` があれば、その内容を自動生成の PR 一覧の前にリリースノートとして載せる
+- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる。`docs/release-notes/<タグ>.md` があれば、その内容を自動生成の PR 一覧の前にリリースノートとして載せる(先にあったリリースにも、まだ載っていなければ本文の前に足す)
 - **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。起動時に Faro 自身を `--watch <PID>` で見張り役として起動し(待つだけで UI は読み込まない)、エディターが正常に終了しなかったとき(.NET の例外に加え、ネイティブのクラッシュや強制終了も)すぐに「予期せず終了しました」ウィンドウを出す。何をしていたかの入力、詳細(レポートとログの末尾)、Issue で報告(詳細を本文に入れ、全文はクリップボードへ)・コピー・再起動。正常終了は `logs/running-<PID>` の削除で見分ける(終了シグナルも正常扱い)。どこにも自動送信はしない
 - **コード署名**:未対応(Windows で SmartScreen の警告が出る)
 

@@ -57,7 +57,7 @@ public sealed class FaroProject
         catch (System.Text.Json.JsonException e) { throw new InvalidDataException($"faro.json: {e.Message}", e); } // hand-edited: say where
         project.StartScreen = (string?)json?["startScreen"];
         project.Design = AppDesign.Read(json?["design"]);
-        project.Tokens = json?["tokens"] is JsonObject tokens ? tokens.ToDictionary(t => t.Key, t => t.Value?.ToString() ?? "") : [];
+        project.Tokens = json?["tokens"] is JsonObject tokens ? tokens.ToDictionary(t => t.Key, t => t.Value is JsonValue v && v.TryGetValue<string>(out var text) ? text : t.Value?.ToString() ?? "") : [];
         UiBuilder.Tokens = project.Tokens; // every build follows a load
         return project;
     }

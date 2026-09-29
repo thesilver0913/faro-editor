@@ -244,7 +244,8 @@ public static class FaroApp
         {
             var routed = Bindable.For(control)?.Events.GetValueOrDefault(eventName)
                 ?? throw new InvalidOperationException($"{Bindable.For(control)?.Type ?? control.GetType().Name} has no event '{eventName}'.");
-            if (control is Border { Background: null } container) container.Background = Brushes.Transparent; // a tap anywhere on a container (a row) counts
+            // A tap anywhere on a container (a row) counts; one with its own colors (Appearance) already has a fill its states can replace.
+            if (control is Border { Background: null } container && !container.Classes.Any(c => c.StartsWith("faro-look-"))) container.Background = Brushes.Transparent;
             if (target.StartsWith("Navigate:"))
             {
                 var screen = NavigateScreenId(target, project.Screens.Keys);

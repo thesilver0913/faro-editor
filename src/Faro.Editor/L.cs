@@ -167,7 +167,7 @@ public static class L
         ["Building for debugging…"] = "デバッグ用にビルドしています…", ["The build failed (see above)."] = "ビルドに失敗しました(上の出力を参照)。", ["[Debugging stopped]"] = "[デバッグ終了]",
         ["The C# debugger (installed on first use too)"] = "C# のデバッガー(初めて使うときにも自動で入ります)",
         // Tokens and variants
-        ["Tokens"] = "トークン", ["One per line: name = number. Gap, padding, margin and sizes take \"$name\" (e.g. $space.m), so changing a token restyles every screen."] = "1 行に 1 つ: 名前 = 数値。間隔・内側/外側の余白・サイズに \"$名前\"(例: $space.m)と書くと、トークンを変えるだけで全画面に反映されます。",
+        ["Tokens"] = "トークン", ["One per line: name = value. Sizes (space.m = 16), colors (color.primary = #6750A4) and text styles: text.title.fontFamily, .fontSize, .fontWeight, .lineHeight. Fields take \"$name\" ($space.m, $color.primary); a node's Text style takes $text.title. Changing a token restyles every screen."] = "1 行に 1 つ、名前 = 値。大きさ(space.m = 16)、色(color.primary = #6750A4)、文字スタイル(text.title.fontFamily・.fontSize・.fontWeight・.lineHeight)を書けます。各欄に \"$名前\"($space.m、$color.primary)、Node の「文字スタイル」に $text.title と入れて使います。トークンを変えると全画面に反映されます。",
         ["No token {0} (File › Project Design… › Tokens)."] = "トークン {0} がありません(ファイル › プロジェクトのデザイン… › トークン)。",
         ["Component"] = "コンポーネント", ["Component variant"] = "バリアント", ["(default)"] = "(既定)", ["New variant…"] = "新しいバリアント…", ["New variant"] = "新しいバリアント", ["Variant name for {0}:"] = "{0} のバリアント名:",
         ["Copy the component as a variant (edit it like a master; bindings are shared)"] = "コンポーネントをバリアントとして複製(マスターと同じように編集。紐付けは共通)",
@@ -206,6 +206,16 @@ public static class L
         ["Install"] = "インストール", ["Download"] = "ダウンロード", ["Release Notes"] = "リリースノート",
         ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
         ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
+        // Inspector › Appearance
+        ["Appearance"] = "見た目", ["Fill / Text"] = "塗り / 文字色", ["Text token"] = "文字トークン", ["Font"] = "フォント", ["Size / Line"] = "サイズ / 行高", ["Weight"] = "太さ",
+        ["Hover"] = "ホバー", ["Pressed"] = "押下", ["Disabled"] = "無効",
+        ["A color (#6750A4, #806750A4, Red) or a color token ($color.primary)."] = "色(#6750A4、#806750A4、Red)か、色のトークン($color.primary)。",
+        ["Normal, Medium, SemiBold, Bold… or 100–900."] = "Normal、Medium、SemiBold、Bold… か 100〜900。",
+        ["Fill / text colors per state: hover, pressed (buttons), disabled. Empty: the design language's own."] = "状態ごとの塗り / 文字色:ホバー、押下(ボタン)、無効。空欄ならデザイン言語の色。",
+        // Source Control › UI changes
+        ["Binding added: {0} → {1}"] = "紐付けを追加: {0} → {1}", ["Binding removed: {0}"] = "紐付けを削除: {0}", ["Renamed {0} → {1}"] = "名前を変更: {0} → {1}",
+        ["Added {0} to {1}"] = "{1} に {0} を追加", ["Added {0}"] = "{0} を追加", ["Removed {0}"] = "{0} を削除", ["synced with its component"] = "コンポーネントと同期",
+        ["moved into {0}"] = "{0} の中へ移動", ["Reordered the children of {0}"] = "{0} の中の順番を変更",
         // UI history steps (History tab)
         ["Set {0}"] = "{0} を設定", ["Add {0}"] = "{0} を追加", ["Delete {0}"] = "{0} を削除", ["Move {0}"] = "{0} を移動", ["Resize {0}"] = "{0} のサイズ変更",
         ["Rename node"] = "Node の名前変更", ["Add image"] = "画像を追加", ["Add binding"] = "紐付けを追加", ["Rebind"] = "紐付け先を変更",

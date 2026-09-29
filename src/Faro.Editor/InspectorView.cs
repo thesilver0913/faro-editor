@@ -149,6 +149,7 @@ public sealed class InspectorView : UserControl
                 body.Children.Add(create);
             }
         }
+        Appearance(node);
         // Design-language options (faro.json "design"): Material 3 Expressive per node, first value = the default (unset).
         var styled = type == "Instance" ? (string?)node.Element("Node")?.Attribute("type") ?? "" : type;
         if (Workspace.Project?.Design.Language == "Material3" && (M3Options.GetValueOrDefault(styled) ?? (styled.StartsWith("Container.") ? M3Options["Container"] : null)) is { } options)
@@ -226,6 +227,40 @@ public sealed class InspectorView : UserControl
             }
             target.Children.Add(child);
         }
+    }
+
+    /// <summary>
+    /// Colors and text (UiBuilder.Appearance): fill and text color, the text style token and its parts, and the colors while
+    /// hovered, pressed and disabled. Colors take "#RRGGBB" or a color token; an instance's values override its master's.
+    /// </summary>
+    void Appearance(XElement node)
+    {
+        var tokens = Workspace.Project?.Tokens ?? new Dictionary<string, string>();
+        string? TokenError(string v) => v.StartsWith('$') && !tokens.ContainsKey(v[1..]) ? L.F("No token {0} (File › Project Design… › Tokens).", v) : null;
+        string? ColorError(string v) => TokenError(v) ?? (Color.TryParse(v.StartsWith('$') ? tokens[v[1..]] : v, out _) ? null : L.T("A color (#6750A4, #806750A4, Red) or a color token ($color.primary)."));
+        Control ColorField(string attribute) => CheckedField(node, attribute, 84, ColorError);
+
+        body.Children.Add(Section(L.T("Appearance")));
+        body.Children.Add(Row(L.T("Fill / Text"), Pair(ColorField("background"), ColorField("foreground"))));
+        // Text styles are token groups: text.title.fontSize, text.title.fontWeight… → "$text.title".
+        var parts = new[] { ".fontFamily", ".fontSize", ".fontWeight", ".lineHeight" };
+        var styles = tokens.Keys.Select(k => parts.FirstOrDefault(k.EndsWith) is { } p ? "$" + k[..^p.Length] : null).OfType<string>().Distinct().Order().Prepend(L.T("(none)")).ToList();
+        var current = (string?)node.Attribute("textStyle");
+        var style = new ComboBox { ItemsSource = styles, SelectedItem = current is null ? styles[0] : styles.Contains(current) ? current : null, MinWidth = 160, PlaceholderText = current };
+        var id = (string)node.Attribute("id")!;
+        style.SelectionChanged += (_, _) =>
+        {
+            if (style.SelectedIndex < 0 || (string?)style.SelectedItem == (current ?? styles[0])) return;
+            EditNode(id, "Set textStyle", n => CanvasEdit.SetAttribute(n, "textStyle", style.SelectedIndex == 0 ? null : (string)style.SelectedItem!));
+        };
+        body.Children.Add(Row(L.T("Text token"), style));
+        body.Children.Add(Row(L.T("Font"), CheckedField(node, "fontFamily", 160, TokenError)));
+        body.Children.Add(Row(L.T("Size / Line"), Pair(AttributeField(node, "fontSize"), AttributeField(node, "lineHeight"))));
+        body.Children.Add(Row(L.T("Weight"), CheckedField(node, "fontWeight", 110, v => TokenError(v)
+            ?? (UiBuilder.Weight(v.StartsWith('$') ? tokens[v[1..]] : v) is null ? L.T("Normal, Medium, SemiBold, Bold… or 100–900.") : null))));
+        foreach (var state in new[] { "hover", "pressed", "disabled" })
+            body.Children.Add(Row(L.T(char.ToUpperInvariant(state[0]) + state[1..]), Pair(ColorField(state + "Background"), ColorField(state + "Foreground"))));
+        body.Children.Add(Hint(L.T("Fill / text colors per state: hover, pressed (buttons), disabled. Empty: the design language's own.")));
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>

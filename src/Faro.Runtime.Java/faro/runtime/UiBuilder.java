@@ -79,6 +79,7 @@ public final class UiBuilder {
             view.setFitWidth(w);
         }
         control.managedProperty().bind(control.visibleProperty()); // hidden nodes leave the layout, as in Avalonia
+        if (!"Instance".equals(type)) appearance(node, control); // an instance's colors and text go to its copy of the master (copy)
         // Design-language options ("m3.variant"="Tonal") become style classes ("m3-variant-tonal") that only that language styles.
         var attributes = node.getAttributes();
         for (var i = 0; i < attributes.getLength(); i++) {
@@ -87,6 +88,75 @@ public final class UiBuilder {
         }
         byId.put(prefix + node.getAttribute("id"), control);
         return control;
+    }
+
+    /**
+     * Colors and text, as in the C# runtime: "background" / "foreground" (a color or "$color.x"), per-state "hoverBackground",
+     * "pressedForeground", "disabledBackground"…, and "fontFamily" / "fontSize" / "fontWeight" / "lineHeight", also from
+     * "textStyle"="$text.title" (tokens text.title.fontSize…; the node's own attributes win). Inline CSS: the state's colors
+     * replace the normal ones while the node is hovered, pressed or disabled (in that order of precedence: disabled first).
+     */
+    private static void appearance(Element node, Node control) {
+        var style = node.getAttribute("textStyle").trim().replaceFirst("^\\$", "");
+        Function<String, String> value = name -> node.hasAttribute(name) ? token(node.getAttribute(name).trim())
+            : style.isEmpty() ? null : tokens.get(style + "." + name);
+        var fonts = new StringBuilder();
+        if (value.apply("fontFamily") instanceof String family && !family.isEmpty()) fonts.append("-fx-font-family: \"").append(family).append("\"; ");
+        if (value.apply("fontSize") instanceof String size && positive(size)) fonts.append("-fx-font-size: ").append(size).append("px; ");
+        if (weight(value.apply("fontWeight")) instanceof String weight) fonts.append("-fx-font-weight: ").append(weight).append("; ");
+        // ponytail: JavaFX has line spacing, not line height: the extra space over ~1.2× the font size (13px when unset)
+        if (value.apply("lineHeight") instanceof String line && positive(line) && control instanceof javafx.scene.control.Labeled labeled) {
+            var font = value.apply("fontSize") instanceof String size && positive(size) ? Double.parseDouble(size) : 13;
+            labeled.setLineSpacing(Math.max(0, Double.parseDouble(line) - font * 1.2));
+        }
+        var looks = new String[4];
+        var states = new String[] { "", "hover", "pressed", "disabled" };
+        for (var i = 0; i < states.length; i++) {
+            var bg = color(value.apply(states[i].isEmpty() ? "background" : states[i] + "Background"));
+            var fg = color(value.apply(states[i].isEmpty() ? "foreground" : states[i] + "Foreground"));
+            var css = new StringBuilder();
+            if (bg != null && control instanceof Region) css.append("-fx-background-color: ").append(bg).append("; ");
+            // Labels and buttons use -fx-text-fill, text inputs -fx-text-inner-color; a container passes the colors down as looked-up colors.
+            if (fg != null) css.append(control instanceof Pane
+                ? "-fx-text-background-color: " + fg + "; -fx-text-base-color: " + fg + "; -fx-text-inner-color: " + fg + "; "
+                : "-fx-text-fill: " + fg + "; -fx-text-inner-color: " + fg + "; ");
+            looks[i] = css.toString();
+        }
+        var base = control.getStyle() + fonts + looks[0];
+        control.setStyle(base);
+        if (looks[1].isEmpty() && looks[2].isEmpty() && looks[3].isEmpty()) return;
+        Runnable restyle = () -> control.setStyle(base
+            + (control.isDisabled() ? looks[3] : control instanceof javafx.scene.control.ButtonBase b && b.isPressed() ? looks[2] : control.isHover() ? looks[1] : ""));
+        control.hoverProperty().addListener((o, a, b) -> restyle.run());
+        control.disabledProperty().addListener((o, a, b) -> restyle.run());
+        if (control instanceof javafx.scene.control.ButtonBase button) button.pressedProperty().addListener((o, a, b) -> restyle.run());
+        else control.pressedProperty().addListener((o, a, b) -> restyle.run());
+    }
+
+    /** The appearance attributes; an instance's own ones override its master's. */
+    static final Set<String> LOOKS = Set.of("background", "foreground", "hoverBackground", "hoverForeground", "pressedBackground", "pressedForeground",
+        "disabledBackground", "disabledForeground", "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight");
+
+    private static boolean positive(String number) {
+        try { return Double.parseDouble(number) > 0; } catch (NumberFormatException e) { return false; }
+    }
+
+    /** "#RRGGBB", "#AARRGGBB" (as in Avalonia; CSS wants #RRGGBBAA) or a color name; null when it isn't one. */
+    static String color(String value) {
+        if (value == null || value.isEmpty()) return null;
+        var v = value.matches("#[0-9a-fA-F]{8}") ? "#" + value.substring(3) + value.substring(1, 3) : value;
+        try { javafx.scene.paint.Color.web(v); return v; } catch (IllegalArgumentException e) { return null; }
+    }
+
+    /** Avalonia's weight names or 100–900 → CSS font-weight. */
+    static String weight(String value) {
+        if (value == null || value.isEmpty()) return null;
+        if (value.matches("\\d+")) { var n = Integer.parseInt(value); return n >= 1 && n <= 1000 ? String.valueOf(Math.round(n / 100.0) * 100) : null; }
+        return switch (value.toLowerCase()) {
+            case "thin" -> "100"; case "extralight", "ultralight" -> "200"; case "light" -> "300"; case "normal", "regular" -> "400";
+            case "medium" -> "500"; case "semibold", "demibold" -> "600"; case "bold" -> "700"; case "extrabold", "ultrabold" -> "800";
+            case "black", "heavy" -> "900"; default -> null;
+        };
     }
 
     /** Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug. */
@@ -396,10 +466,10 @@ public final class UiBuilder {
             p.setAttribute("value", o.getAttribute("value"));
             copy.appendChild(p);
         }
-        // The instance's own design options ("m3.variant") win over its master's (or variant's): one style class each.
+        // The instance's own design options ("m3.variant") and colors / text win over its master's (or variant's).
         var attributes = node.getAttributes();
         for (var i = 0; i < attributes.getLength(); i++)
-            if (attributes.item(i).getNodeName().contains(".")) copy.setAttribute(attributes.item(i).getNodeName(), attributes.item(i).getNodeValue());
+            if (attributes.item(i).getNodeName().contains(".") || LOOKS.contains(attributes.item(i).getNodeName())) copy.setAttribute(attributes.item(i).getNodeName(), attributes.item(i).getNodeValue());
         var row = build(copy, byId, root, prefix + node.getAttribute("id") + "/");
         if ("true".equals(node.getAttribute("repeatable")) && row instanceof Region r) r.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE); // rows stretch across the list
         return row;

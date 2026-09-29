@@ -14,7 +14,7 @@ Download the file for your OS from [GitHub Releases](https://github.com/thesilve
 
 | OS | File | Notes |
 |---|---|---|
-| Windows | `Faro-<version>-win-x64-setup.exe` | Without the .NET 10 SDK, the installer offers to fetch it |
+| Windows | `Faro-<version>-win-x64-setup.exe` | Without the .NET 10 SDK, the installer offers to fetch it. To install into Program Files, choose "Install for all users" on the first page |
 | Linux | `Faro-<version>-linux-x64.deb` / `.tar.gz` | For the .deb: `sudo apt install ./Faro-….deb`. It installs the .NET 10 SDK if missing |
 | macOS | `Faro-<version>-osx-arm64.pkg` (Apple silicon) / `osx-x64.pkg` (Intel) | Not notarized: the first time, right-click › Open |
 
@@ -89,9 +89,19 @@ Faro has **no absolute positions**. Where a node goes is decided by which contai
 - **Align**, **Justify** (`SpaceBetween` spreads the children to both ends) and **Align self** (move just this node)
 - Spacing can be written as `8` (all sides), `8 16` (vertical horizontal) or `8 16 8 16` (top right bottom left)
 
-### Tokens (shared numbers)
+### Appearance (colors and text)
 
-Write tokens like `space.m = 16` under Tokens in File › Project Design…, then type `$space.m` into any spacing or size field. Change the token once and every screen follows.
+The inspector's Appearance section sets a node's fill and text color (`#6750A4`, `Red`), font, size, line height and weight. The **Hover / Pressed / Disabled** rows set the fill and text color for that state only (pressed: buttons). Empty fields keep the design language's look. Set them on a component's master or variant and every instance gets them; an instance can override them.
+
+### Tokens (like Figma variables)
+
+Under Tokens in File › Project Design…, write one `name = value` per line:
+
+- Sizes: `space.m = 16` → `$space.m` in spacing and size fields
+- Colors: `color.primary = #6750A4` → `$color.primary` in fill and text color fields
+- Text styles: `text.title.fontSize = 22`, `text.title.fontWeight = Bold`, `text.title.fontFamily = Inter`, `text.title.lineHeight = 28` → pick `$text.title` as the node's Text token (anything set on the node itself wins)
+
+Change a token once and every screen follows.
 
 ### Design language
 
@@ -179,7 +189,7 @@ The debugger (netcoredbg for C#, java-debug for Java) is downloaded automaticall
 
 ## 8. Saving and sharing
 
-- **Git**: the Source Control tab (top left) shows your changes (click one for its diff) and can commit, pull and push
+- **Git**: the Source Control tab (top left) shows your changes (click one for its diff) and can commit, pull and push. For screens, components and bindings, the diff starts with what changed as nodes: added, removed or moved nodes and their changed settings
 
 ![Source Control](images/source-control.png)
 
