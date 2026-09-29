@@ -117,9 +117,10 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - コードエディタ/チャット → **コード履歴**:表示中ファイルの履歴(手動編集と承認した AI 生成が合流)
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
   - Console の **History(履歴)タブ**:UI グラフ履歴の一覧(削除・移動・サイズ変更は対象の Node ID 付き)。行をクリックするとその時点まで戻る・進む(戻した手は薄く表示され、新しい編集で消える)
-- **Debug(C#)**:コードの行番号の左をクリック(または F9)でブレークポイント(赤い点)。デバッグ開始(F6)でプロジェクトをビルドし、[netcoredbg](https://github.com/Samsung/netcoredbg)(Samsung、MIT)のもとでアプリを起動する。止まると、その行を黄色で示し、Console の「デバッグ」タブに呼び出し履歴(クリックでその位置と変数)と変数(1 段目のメンバーまで)を出す。続行(F8)・ステップオーバー(F10)・ステップイン(Shift+F10)・停止(Shift+F6)。アプリの出力は「出力」タブへ
-  - netcoredbg は初めてデバッグするときに `tools/netcoredbg` へダウンロードする(環境設定 › 部品からも)。Windows x64・Linux x64/arm64・Intel Mac 向け(Apple シリコンの Mac はまだ非対応)
-  - 既知の制限:Java のデバッグは未対応。ブレークポイントは行番号で持つ(行を足しても動かない、Faro を閉じると消える)。Run(ホットリロード)とデバッグは同時に使えない
+- **Debug(C#・Java)**:コードの行番号の左をクリック(または F9)でブレークポイント(赤い点)。デバッグ開始(F6)でプロジェクトをビルドして起動する。C# は [netcoredbg](https://github.com/Samsung/netcoredbg)(Samsung、MIT)、Java は jdtls に読み込ませた [java-debug](https://github.com/microsoft/java-debug)(Microsoft、EPL)を使う(Java は `pom.xml` から jdtls が求めたクラスパスで `Main` を起動)。止まると、その行を黄色で示し、Console の「デバッグ」タブに呼び出し履歴(クリックでその位置と変数)と変数(1 段目のメンバーまで)を出す。続行(F8)・ステップオーバー(F10)・ステップイン(Shift+F10)・停止(Shift+F6)。アプリの出力は「出力」タブへ
+  - netcoredbg は初めてデバッグするときに `tools/netcoredbg` へダウンロードする(環境設定 › 部品からも)。Windows x64・Linux x64/arm64・Intel Mac 向け(Apple シリコンの Mac では C# のデバッグは非対応)
+  - java-debug は jdtls を起動するときに `tools/java-debug` へ入れる(Maven Central)。入っていなかったときは入れたあと Faro を再起動する
+  - 既知の制限:ブレークポイントは行番号で持つ(行を足しても動かない、Faro を閉じると消える)。Run(ホットリロード)とデバッグは同時に使えない
 - **Window**:Explorer／Source Control／Canvas／Inspector／Code／Console(Problems・Output・AI Chat・History・Debug タブ)の各パネルを前面に／**コマンドパレット(Ctrl+Shift+P)**:メニューのすべての操作を名前で絞り込み(単語をスペース区切り、順不同。日本語 UI でも英語名で引ける)、Enter で実行／全画面(F11)
 - **ソース管理(Source Control、エクスプローラーの隣のタブ)**:`git` コマンドでブランチ、変更ファイル(クリックで差分)、すべてコミット(`git add -A` + コミットメッセージ)、プル・プッシュ、Git リポジトリでないフォルダは「リポジトリを作成」。パスワードの入力が要る場合は失敗して表示する(資格情報マネージャーか SSH 鍵を使う)。制限モードでは止める(リポジトリの設定がコマンドを動かせるため)
 - **Help**:更新の確認／ログフォルダーを開く／Faro について
