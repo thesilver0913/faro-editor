@@ -442,13 +442,14 @@ public final class FaroApp {
     }
 
     /** ponytail: a flat "key": "value" lookup; faro.json is Faro-written and simple. Use a JSON library if it grows. */
-    /** faro.json "tokens": {"space.m": 16, …} (flat names to numbers). */
+    /** faro.json "tokens": {"space.m": 16, "color.primary": "#6750A4", "text.title.fontSize": 22, …} (flat names to numbers or strings). */
     static Map<String, String> tokens(String json) {
         var tokens = new HashMap<String, String>();
         var block = Pattern.compile("\"tokens\"\\s*:\\s*\\{([^}]*)\\}").matcher(json);
         if (block.find()) {
-            var pair = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"?([^,\"\\s}]+)").matcher(block.group(1));
-            while (pair.find()) tokens.put(pair.group(1), pair.group(2));
+            // numbers, and strings (colors, font names with spaces: "Noto Sans JP")
+            var pair = Pattern.compile("\"([^\"]+)\"\\s*:\\s*(?:\"([^\"]*)\"|([^,\\s}]+))").matcher(block.group(1));
+            while (pair.find()) tokens.put(pair.group(1), pair.group(2) != null ? pair.group(2) : pair.group(3));
         }
         return tokens;
     }

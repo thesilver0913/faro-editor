@@ -186,8 +186,9 @@ public partial class MainWindow : Window
         seed.TextChanged += (_, _) => Paint();
         Paint();
         var theme = new ComboBox { ItemsSource = Faro.Runtime.AppDesign.Themes, SelectedItem = current.Theme, MinWidth = 200 };
-        // Tokens: named sizes ("space.m = 16") that number fields use as "$space.m".
-        var tokens = new TextBox { AcceptsReturn = true, MinHeight = 90, Text = string.Join("\n", (Workspace.Project?.Tokens ?? []).Select(t => $"{t.Key} = {t.Value}")), PlaceholderText = "space.m = 16" };
+        // Tokens (Figma variables): sizes ("space.m = 16"), colors ("color.primary = #6750A4") and text styles (text.title.fontSize = 22 …), used as "$name".
+        var tokens = new TextBox { AcceptsReturn = true, MinHeight = 120, MaxHeight = 260, Text = string.Join("\n", (Workspace.Project?.Tokens ?? []).Select(t => $"{t.Key} = {t.Value}")),
+            PlaceholderText = "space.m = 16\ncolor.primary = #6750A4\ntext.title.fontSize = 22\ntext.title.fontWeight = Bold" };
         var form = new Grid { ColumnDefinitions = new("Auto, *"), RowDefinitions = new("Auto, Auto, Auto, Auto, Auto, Auto"), ColumnSpacing = 12, RowSpacing = 8 };
         void Add(int row, string label, Control editor)
         {
@@ -200,14 +201,14 @@ public partial class MainWindow : Window
         Add(1, "Seed color", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { seed, swatch } });
         Add(2, "Theme", theme);
         Add(4, "Tokens", tokens);
-        form.Children.Add(new TextBlock { Text = L.T("One per line: name = number. Gap, padding, margin and sizes take \"$name\" (e.g. $space.m), so changing a token restyles every screen."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 5, [Grid.ColumnSpanProperty] = 2 });
+        form.Children.Add(new TextBlock { Text = L.T("One per line: name = value. Sizes (space.m = 16), colors (color.primary = #6750A4) and text styles: text.title.fontFamily, .fontSize, .fontWeight, .lineHeight. Fields take \"$name\" ($space.m, $color.primary); a node's Text style takes $text.title. Changing a token restyles every screen."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 5, [Grid.ColumnSpanProperty] = 2 });
         form.Children.Add(new TextBlock { Text = L.T("Material 3 generates its color roles (light and dark) from the seed color. Nodes get Material 3 options in the inspector."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 3, [Grid.ColumnSpanProperty] = 2 });
         if (!await Dialogs.Form(this, L.T("Project Design"), form, L.T("Apply"))) return;
         var design = new Faro.Runtime.AppDesign((string)language.SelectedItem!, Color.TryParse(seed.Text, out _) ? seed.Text!.Trim() : current.SeedColor, (string)theme.SelectedItem!);
-        var named = new Dictionary<string, double>();
+        var named = new Dictionary<string, string>();
         foreach (var line in (tokens.Text ?? "").Split('\n'))
-            if (line.Split('=', 2) is [var key, var value] && key.Trim().Length > 0 && double.TryParse(value.Trim(), System.Globalization.CultureInfo.InvariantCulture, out var number))
-                named[key.Trim().TrimStart('$')] = number;
+            if (line.Split('=', 2) is [var key, var value] && key.Trim().TrimStart('$') is { Length: > 0 } name && value.Trim() is { Length: > 0 } text)
+                named[name] = text;
         UiHistory.CommitFiles("Set design", ProjectSetup.DesignChange(Workspace.Root, design, named));
         Workspace.Reload();
         UpdateHistory();

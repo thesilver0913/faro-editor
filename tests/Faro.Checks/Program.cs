@@ -152,9 +152,9 @@ var scheme = AppDesign.Scheme(MaterialColorUtilities.Palettes.CorePalette.Of(0xF
 Check(scheme["M3Primary"] is Avalonia.Media.ISolidColorBrush { Color: var primary } && primary == Avalonia.Media.Color.Parse("#65558F")
     && scheme["M3Surface"] is Avalonia.Media.ISolidColorBrush { Color.R: > 250 }, "M3 color roles from the seed");
 var sampleDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"));
-var designed = ProjectSetup.DesignChange(sampleDir, new AppDesign("Material3", "#006A6A", "Dark"), new Dictionary<string, double> { ["space.m"] = 16 }).Single();
+var designed = ProjectSetup.DesignChange(sampleDir, new AppDesign("Material3", "#006A6A", "Dark"), new Dictionary<string, string> { ["space.m"] = "16", ["color.primary"] = "#6750A4" }).Single();
 Check(AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse(designed.Value!)!["design"]) == new AppDesign("Material3", "#006A6A", "Dark")
-    && !ProjectSetup.DesignChange(sampleDir, new AppDesign(), new Dictionary<string, double>()).Single().Value!.Contains("design") && designed.Value!.Contains("startScreen"), "design written to faro.json");
+    && !ProjectSetup.DesignChange(sampleDir, new AppDesign(), new Dictionary<string, string>()).Single().Value!.Contains("design") && designed.Value!.Contains("startScreen"), "design written to faro.json");
 Check((double?)System.Text.Json.Nodes.JsonNode.Parse(designed.Value!)!["tokens"]!["space.m"] == 16, "tokens written to faro.json");
 var mockCopy = new System.Xml.Linq.XElement(orderList);
 MockData.SetRows(mockCopy, [["a", "1"], ["b", ""]]);
@@ -568,6 +568,80 @@ File.WriteAllText(Path.Combine(crashes, "crash-new.txt"), "boom");
 Check(CrashWatcher.Outcome(crashes, 3) is null && noManaged is not null && File.ReadAllText(noManaged).Contains("without a .NET exception")
     && CrashWatcher.Outcome(crashes, 2) == Path.Combine(crashes, "crash-new.txt") && !File.Exists(Path.Combine(crashes, "running-2"))
     && CrashWatcher.IssueUrl(null, new string('x', 50_000), "crash-new.txt").Length < 8000, "crash watcher outcome and issue link");
+
+// Appearance: color / text-style tokens, a node's own value over its style, state colors (styles, and Fluent's button resources).
+var savedTokens = UiBuilder.Tokens;
+UiBuilder.Tokens = new Dictionary<string, string> { ["color.primary"] = "#6750A4", ["text.title.fontSize"] = "22", ["text.title.fontWeight"] = "Bold", ["text.title.fontFamily"] = "Inter" };
+var looked = (Avalonia.Controls.Button)UiBuilder.Build(System.Xml.Linq.XElement.Parse("""
+    <Node id="go" type="Control.Button" background="$color.primary" hoverBackground="#FF0000" disabledForeground="Gray" textStyle="$text.title" fontWeight="Normal"><Prop name="Text" value="Go" /></Node>
+    """), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(looked.FontSize == 22 && looked.FontWeight == Avalonia.Media.FontWeight.Normal && looked.FontFamily.Name == "Inter"
+    && looked.Resources["ButtonBackgroundPointerOver"] is Avalonia.Media.ISolidColorBrush { Color: var hover } && hover == Avalonia.Media.Color.Parse("#FF0000")
+    && looked.Resources.ContainsKey("ButtonForegroundDisabled") && looked.Styles.Count == 3, "appearance: tokens, text style, state colors");
+UiBuilder.Tokens = savedTokens;
+
+// Source Control shows a UI file's change as nodes: added, removed, moved, reordered, changed attributes and texts, instance synced.
+var uiBefore = """
+    <UIGraph id="Main"><Node id="root" type="Container.Stack">
+      <Node id="a" type="Control.Text"><Prop name="Text" value="Hi" /></Node>
+      <Node id="b" type="Control.Button" width="120" />
+      <Node id="c" type="Control.Text" />
+      <Node id="box" type="Container.Stack" />
+      <Node id="card" type="Instance" component="Comp.Card"><Node id="root" type="Container.Stack" /></Node>
+    </Node></UIGraph>
+    """;
+var uiAfter = """
+    <UIGraph id="Main"><Node id="root" type="Container.Stack">
+      <Node id="b" type="Control.Button" width="200" background="#6750A4" />
+      <Node id="a" type="Control.Text"><Prop name="Text" value="Hello" /></Node>
+      <Node id="box" type="Container.Stack"><Node id="c" type="Control.Text" /></Node>
+      <Node id="d" type="Control.Image" />
+      <Node id="card" type="Instance" component="Comp.Card"><Node id="root" type="Container.Stack" gap="8" /></Node>
+    </Node></UIGraph>
+    """;
+var uiChanges = GitView.UiChanges(uiBefore, uiAfter);
+Check(uiChanges.Contains("+ Added d (Image) to root") && uiChanges.Contains("~ a (Text): Text \"Hi\" → \"Hello\"")
+    && uiChanges.Contains("~ b (Button): width 120 → 200, background (none) → #6750A4") && uiChanges.Contains("~ c (Text): moved into box")
+    && uiChanges.Contains("~ card (Comp.Card): synced with its component") && uiChanges.Contains("~ Reordered the children of root (Stack)")
+    && GitView.UiChanges(uiAfter, null).Count == 7 && GitView.UiChanges("<oops", uiAfter).Count == 0
+    && GitView.UiChanges("""<Bindings><Bind nodeId="b" event="Click" target="X.Go" /></Bindings>""", """<Bindings><Bind nodeId="b" event="Click" target="X.Run" /><Bind nodeId="a" prop="Text" target="X.Name" /></Bindings>""")
+        .SequenceEqual(["+ Binding added: a · Text → X.Name", "~ b · Click: target X.Go → X.Run"]), "UI diff by node and binding");
+
+// Scale: 40 screens × ~100 nodes with bindings, 200 classes; loading, analysis and building every screen stay quick.
+var big = Path.Combine(root, "big");
+Directory.CreateDirectory(Path.Combine(big, "UI")); Directory.CreateDirectory(Path.Combine(big, "Bindings")); Directory.CreateDirectory(Path.Combine(big, "Source"));
+File.WriteAllText(Path.Combine(big, "faro.json"), "{ \"name\": \"Big\", \"startScreen\": \"S0\", \"tokens\": { \"space.m\": 16 } }");
+for (var c = 0; c < 200; c++)
+    File.WriteAllText(Path.Combine(big, "Source", $"C{c}.cs"), $"namespace Big;\npublic class C{c} : Faro.Runtime.FaroObject\n{{\n" + string.Concat(Enumerable.Range(0, 10).Select(m => $"    public string P{m} {{ get; set; }} = \"\";\n    public void M{m}() {{ }}\n")) + "}\n");
+for (var sIndex = 0; sIndex < 40; sIndex++)
+{
+    var rows = string.Concat(Enumerable.Range(0, 25).Select(r => $"""
+        <Node id="row{r}" type="Container.Stack" direction="Horizontal" gap="$space.m" background="#10000000" hoverBackground="#20000000">
+          <Node id="t{r}" type="Control.Text"><Prop name="Text" value="Row {r}" /></Node>
+          <Node id="i{r}" type="Control.TextInput" widthSizing="Fill"><Prop name="Placeholder" value="…" /></Node>
+          <Node id="b{r}" type="Control.Button"><Prop name="Text" value="Go" /></Node>
+        </Node>
+        """));
+    File.WriteAllText(Path.Combine(big, "UI", $"S{sIndex}.xml"), $"""<UIGraph id="S{sIndex}"><Node id="root" type="Container.Stack" padding="$space.m">{rows}</Node></UIGraph>""");
+    File.WriteAllText(Path.Combine(big, "Bindings", $"S{sIndex}.xml"), "<Bindings>" + string.Concat(Enumerable.Range(0, 25).Select(r =>
+        $"""<Bind nodeId="t{r}" prop="Text" target="Big.C{(sIndex * 5 + r) % 200}.P{r % 10}" /><Bind nodeId="b{r}" event="Click" target="Big.C{(sIndex * 5 + r) % 200}.M{r % 10}" />""")) + "</Bindings>");
+}
+var clock = System.Diagnostics.Stopwatch.StartNew();
+var bigProject = FaroProject.Load(big);
+var tLoad = clock.ElapsedMilliseconds; clock.Restart();
+var bigRegistry = Registry.Scan(Path.Combine(big, "Source"));
+var tScan = clock.ElapsedMilliseconds; clock.Restart();
+var bigScripts = Registry.ScriptClasses(Path.Combine(big, "Source"));
+var tScripts = clock.ElapsedMilliseconds; clock.Restart();
+var bigIssues = BindingCheck.Check(bigProject, bigRegistry, bigScripts);
+var tCheck = clock.ElapsedMilliseconds; clock.Restart();
+foreach (var (bigId, bigGraph) in bigProject.Screens) UiBuilder.Build(bigGraph.Root!.Element("Node")!, new Dictionary<string, Avalonia.Controls.Control>(), big);
+var tBuild = clock.ElapsedMilliseconds;
+clock.Restart(); // what every canvas edit costs: reload and re-check (Source/ unchanged: nothing is re-parsed)
+BindingCheck.Check(FaroProject.Load(big), Registry.Scan(Path.Combine(big, "Source")), Registry.ScriptClasses(Path.Combine(big, "Source")));
+var tReload = clock.ElapsedMilliseconds;
+Console.WriteLine($"     scale: {bigProject.Screens.Count} screens, {bigProject.Screens.Values.Sum(g => g.Descendants("Node").Count())} nodes, {bigRegistry.Count} members — load {tLoad} ms, first scan {tScan + tScripts} ms, check {tCheck} ms, build all {tBuild} ms, reload after an edit {tReload} ms");
+Check(bigIssues.Count == 0 && tReload < 1000, "a big project reloads quickly after an edit");
 
 // Audit fixes: history labels in Japanese, an unreadable server message ends the read loop (no throw), a broken faro.json is reported.
 var language = FaroSettings.Current.Language;

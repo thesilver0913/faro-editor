@@ -36,7 +36,7 @@
 - インスタンスの中の Node にも紐付けられる(`nodeId="orderList/price"`)
 - **リストの実データ**は repeatable なインスタンスへの `prop="Items"`(一覧のプロパティ)。中の Node への紐付けは、対象のクラスが要素の型ならその行の要素に付く
 - 紐付けの**表示形式**は `format="¥{0:N0}"`(`{0}`・`N<桁>`・`F<桁>` は両言語で同じ)。イベントのメソッドは引数なしか 1 つ(行の要素か遷移で渡した値)。**遷移の値渡し**は `FaroApp.Navigate("画面ID", 値)` で、遷移先の紐付けは値のクラスのメンバーならその値を使う
-- **トークン**は `faro.json` の `"tokens"`(`{"space.m": 16}`)、数値の属性に `$space.m`(UiBuilder が読むときに置き換える。ファイルには `$` のまま)。**バリアント**は `UI/Comp.X@名前.xml` の別マスターで、インスタンスの `variant="名前"` が選ぶ(スナップショットはその版から、紐付けは Comp.X と共通)
+- **トークン**は `faro.json` の `"tokens"`(`{"space.m": 16, "color.primary": "#6750A4", "text.title.fontSize": 22}`)、属性に `$space.m`(UiBuilder が読むときに置き換える。ファイルには `$` のまま)。**見た目**は Node の属性 `background`/`foreground`、状態ごとの `hoverBackground` など、`fontFamily`/`fontSize`/`fontWeight`/`lineHeight`、文字スタイルは `textStyle="$text.title"`(トークン `text.title.<項目>` の組)。**バリアント**は `UI/Comp.X@名前.xml` の別マスターで、インスタンスの `variant="名前"` が選ぶ(スナップショットはその版から、紐付けは Comp.X と共通)
 - **ワークスペースの信頼**:初めて開くフォルダは Trust か Restricted Mode を選ぶ(Restricted では restore・言語サーバー・Script プレビュー・Run を止める)
 - Grid は行・列のトラック指定(`columns="Auto, *, 2*, 120px"`、子は `row`/`column`/`rowSpan`/`columnSpan`)
 - **Script 部品**(`Control.Script` + `class`):`FaroScript` を継承したクラスの `Build()` が見た目も動作もコードで作る。キャンバスは最後のビルド結果で実物を表示

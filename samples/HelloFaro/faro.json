@@ -3,5 +3,12 @@
   "language": "CSharp",
   "runtime": "1.0.1-beta.1",
   "startScreen": "MainScreen",
-  "design": { "language": "Material3", "seedColor": "#6750A4", "theme": "Light" }
+  "design": {
+    "language": "Material3",
+    "seedColor": "#6750A4",
+    "theme": "Light"
+  },
+  "tokens": {
+    "color.rowHover": "#1F6750A4"
+  }
 }
