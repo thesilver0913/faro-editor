@@ -69,7 +69,7 @@ public final class UiBuilder {
                 if (type.equals("Control.Switch")) box.getStyleClass().add("faro-switch"); // JavaFX has no switch: a check box drawn as one (CSS)
                 yield box;
             }
-            case "Control.Slider" -> new javafx.scene.control.Slider(propNumber(node, "Minimum", 0), propNumber(node, "Maximum", 100), propNumber(node, "Value", 0));
+            case "Control.Slider" -> slider(propNumber(node, "Minimum", 0), propNumber(node, "Maximum", 100), propNumber(node, "Value", 0));
             case "Control.Select" -> {
                 var select = new javafx.scene.control.ComboBox<String>();
                 select.getItems().setAll(options(prop(node, "Options")));
@@ -200,8 +200,22 @@ public final class UiBuilder {
         catch (NumberFormatException e) { return fallback; }
     }
 
-    /** Runtime styles every app gets (as a data: stylesheet): the switch. */
+    /** JavaFX's slider track has no filled part (Avalonia's has): paint it up to the value, in the CSS colors faro-track-on / faro-track-off. */
+    private static javafx.scene.control.Slider slider(double min, double max, double value) {
+        var slider = new javafx.scene.control.Slider(min, max, value);
+        Runnable fill = () -> {
+            if (!(slider.lookup(".track") instanceof Region track)) return;
+            var at = slider.getMax() > slider.getMin() ? (slider.getValue() - slider.getMin()) / (slider.getMax() - slider.getMin()) * 100 : 0;
+            track.setStyle("-fx-background-color: linear-gradient(to right, faro-track-on " + at + "%, faro-track-off " + at + "%);");
+        };
+        slider.valueProperty().addListener(o -> fill.run());
+        slider.skinProperty().addListener(o -> fill.run());
+        return slider;
+    }
+
+    /** Runtime styles every app gets (as a data: stylesheet): the switch, the slider's track colors. */
     public static final String CSS = """
+        .slider { faro-track-on: -fx-accent; faro-track-off: derive(-fx-control-inner-background, -20%); }
         .check-box.faro-switch > .box { -fx-background-color: #9e9e9e; -fx-background-radius: 10; -fx-padding: 2 14 2 2; }
         .check-box.faro-switch:selected > .box { -fx-background-color: -fx-accent; -fx-padding: 2 2 2 14; }
         .check-box.faro-switch > .box > .mark, .check-box.faro-switch:selected > .box > .mark {

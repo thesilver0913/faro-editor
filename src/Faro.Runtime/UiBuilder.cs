@@ -34,7 +34,7 @@ public static class UiBuilder
             "Control.Slider" => new Slider { Minimum = PropNum(node, "Minimum") ?? 0, Maximum = PropNum(node, "Maximum") ?? 100, Value = PropNum(node, "Value") ?? 0 },
             "Control.Select" => new ComboBox { ItemsSource = Options(Prop(node, "Options")), SelectedItem = Prop(node, "Selected") },
             "Control.Progress" => new ProgressBar { Minimum = 0, Maximum = 100, Value = PropNum(node, "Value") ?? 0 },
-            "Control.Divider" => new Avalonia.Controls.Shapes.Rectangle { Fill = new SolidColorBrush(Color.Parse("#40808080")), [Layoutable.MinWidthProperty] = 1, [Layoutable.MinHeightProperty] = 1 },
+            "Control.Divider" => Divider(),
             _ => new TextBlock { Text = $"[unknown type: {type}]", Foreground = Brushes.Red },
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)
@@ -91,6 +91,14 @@ public static class UiBuilder
         };
 
     /// <summary>A Select's choices: "Small, Medium, Large".</summary>
+    /// <summary>A 1px line: M3's outline variant when the app uses Material 3, else a translucent gray.</summary>
+    static Control Divider()
+    {
+        var line = new Avalonia.Controls.Shapes.Rectangle { MinWidth = 1, MinHeight = 1 };
+        line.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, line.GetResourceObservable("M3OutlineVariant", brush => brush ?? new SolidColorBrush(Color.Parse("#40808080"))));
+        return line;
+    }
+
     public static List<string> Options(string? text) => [.. (text ?? "").Split(',').Select(o => o.Trim()).Where(o => o.Length > 0)];
 
     static double? PropNum(XElement node, string name) =>

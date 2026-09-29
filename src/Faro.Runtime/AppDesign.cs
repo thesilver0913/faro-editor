@@ -72,6 +72,33 @@ public sealed record AppDesign(string Language = "Fluent", string SeedColor = Ap
         dictionary["SystemControlHighlightAccentBrush"] = accent; // the progress bar
         dictionary["AccentFillColorDefaultBrush"] = accent; // the editor's canvas (FluentAvalonia)
         foreach (var (key, value) in TextField(p, dark, outlined: false)) dictionary[key] = value;
+        foreach (var (key, value) in Select(p, dark)) dictionary[key] = value;
+        return dictionary;
+    }
+
+    /// <summary>The ComboBox* resources Fluent's combo box uses, as M3's filled exposed dropdown menu over a surface-container menu.</summary>
+    static ResourceDictionary Select(CorePalette p, bool dark)
+    {
+        IBrush Tone(TonalPalette palette, uint light, uint darkTone, byte alpha = 255) => new SolidColorBrush(Color.FromUInt32(palette.Tone(dark ? darkTone : light)), alpha / 255.0);
+        var text = Tone(p.Neutral, 10, 90);
+        var dictionary = new ResourceDictionary
+        {
+            ["ComboBoxMinHeight"] = 56.0, ["ComboBoxPadding"] = new Thickness(16, 0, 12, 0), ["ComboBoxItemThemePadding"] = new Thickness(12, 0),
+            ["ComboBoxBorderThemeThickness"] = new Thickness(0, 0, 0, 1),
+            ["ComboBoxBackgroundBorderBrushFocused"] = Tone(p.Primary, 40, 80),
+            ["ComboBoxDropDownBackground"] = Tone(p.Neutral, 94, 12), ["ComboBoxDropDownBorderBrush"] = Brushes.Transparent,
+            ["ComboBoxItemBackgroundPointerOver"] = Tone(p.Neutral, 10, 90, 20), ["ComboBoxItemBackgroundPressed"] = Tone(p.Neutral, 10, 90, 26),
+        };
+        foreach (var state in new[] { "", "PointerOver", "Pressed", "Unfocused" }) dictionary["ComboBoxBackground" + state] = Tone(p.Neutral, 90, 22);
+        foreach (var state in new[] { "", "PointerOver", "Pressed" }) dictionary["ComboBoxBorderBrush" + state] = Tone(p.NeutralVariant, 30, 80);
+        foreach (var state in new[] { "", "Focused", "FocusedPressed" }) dictionary["ComboBoxForeground" + state] = text;
+        foreach (var state in new[] { "", "Focused", "FocusedPressed" }) dictionary["ComboBoxDropDownGlyphForeground" + state] = Tone(p.NeutralVariant, 30, 80);
+        foreach (var state in new[] { "", "PointerOver", "Pressed" }) dictionary["ComboBoxItemForeground" + state] = text;
+        foreach (var state in new[] { "", "PointerOver", "Pressed" })
+        {
+            dictionary["ComboBoxItemBackgroundSelected" + state] = Tone(p.Secondary, 90, 30);
+            dictionary["ComboBoxItemForegroundSelected" + state] = Tone(p.Secondary, 10, 90);
+        }
         return dictionary;
     }
 

@@ -246,10 +246,48 @@ public static partial class JavaProject
             }
             .faro-screen { -fx-background-color: m3-surface; }
             .label { -fx-text-fill: m3-on-surface; }
-            .check-box:selected > .box { -fx-background-color: m3-primary; }
+            .check-box { -fx-text-fill: m3-on-surface; -fx-padding: 0 0 0 11; -fx-label-padding: 0 0 0 15; -fx-cursor: hand; }
+            .check-box > .box {
+                -fx-background-color: m3-on-surface-variant, m3-surface; -fx-background-insets: 0, 2; -fx-background-radius: 2, 0; -fx-padding: 3;
+            }
+            .check-box > .box > .mark { -fx-background-color: transparent; }
+            .check-box:selected > .box { -fx-background-color: m3-primary; -fx-background-insets: 0; -fx-background-radius: 2; }
             .check-box:selected > .box > .mark { -fx-background-color: m3-on-primary; }
-            .slider > .thumb { -fx-background-color: m3-primary; -fx-background-radius: 10; }
-            .slider > .track { -fx-background-color: m3-secondary-container; }
+            .check-box:disabled, .slider:disabled, .combo-box:disabled { -fx-opacity: 0.38; }
+            .check-box.faro-switch { -fx-padding: 0; -fx-label-padding: 0 0 0 12; }
+            .check-box.faro-switch > .box {
+                -fx-background-color: m3-outline, m3-surface-container-highest; -fx-background-insets: 0, 2; -fx-background-radius: 16;
+                -fx-padding: 8 28 8 8;
+            }
+            .check-box.faro-switch > .box > .mark { -fx-background-color: m3-outline; -fx-padding: 8; }
+            .check-box.faro-switch:selected > .box { -fx-background-color: m3-primary; -fx-padding: 4 4 4 24; }
+            .check-box.faro-switch:selected > .box > .mark { -fx-background-color: m3-on-primary; -fx-padding: 12; }
+            .slider { -fx-cursor: hand; }
+            .slider { faro-track-on: m3-primary; faro-track-off: m3-secondary-container; }
+            .slider > .track { -fx-background-radius: 8; -fx-background-insets: 0; -fx-padding: 8; }
+            .slider > .thumb { -fx-shape: null; -fx-background-color: m3-primary; -fx-background-radius: 2; -fx-background-insets: 0; -fx-padding: 22 2; }
+            .slider:pressed > .thumb { -fx-padding: 22 1; }
+            .progress-bar > .track { -fx-background-color: m3-secondary-container; -fx-background-radius: 2; -fx-background-insets: 0; -fx-padding: 2; }
+            .progress-bar > .bar { -fx-background-color: m3-primary; -fx-background-radius: 2; -fx-background-insets: 0; -fx-padding: 2; }
+            .progress-bar { -fx-indeterminate-bar-length: 60; -fx-padding: 0; }
+            .separator:horizontal .line { -fx-border-color: m3-outline-variant transparent transparent transparent; -fx-border-width: 1 0 0 0; }
+            .separator:vertical .line { -fx-border-color: transparent transparent transparent m3-outline-variant; -fx-border-width: 0 0 0 1; }
+            .combo-box {
+                -fx-background-color: m3-on-surface-variant, m3-surface-container-highest; -fx-background-insets: 0, 0 0 1 0;
+                -fx-background-radius: 4 4 0 0; -fx-min-height: 56; -fx-padding: 0 4 0 4; -fx-font-size: 16px;
+            }
+            .combo-box:focused { -fx-background-color: m3-primary, m3-surface-container-highest; -fx-background-insets: 0, 0 0 2 0; }
+            .combo-box > .list-cell { -fx-text-fill: m3-on-surface; -fx-padding: 0 12; }
+            .combo-box > .arrow-button { -fx-background-color: transparent; }
+            .combo-box > .arrow-button > .arrow { -fx-background-color: m3-on-surface-variant; }
+            .combo-box-popup > .list-view { -fx-fixed-cell-size: 48; -fx-background-color: m3-surface-container; -fx-background-radius: 4; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2); }
+            .combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
+                -fx-background-color: transparent; -fx-text-fill: m3-on-surface; -fx-padding: 0 12; -fx-font-size: 16px;
+            }
+            .combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:hover { -fx-background-color: m3-surface-container-highest; }
+            .combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:selected {
+                -fx-background-color: m3-secondary-container; -fx-text-fill: m3-on-secondary-container;
+            }
 
             .button {
                 -fx-background-color: m3-primary; -fx-text-fill: m3-on-primary; -fx-background-radius: 20; -fx-border-radius: 20;
