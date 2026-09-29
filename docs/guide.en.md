@@ -14,7 +14,7 @@ Download the file for your OS from [GitHub Releases](https://github.com/thesilve
 
 | OS | File | Notes |
 |---|---|---|
-| Windows | `Faro-<version>-win-x64-setup.exe` | Without the .NET 10 SDK, the installer offers to fetch it |
+| Windows | `Faro-<version>-win-x64-setup.exe` | Without the .NET 10 SDK, the installer offers to fetch it. To install into Program Files, choose "Install for all users" on the first page |
 | Linux | `Faro-<version>-linux-x64.deb` / `.tar.gz` | For the .deb: `sudo apt install ./Faro-….deb`. It installs the .NET 10 SDK if missing |
 | macOS | `Faro-<version>-osx-arm64.pkg` (Apple silicon) / `osx-x64.pkg` (Intel) | Not notarized: the first time, right-click › Open |
 

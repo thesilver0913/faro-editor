@@ -14,7 +14,7 @@ Faro は、アプリの画面を Figma のように描き、その部品をコ�
 
 | OS | ファイル | 補足 |
 |---|---|---|
-| Windows | `Faro-<版>-win-x64-setup.exe` | .NET 10 SDK がなければ、インストール中に取ってくるか選べます |
+| Windows | `Faro-<版>-win-x64-setup.exe` | .NET 10 SDK がなければ、インストール中に取ってくるか選べます。Program Files に入れるときは、最初の画面で「すべてのユーザー用にインストール」を選びます |
 | Linux | `Faro-<版>-linux-x64.deb` / `.tar.gz` | .deb は `sudo apt install ./Faro-….deb`。.NET 10 SDK がなければ入れます |
 | macOS | `Faro-<版>-osx-arm64.pkg`(Apple シリコン)/ `osx-x64.pkg`(Intel) | 公証していないため、初回は右クリック › 開く |
 

@@ -102,6 +102,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4 # only for the written release notes (docs/release-notes/<tag>.md)
+        with:
+          sparse-checkout: docs/release-notes
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -111,11 +114,17 @@ jobs:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           # A release already made on GitHub's release page (which creates the tag) just gets the files.
+          notes="docs/release-notes/$TAG.md"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            # Written notes go above what the release already says, once (a re-run doesn't add them again).
+            body="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)"
+            if [[ -f "$notes" ]] && ! grep -qF -- "$(head -n 1 "$notes")" <<< "$body"; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes "$(cat "$notes")"$'\n\n'"$body"
+            fi
             exit
           fi
           flags=(--generate-notes --target "$GITHUB_SHA") # a new tag (manual run) is created on the built commit
-          [[ -f "docs/release-notes/$TAG.md" ]] && flags+=(--notes-file "docs/release-notes/$TAG.md") # written notes first, then the generated PR list
+          [[ -f "$notes" ]] && flags+=(--notes-file "$notes") # written notes first, then the generated PR list
           [[ "$TAG" == *-* ]] && flags+=(--prerelease)
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"
