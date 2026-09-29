@@ -187,7 +187,7 @@ public static class L
         ["Close"] = "閉じる", ["Project _Design…"] = "プロジェクトのデザイン(_D)…", ["Project Design"] = "プロジェクトのデザイン", ["Design language"] = "デザイン言語", ["Seed color"] = "シードカラー", ["Apply"] = "適用",
         ["Material 3 generates its color roles (light and dark) from the seed color. Nodes get Material 3 options in the inspector."] = "Material 3 はシードカラーから色の役割(ライト・ダーク)を作ります。各 Node の Material 3 の設定はインスペクターにあります。",
         ["Material 3"] = "Material 3", ["Variant"] = "種類", ["Size"] = "サイズ", ["Shape"] = "形", ["Type"] = "文字スタイル", ["Emphasized"] = "強調", ["Color"] = "色", ["Surface"] = "面の色", ["Corner"] = "角丸", ["Elevation"] = "影の高さ",
-        ["Open _Logs Folder"] = "ログフォルダーを開く(_L)", ["Faro quit unexpectedly"] = "Faro が予期せず終了しました", ["Open Report"] = "レポートを開く", ["Report Issue"] = "問題を報告",
+        ["Open _Logs Folder"] = "ログフォルダーを開く(_L)", ["_Getting Started Guide"] = "はじめてガイド(_G)", ["Faro quit unexpectedly"] = "Faro が予期せず終了しました", ["Open Report"] = "レポートを開く", ["Report Issue"] = "問題を報告",
         ["A crash report was saved. Attaching it to an issue helps fix the problem."] = "クラッシュレポートを保存しました。Issue に添付していただくと修正に役立ちます。",
         ["Please attach the crash report and describe what you were doing."] = "クラッシュレポートを添付し、何をしていたときに起きたかを書いてください。",
         ["Check for _Updates…"] = "更新を確認(_U)…", ["Check for Updates"] = "更新の確認", ["Updates"] = "更新", ["Update channel"] = "更新チャンネル",
