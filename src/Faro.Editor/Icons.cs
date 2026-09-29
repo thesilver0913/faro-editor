@@ -20,9 +20,34 @@ public static class Icons
         ["Control.TextInput"] = "M2,7H22V17H2Z M4,9V15H20V9Z M6,10H7.5V14H6Z",
         ["Control.Text"] = "M5,4H19V7.5H16.5V6.5H13.5V18H15.5V20H8.5V18H10.5V6.5H7.5V7.5H5Z",
         ["Control.Image"] = "M3,4H21V20H3Z M5,6V18H19V6Z M6,17L10,11L13,15L15,12.5L18,17Z M15.5,7.5A1.5,1.5 0 1 1 15.5,10.5A1.5,1.5 0 1 1 15.5,7.5Z",
+        ["Control.Spacer"] = "M2,6H4V18H2Z M20,6H22V18H20Z M6,11H18V13H6Z M6,12L9,9V15Z M18,12L15,9V15Z",
         ["Control.Script"] = "M9,4H7A2,2 0 0 0 5,6V10L3,12L5,14V18A2,2 0 0 0 7,20H9V18H7V13.5L5.5,12L7,10.5V6H9Z M15,4H17A2,2 0 0 1 19,6V10L21,12L19,14V18A2,2 0 0 1 17,20H15V18H17V13.5L18.5,12L17,10.5V6H15Z",
         ["Instance"] = "M12,2L15,5L12,8L9,5Z M5,9L8,12L5,15L2,12Z M19,9L22,12L19,15L16,12Z M12,16L15,19L12,22L9,19Z", // Figma-style component
     };
+
+    /// <summary>Figma's align buttons: (horizontal, where) → the icon.</summary>
+    static readonly Dictionary<(bool, string), string> AlignPaths = new()
+    {
+        [(true, "Start")] = "M3,3H5V21H3Z M7,6H17V10H7Z M7,14H21V18H7Z",
+        [(true, "Center")] = "M11,3H13V21H11Z M6,6H18V10H6Z M4,14H20V18H4Z",
+        [(true, "End")] = "M19,3H21V21H19Z M7,6H17V10H7Z M3,14H17V18H3Z",
+        [(false, "Start")] = "M3,3H21V5H3Z M6,7H10V17H6Z M14,7H18V21H14Z",
+        [(false, "Center")] = "M3,11H21V13H3Z M6,6H10V18H6Z M14,4H18V20H14Z",
+        [(false, "End")] = "M3,19H21V21H3Z M6,7H10V17H6Z M14,3H18V17H14Z",
+    };
+
+    /// <summary>An align button (tooltip translated).</summary>
+    public static Button Align(bool horizontal, string where, string tip, Action click)
+    {
+        var button = new Button
+        {
+            Content = new PathIcon { Data = Geometry.Parse(AlignPaths[(horizontal, where)]), Width = 16, Height = 16 },
+            Padding = new(6, 4),
+            [ToolTip.TipProperty] = L.T(tip),
+        };
+        button.Click += (_, _) => click();
+        return button;
+    }
 
     /// <summary>The icon of a node type (Instance: the component mark).</summary>
     public static PathIcon Node(string type, double size = 16) => new()

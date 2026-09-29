@@ -580,6 +580,26 @@ Check(looked.FontSize == 22 && looked.FontWeight == Avalonia.Media.FontWeight.No
     && looked.Resources.ContainsKey("ButtonForegroundDisabled") && looked.Styles.Count == 3, "appearance: tokens, text style, state colors");
 UiBuilder.Tokens = savedTokens;
 
+// Align buttons: along a row Spacers push the node (right = one before, center = both sides, left = none), across it alignSelf, in an Overlay anchors.
+var aligned = XDocument.Parse("""
+    <UIGraph id="A"><Node id="root" type="Container.Stack">
+      <Node id="row" type="Container.Stack" direction="Horizontal"><Node id="title" type="Control.Text" /><Node id="ok" type="Control.Button" /></Node>
+      <Node id="layer" type="Container.Overlay"><Node id="badge" type="Control.Text" /></Node>
+    </Node></UIGraph>
+    """);
+string Kids(string id) => string.Join(",", CanvasEdit.Find(aligned, id)!.Elements("Node").Select(n => (string?)n.Attribute("type") == "Control.Spacer" ? "_" : (string)n.Attribute("id")!));
+CanvasEdit.Align(aligned, "ok", true, "End");
+var right = Kids("row");
+CanvasEdit.Align(aligned, "ok", true, "Center");
+var center = Kids("row");
+CanvasEdit.Align(aligned, "ok", true, "Start");
+CanvasEdit.Align(aligned, "ok", false, "Center");
+CanvasEdit.Align(aligned, "badge", true, "End");
+CanvasEdit.Align(aligned, "badge", false, "Center");
+Check(right == "title,_,ok" && center == "title,_,ok,_" && Kids("row") == "title,ok" && (string?)CanvasEdit.Find(aligned, "ok")!.Attribute("alignSelf") == "Center"
+    && (string?)CanvasEdit.Find(aligned, "badge")!.Attribute("anchorX") == "Right" && (string?)CanvasEdit.Find(aligned, "badge")!.Attribute("anchorY") == "Center"
+    && !CanvasEdit.Align(aligned, "root", true, "End") && UiBuilder.Sizing(new XElement("Node", new XAttribute("type", "Control.Spacer")), "width") == "Fill", "align buttons (spacers, alignSelf, anchors)");
+
 // Source Control shows a UI file's change as nodes: added, removed, moved, reordered, changed attributes and texts, instance synced.
 var uiBefore = """
     <UIGraph id="Main"><Node id="root" type="Container.Stack">

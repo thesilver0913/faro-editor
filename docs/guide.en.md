@@ -78,7 +78,7 @@ Drag a part from the **Parts** tab onto the canvas, or click it to add it inside
 ![Parts](images/parts.png)
 
 - **Containers**: `Stack` (in a row or a column), `Wrap` (wrapping), `Grid` (rows and columns), `Overlay` (layered, pinned to a corner or the center)
-- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `Script` (a part whose look and behavior are built in code)
+- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
 
 Faro has **no absolute positions**. Where a node goes is decided by which container it's in, its order, and the settings below.
 
@@ -112,6 +112,8 @@ In the same dialog, choose `Fluent` or `Material 3`, a seed color, and light or 
 - Undo / redo: Ctrl+Z / Ctrl+Y (UI edits if you last touched the canvas, code edits if you last touched the code)
 - Copy, paste, duplicate: Ctrl+C / Ctrl+V / Ctrl+D (bindings are duplicated too)
 - Delete: Delete; reorder: Alt+↑ / Alt+↓; right-click for more, such as Wrap in a container
+- **Align**: the align buttons above the canvas (left / center / right, top / middle / bottom). In a row, Align right puts a Spacer before the node so it sits at the right end; across a column it aligns just that node; in an Overlay it changes the anchor
+- **Edit text**: double-click a text, button or text input on the canvas to change its text in place (Enter keeps it, Esc cancels)
 - The Console's **History** tab lists your UI edits: click one to go back to it
 
 ![History](images/history.png)

@@ -28,6 +28,7 @@ public static class UiBuilder
             "Control.TextInput" => new TextBox { PlaceholderText = Prop(node, "Placeholder"), Text = Prop(node, "Text") },
             "Control.Text" => new TextBlock { Text = Prop(node, "Text"), TextWrapping = TextWrapping.Wrap },
             "Control.Image" => new Image { Source = Bitmap(projectRoot, Prop(node, "Source")) },
+            "Control.Spacer" => new Panel(), // empty: Fill by default, so it takes the free space and pushes its neighbors apart
             _ => new TextBlock { Text = $"[unknown type: {type}]", Foreground = Brushes.Red },
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)
@@ -71,9 +72,9 @@ public static class UiBuilder
         Child = new TextBlock { Text = text, Foreground = color, TextWrapping = TextWrapping.Wrap },
     };
 
-    /// <summary>Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug.</summary>
+    /// <summary>Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug (a Spacer: Fill).</summary>
     public static string Sizing(XElement node, string axis) =>
-        (string?)node.Attribute(axis + "Sizing") ?? (string?)node.Attribute("sizing") ?? "Hug";
+        (string?)node.Attribute(axis + "Sizing") ?? (string?)node.Attribute("sizing") ?? ((string?)node.Attribute("type") == "Control.Spacer" ? "Fill" : "Hug");
 
     /// <summary>
     /// Every instance under a node with the key prefix its inner nodes get in <c>byId</c> ("btn1/", nested

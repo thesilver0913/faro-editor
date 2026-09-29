@@ -206,6 +206,11 @@ public static class L
         ["Install"] = "インストール", ["Download"] = "ダウンロード", ["Release Notes"] = "リリースノート",
         ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
         ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
+        ["Empty space that pushes its neighbors apart (e.g. a button to the right end)"] = "隣の部品を押し広げる空きスペース(ボタンを右端に寄せるときなど)",
+        ["Align left"] = "左揃え", ["Align horizontal centers"] = "左右中央揃え", ["Align right"] = "右揃え",
+        ["Align top"] = "上揃え", ["Align vertical centers"] = "上下中央揃え", ["Align bottom"] = "下揃え",
+        ["Align right (along a row: a Spacer pushes it to the end)"] = "右揃え(横並びの中では、スペーサーで右端へ寄せる)",
+        ["Align bottom (along a column: a Spacer pushes it to the end)"] = "下揃え(縦並びの中では、スペーサーで下端へ寄せる)",
         // Inspector › Appearance
         ["Appearance"] = "見た目", ["Fill / Text"] = "塗り / 文字色", ["Text token"] = "文字トークン", ["Font"] = "フォント", ["Size / Line"] = "サイズ / 行高", ["Weight"] = "太さ",
         ["Hover"] = "ホバー", ["Pressed"] = "押下", ["Disabled"] = "無効",

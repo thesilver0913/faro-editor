@@ -430,7 +430,7 @@ public static class UiHistory
 public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
-        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Script"];
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Spacer", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
 
@@ -516,6 +516,37 @@ public static class CanvasEdit
         else if (selected?.Parent is XElement { Name.LocalName: "Node" }) selected.AddAfterSelf(node);
         else screen.Root!.Element("Node")!.Add(node);
         return node;
+    }
+
+    /// <summary>
+    /// Figma's align buttons for one node (<paramref name="horizontal"/> left/center/right, else top/middle/bottom), done the
+    /// way its container lays out: across a Stack, the node's own alignSelf; along a Stack, Spacers beside it (right end = a
+    /// Spacer before it, center = one on each side, start = none); in an Overlay, its anchor; in a Grid, alignSelf in its cell.
+    /// False when nothing applies (a Wrap, the root).
+    /// </summary>
+    public static bool Align(XDocument screen, string id, bool horizontal, string where)
+    {
+        if (Find(screen, id) is not { } node || node.Parent is not { Name.LocalName: "Node" } parent) return false;
+        var type = (string?)parent.Attribute("type");
+        if (type == "Container.Overlay")
+        {
+            SetAttribute(node, horizontal ? "anchorX" : "anchorY", horizontal ? where switch { "Center" => "Center", "End" => "Right", _ => null } : where switch { "Center" => "Center", "End" => "Bottom", _ => null });
+            return true;
+        }
+        if (type == "Container.Grid") { SetAttribute(node, "alignSelf", where == "Start" ? null : where); return true; }
+        if (type != "Container.Stack") return false;
+        if (horizontal != ((string?)parent.Attribute("direction") == "Horizontal")) // across the stack
+        {
+            SetAttribute(node, "alignSelf", where == ((string?)parent.Attribute("alignment") ?? "Start") ? null : where);
+            return true;
+        }
+        static bool IsSpacer(XNode? n) => n is XElement { Name.LocalName: "Node" } e && (string?)e.Attribute("type") == "Control.Spacer";
+        if (IsSpacer(node.PreviousNode)) node.PreviousNode!.Remove();
+        if (IsSpacer(node.NextNode)) node.NextNode!.Remove();
+        XElement Spacer() => new("Node", new XAttribute("id", NewId(screen, "Control.Spacer")), new XAttribute("type", "Control.Spacer"));
+        if (where is "End" or "Center") node.AddBeforeSelf(Spacer());
+        if (where == "Center") node.AddAfterSelf(Spacer());
+        return true;
     }
 
     /// <summary>Wraps sibling nodes in a new container at the first one's place; their ids and binds stay. Null if they aren't siblings.</summary>
