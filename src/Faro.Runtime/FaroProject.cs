@@ -52,7 +52,9 @@ public sealed class FaroProject
         }
         project.BindingFiles.AddRange(LoadAll(Path.Combine(root, "Bindings")));
         var meta = Path.Combine(root, "faro.json");
-        var json = File.Exists(meta) ? JsonNode.Parse(File.ReadAllText(meta)) : null;
+        JsonNode? json;
+        try { json = File.Exists(meta) ? JsonNode.Parse(File.ReadAllText(meta)) : null; }
+        catch (System.Text.Json.JsonException e) { throw new InvalidDataException($"faro.json: {e.Message}", e); } // hand-edited: say where
         project.StartScreen = (string?)json?["startScreen"];
         project.Design = AppDesign.Read(json?["design"]);
         project.Tokens = json?["tokens"] is JsonObject tokens ? tokens.ToDictionary(t => t.Key, t => t.Value?.ToString() ?? "") : [];

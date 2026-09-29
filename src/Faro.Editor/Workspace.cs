@@ -24,6 +24,7 @@ public static class Workspace
     public static event Action? Changed;
 
     static FileSystemWatcher? watcher;
+    static volatile bool reloadQueued;
 
     /// <param name="report">Startup progress (step text, percent) for the splash screen.</param>
     public static void Open(string root, Action<string, double>? report = null)
@@ -40,8 +41,11 @@ public static class Workspace
         FileSystemEventHandler onChange = (_, e) =>
         {
             var rel = Path.GetRelativePath(root, e.FullPath);
-            if (rel.StartsWith("UI") || rel.StartsWith("Bindings") || rel.StartsWith("Source"))
-                Dispatcher.UIThread.Post(() => Reload());
+            if (rel.Split(Path.DirectorySeparatorChar)[0] is "UI" or "Bindings" or "Source" && !reloadQueued)
+            {
+                reloadQueued = true; // one save raises several events: one reload for all of them
+                Dispatcher.UIThread.Post(() => { reloadQueued = false; Reload(); }, DispatcherPriority.Background);
+            }
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;

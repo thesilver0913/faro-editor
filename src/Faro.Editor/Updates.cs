@@ -48,8 +48,11 @@ public static class Updates
         return Newest(Parse(json), App.Version, FaroSettings.Current.UpdateChannel);
     }
 
-    /// <summary>Windows: downloads and runs the new Setup silently (it closes and restarts Faro). Elsewhere: opens the release page.</summary>
-    public static async Task Install(Release release)
+    /// <summary>
+    /// Windows: downloads the new Setup, then (once the editor agrees to close: untitled project, unsaved code) stops the running
+    /// app and debugger and runs the Setup silently (it replaces the files and restarts Faro). Elsewhere: opens the release page.
+    /// </summary>
+    public static async Task Install(Release release, Avalonia.Controls.Window owner)
     {
         if (OperatingSystem.IsWindows() && release.WindowsSetup is { } url)
         {
@@ -57,6 +60,9 @@ public static class Updates
             await using (var from = await download.GetStreamAsync(url))
             await using (var to = File.Create(setup))
                 await from.CopyToAsync(to);
+            if (owner is MainWindow editor && !await editor.ConfirmClose()) return;
+            Workspace.Stop();
+            Debugger.Stop();
             Process.Start(new ProcessStartInfo(setup, "/SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS") { UseShellExecute = true });
             Environment.Exit(0); // the installer replaces the files, then starts the new Faro
         }
@@ -90,7 +96,7 @@ public static class Updates
                 [L.T(windows ? "Install" : "Download"), L.T("Release Notes")]) is var choice and >= 0)
         {
             if (choice != 0) { Open(release.Page); return; }
-            try { await Install(release); }
+            try { await Install(release, owner); }
             catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException or System.ComponentModel.Win32Exception)
             {
                 Log.Error("Update download", e);

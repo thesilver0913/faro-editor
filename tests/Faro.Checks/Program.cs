@@ -569,6 +569,17 @@ Check(CrashWatcher.Outcome(crashes, 3) is null && noManaged is not null && File.
     && CrashWatcher.Outcome(crashes, 2) == Path.Combine(crashes, "crash-new.txt") && !File.Exists(Path.Combine(crashes, "running-2"))
     && CrashWatcher.IssueUrl(null, new string('x', 50_000), "crash-new.txt").Length < 8000, "crash watcher outcome and issue link");
 
+// Audit fixes: history labels in Japanese, an unreadable server message ends the read loop (no throw), a broken faro.json is reported.
+var language = FaroSettings.Current.Language;
+FaroSettings.Current.Language = "ja";
+Check(L.Step("Set width") == "width を設定" && L.Step("Delete screen") == "画面を削除" && L.Step("Frobnicate x") == "Frobnicate x", "history labels translated");
+FaroSettings.Current.Language = language;
+Check(LspClient.Next(new MemoryStream("Content-Length: 5\r\n\r\n{oops"u8.ToArray())) is null && LspClient.Next(new MemoryStream("Content-Length: x\r\n\r\n"u8.ToArray())) is null, "unreadable LSP/DAP message ends the read loop quietly");
+var brokenJson = Path.Combine(root, "broken-json");
+Directory.CreateDirectory(brokenJson);
+File.WriteAllText(Path.Combine(brokenJson, "faro.json"), "{ \"name\": ");
+Check(Throws<InvalidDataException>(() => FaroProject.Load(brokenJson)), "broken faro.json is reported as a load error");
+
 Directory.Delete(root, true);
 Console.WriteLine("All checks passed.");
 

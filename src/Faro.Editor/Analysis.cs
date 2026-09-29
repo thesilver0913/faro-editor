@@ -390,7 +390,7 @@ public static class UiHistory
         {
             from.Clear(); // history no longer matches the files
             Changed?.Invoke();
-            return $"{Path.GetFileName(changed.Key)} was changed outside Faro, so \"{step.Label}\" can't be undone or redone.";
+            return L.F("{0} was changed outside Faro, so \"{1}\" can't be undone or redone.", Path.GetFileName(changed.Key), L.Step(step.Label));
         }
         foreach (var (path, text) in target)
             if (text is null) File.Delete(path);

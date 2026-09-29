@@ -29,7 +29,7 @@ public sealed class CodeView : UserControl
     static readonly Dictionary<string, string> saved = []; // last-saved content per file (rename detection)
     static readonly Dictionary<string, JsonArray> diagnostics = []; // by document uri
     static Task<LspClient>? lsp;
-    static string lspState = L.T(Workspace.IsJava ? "Java: syntax colors only (no language server yet)" : "Language server: starting…");
+    static string lspState = L.T("Language server: starting…");
     static int version, restarts;
     static event Action? StateChanged;
     static string? shownPath;
@@ -293,7 +293,7 @@ public sealed class CodeView : UserControl
         doc.UndoStack.MarkAsOriginalFile();
         if (Workspace.Project is { } project) Registry.FollowRenames(project, renames).ForEach(FaroProject.Save);
         if (Served(path)) WithLsp(c => c.Notify("textDocument/didSave", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri(path) }, ["text"] = text }));
-        lspState = renames.Count == 0 ? $"Saved {Path.GetFileName(path)}." : "Saved. Bindings followed: " + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
+        lspState = renames.Count == 0 ? L.F("Saved {0}.", Path.GetFileName(path)) : L.T("Saved. Bindings followed: ") + string.Join(", ", renames.Select(r => $"{r.From} → {r.To}"));
         StateChanged?.Invoke();
     }
 

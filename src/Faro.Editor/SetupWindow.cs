@@ -6,7 +6,7 @@ using Avalonia.Platform;
 
 namespace Faro.Editor;
 
-/// <summary>First-run wizard: language (applied at once), app theme, and the plugins note. All of it stays editable in Preferences.</summary>
+/// <summary>First-run wizard: language (applied at once), app theme, and a note that plugins are coming. All of it stays editable in Preferences.</summary>
 public sealed class SetupWindow : Window
 {
     public event Action? Done;
@@ -58,7 +58,7 @@ public sealed class SetupWindow : Window
                 new TextBlock { Text = L.T("Choose how Faro looks. You can change all of this later in Preferences."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
                 Label("Language"), PreferencesWindow.LanguageChoice(Build),
                 Label("Theme"), theme,
-                Label("Plugins"), new TextBlock { Text = L.T("Plugins are planned for a later version (spec §12: outside the prototype scope)."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
+                Label("Plugins"), new TextBlock { Text = L.T("Plugins are coming in a later version."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
                 start,
             },
         };

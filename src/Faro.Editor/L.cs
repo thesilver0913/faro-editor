@@ -14,6 +14,10 @@ public static class L
 
     public static string F(string english, params object?[] args) => string.Format(T(english), args);
 
+    /// <summary>A UI history step's label: a whole entry ("Rename node"), else "Verb rest" through "Verb {0}" ("Set width" → "width を設定").</summary>
+    public static string Step(string label) =>
+        !Japanese || Ja.ContainsKey(label) ? T(label) : label.Split(' ', 2) is [var verb, var rest] && Ja.ContainsKey(verb + " {0}") ? F(verb + " {0}", rest) : label;
+
     /// <summary>A word whose translation depends on where it's used ("Start" of an alignment isn't "Start" the app): "context|English" in the table.</summary>
     public static string T(string english, string context) => Japanese && Ja.TryGetValue(context + "|" + english, out var japanese) ? japanese : english;
 
@@ -68,8 +72,8 @@ public static class L
         [" (Restricted Mode)"] = "(制限モード)", ["Faro.Runtime update"] = "Faro.Runtime の更新", ["Update"] = "更新",
         ["This project uses Faro.Runtime {0}. This Faro ships {1}. Update the project to it?"] = "このプロジェクトは Faro.Runtime {0} を使っています。この Faro には {1} が入っています。更新しますか？",
         ["About Faro"] = "Faro について",
-        ["Figma × UI Binding × Vibe Coding — a visual UI editor prototype.\n“Faro” is Italian for lighthouse."] = "Figma × UI Binding × Vibe Coding を統合した UI エディタのプロトタイプ。\n「Faro」はイタリア語で灯台。",
-        ["MIT License. Third-party components: see THIRD-PARTY-NOTICES.md."] = "MIT License。第三者のコンポーネントは THIRD-PARTY-NOTICES.md を参照。",
+        ["A visual UI editor: draw your app's screens and bind them to your C# or Java code."] = "アプリの画面を描いて、C# / Java のコードに紐付けるビジュアル UI エディターです。",
+        ["MIT License. The open-source components Faro uses are under Licenses."] = "MIT ライセンス。Faro が使っているオープンソースは「ライセンス」から見られます。", ["Licenses"] = "ライセンス",
 
         // Explorer
         ["New Screen…"] = "新しい画面…", ["New Component…"] = "新しいコンポーネント…", ["New C# Class…"] = "新しい C# クラス…", ["New Folder…"] = "新しいフォルダ…",
@@ -78,7 +82,7 @@ public static class L
         ["Move"] = "移動", ["{0} has unsaved changes. Save it first."] = "{0} に未保存の変更があります。先に保存してください。",
         ["Rename…"] = "名前の変更…", ["Delete"] = "削除", ["New Screen"] = "新しい画面", ["New Component"] = "新しいコンポーネント", ["ID:"] = "ID:",
         ["New C# Class"] = "新しい C# クラス", ["New Java Class"] = "新しい Java クラス", ["New Java Class…"] = "新しい Java クラス…",
-        ["Java: syntax colors only (no language server yet)"] = "Java:色分けのみ(言語サーバーは未対応)", ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}",
+        ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}", ["Couldn't access a file"] = "ファイルにアクセスできませんでした",
         ["Maven isn't installed, or `mvn` isn't on the PATH Faro sees. Install the JDK 21 and Maven from Preferences › Tools, or install them yourself (Ubuntu: sudo apt install maven openjdk-21-jdk) and restart Faro."]
             = "Maven が入っていないか、Faro から `mvn` が見えません。環境設定 › 部品 から JDK 21 と Maven を入れるか、自分で入れて(Ubuntu:sudo apt install maven openjdk-21-jdk)Faro を起動し直してください。",
         ["Tools"] = "部品", ["Installed"] = "導入済み", ["Not installed"] = "未導入",
@@ -96,7 +100,7 @@ public static class L
         // Canvas
         ["+ Add"] = "+ 追加", ["Run"] = "実行", ["Stop"] = "停止", [" (container)"] = "(コンテナ)", ["Sync components ({0})"] = "コンポーネントを同期 ({0})",
         ["Selected: {0} ({1}) · "] = "選択中: {0} ({1}) · ", ["{0} nodes selected · "] = "{0} 個の Node を選択中 · ",
-        ["{0} broken binding(s) · {1} registry members"] = "壊れた紐付け {0} 件 · レジストリ {1} 件", ["Component master · {0} instance(s) to sync · "] = "コンポーネントのマスター · 同期待ちのインスタンス {0} 個 · ",
+        ["{0} broken binding(s) · {1} bindable members"] = "壊れた紐付け {0} 件 · 紐付けできるメンバー {1} 件", ["Component master · {0} instance(s) to sync · "] = "コンポーネントのマスター · 同期待ちのインスタンス {0} 個 · ",
         [" · Unbuilt code changes: new members resolve after Run"] = " · 未ビルドのコード変更あり(新しいメンバーは実行後に解決)",
         [" · Restricted Mode (File › Trust Project…)"] = " · 制限モード(ファイル › プロジェクトを信頼)", ["Restricted Mode: File › Trust Project… to run it."] = "制限モード: ファイル › プロジェクトを信頼 で実行できるようになります。",
         ["No UI/*.xml screens in {0}"] = "{0} に UI/*.xml の画面がありません", ["Did you mean:"] = "もしかして:",
@@ -120,7 +124,7 @@ public static class L
         ["Describe the class or method you need… (Ctrl+Enter to send)"] = "必要なクラスやメソッドを説明してください…(Ctrl+Enter で送信)",
         ["Approve"] = "承認", ["Reject"] = "却下", ["New file: "] = "新規ファイル: ", ["Change: "] = "変更: ", ["Syntax error, "] = "構文エラー、",
         ["`{0}` is being edited in the code editor (unsaved changes). Save it first, then ask again."] = "`{0}` はコードエディタで編集中です(未保存)。保存してからもう一度依頼してください。",
-        ["Ignored {0}: generated files must be .cs files under Source/."] = "{0} は無視しました: 生成できるのは Source/ 以下の .cs ファイルだけです。",
+        ["Ignored {0}: generated files must be {1} files under Source/."] = "{0} は無視しました: 生成できるのは Source/ 以下の {1} ファイルだけです。", ["`{0}` is being edited in the code editor (unsaved changes). Save it to approve."] = "`{0}` はコードエディタで編集中です(未保存)。保存すると承認できます。",
         ["Changed on disk"] = "ディスク上で変更されています", ["Overwrite"] = "上書き",
         ["{0} changed outside Faro since it was opened. Saving overwrites those changes."] = "{0} は開いた後に Faro の外で変更されました。保存するとその変更を上書きします。",
         ["Changed on disk too: saving will ask before overwriting."] = "ディスク上でも変更されています。保存するときに上書きを確認します。",
@@ -144,13 +148,13 @@ public static class L
         ["Code editor theme"] = "コードエディタのテーマ", ["Clear"] = "クリア", ["Base URL"] = "ベース URL", ["Not set"] = "未設定", ["Set (…{0})"] = "設定済み(…{0})", ["To set one:"] = "設定方法:",
         ["API keys are read from environment variables only. Faro never writes them to disk."] = "API キーは環境変数からだけ読みます。Faro がキーをディスクに書くことはありません。",
         ["Custom theme file (Avalonia ResourceDictionary .axaml, overrides the colors above)"] = "テーマファイル(Avalonia の ResourceDictionary .axaml。上の色を上書き)",
-        ["Plugins are planned for a later version (spec §12: outside the prototype scope)."] = "プラグインは今後のバージョンで対応予定です(仕様§12: プロトタイプの範囲外)。",
+        ["Plugins are coming in a later version."] = "プラグインは今後のバージョンで対応予定です。",
         ["(none)"] = "(なし)", ["Language changes apply to windows opened from now on; restart Faro to update the menus."] = "言語の変更はこれから開くウィンドウに反映されます。メニューは Faro を再起動すると切り替わります。",
 
         // First-run wizard
         ["Set up Faro"] = "Faro の初期設定", ["Choose how Faro looks. You can change all of this later in Preferences."] = "Faro の見た目を選んでください。あとから環境設定でいつでも変更できます。",
         ["Instance of {0}"] = "{0} のインスタンス", ["Event"] = "イベント", ["Property"] = "プロパティ",
-        ["History: Code — {0}"] = "履歴: コード — {0}", ["no file"] = "ファイルなし", ["History: UI graph"] = "履歴: UI グラフ",
+        ["Undo: Code — {0}"] = "元に戻す対象: コード — {0}", ["no file"] = "ファイルなし", ["Undo: Canvas"] = "元に戻す対象: キャンバス",
         // Debugger
         ["_Debug"] = "デバッグ(_D)", ["_Start Debugging"] = "デバッグ開始(_S)", ["S_top Debugging"] = "デバッグ停止(_T)", ["_Continue"] = "続行(_C)", ["Step _Over"] = "ステップオーバー(_O)",
         ["Step _Into"] = "ステップイン(_I)", ["Toggle _Breakpoint"] = "ブレークポイントの切り替え(_B)", ["Debug"] = "デバッグ",
@@ -202,6 +206,15 @@ public static class L
         ["Install"] = "インストール", ["Download"] = "ダウンロード", ["Release Notes"] = "リリースノート",
         ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
         ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
+        // UI history steps (History tab)
+        ["Set {0}"] = "{0} を設定", ["Add {0}"] = "{0} を追加", ["Delete {0}"] = "{0} を削除", ["Move {0}"] = "{0} を移動", ["Resize {0}"] = "{0} のサイズ変更",
+        ["Rename node"] = "Node の名前変更", ["Add image"] = "画像を追加", ["Add binding"] = "紐付けを追加", ["Rebind"] = "紐付け先を変更",
+        ["Set script class"] = "Script のクラスを設定", ["Set variant"] = "バリアントを設定", ["Set repeatable"] = "繰り返しを設定", ["Set mock rows"] = "モック行を設定",
+        ["Set binding target"] = "紐付け先を設定", ["Set binding mode"] = "紐付けのモードを設定", ["Set binding format"] = "紐付けの書式を設定",
+        ["Sync components"] = "コンポーネントを同期", ["Set design"] = "デザインを設定", ["New screen"] = "新しい画面", ["New component"] = "新しいコンポーネント",
+        ["Rename screen"] = "画面の名前変更", ["Rename component"] = "コンポーネントの名前変更", ["Delete screen"] = "画面を削除", ["Delete component"] = "コンポーネントを削除",
+        ["{0} was changed outside Faro, so \"{1}\" can't be undone or redone."] = "{0} が Faro の外で変更されたため、「{1}」は元に戻せません(やり直せません)。",
+        ["Saved {0}."] = "{0} を保存しました。", ["Saved. Bindings followed: "] = "保存しました。紐付けを追従: ",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

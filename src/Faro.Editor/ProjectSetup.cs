@@ -96,6 +96,8 @@ public static partial class ProjectSetup
         {
             var oldCsproj = Path.Combine(target, (string?)json["name"] + ".csproj");
             if (File.Exists(oldCsproj)) File.Move(oldCsproj, Path.Combine(target, name + ".csproj")); // a folder's own .csproj keeps its name
+            var pom = Path.Combine(target, "pom.xml"); // Java: the app's artifact takes the new name too
+            if (File.Exists(pom)) File.WriteAllText(pom, File.ReadAllText(pom).Replace($"<artifactId>{(string?)json["name"]}</artifactId>", $"<artifactId>{name}</artifactId>"));
             json["name"] = name;
             File.WriteAllText(meta, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         }
@@ -266,7 +268,6 @@ public static partial class ProjectSetup
         File.WriteAllText(path, text);
     }
 
-    /// <summary>Most recent first, without duplicates, at most 10 (kept in the app settings).</summary>
     /// <summary>
     /// Workspace trust: opening a project restores it (MSBuild), starts the language server and loads its build for
     /// Script previews, all of which run the project's code. Untitled projects are Faro's own and always trusted.
@@ -280,6 +281,7 @@ public static partial class ProjectSetup
         FaroSettings.Current.Save();
     }
 
+    /// <summary>Most recent first, without duplicates, at most 10 (kept in the app settings).</summary>
     public static void Remember(string dir)
     {
         if (IsUntitled(dir)) return;

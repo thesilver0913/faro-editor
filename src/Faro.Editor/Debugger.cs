@@ -262,11 +262,7 @@ public static class Debugger
             Exited?.Invoke();
         }
 
-        JsonNode? Next()
-        {
-            try { return LspClient.ReadMessage(input); }
-            catch (IOException) { return null; }
-        }
+        JsonNode? Next() => LspClient.Next(input);
 
         public void Dispose() => close();
     }

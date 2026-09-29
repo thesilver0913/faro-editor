@@ -116,5 +116,6 @@ jobs:
             exit
           fi
           flags=(--generate-notes --target "$GITHUB_SHA") # a new tag (manual run) is created on the built commit
+          [[ -f "docs/release-notes/$TAG.md" ]] && flags+=(--notes-file "docs/release-notes/$TAG.md") # written notes first, then the generated PR list
           [[ "$TAG" == *-* ]] && flags+=(--prerelease)
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"

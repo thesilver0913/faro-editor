@@ -125,7 +125,7 @@ public sealed class ChatView : UserControl
             }
             foreach (var file in VibeCoding.ParseFiles(history[^1].Text))
                 if (VibeCoding.ResolvePath(Workspace.Root, file.Path) is { } path) pending.Add(new(path, file.Path, file.Code));
-                else error = L.F("Ignored {0}: generated files must be .cs files under Source/.", file.Path);
+                else error = L.F("Ignored {0}: generated files must be {1} files under Source/.", file.Path, Workspace.IsJava ? ".java" : ".cs");
         }
         catch (OperationCanceledException) { error = L.T("Stopped."); }
         catch (Exception e) { error = e.Message; }
@@ -185,7 +185,7 @@ public sealed class ChatView : UserControl
         reject.Click += (_, _) => { pending.Remove(p); Changed?.Invoke(); };
 
         var notes = syntax.Select(e => L.T("Syntax error, ") + e).ToList();
-        if (locked is not null) notes.Add($"`{locked}` is being edited in the code editor (unsaved changes). Save it to approve.");
+        if (locked is not null) notes.Add(L.F("`{0}` is being edited in the code editor (unsaved changes). Save it to approve.", locked));
         return new Border
         {
             BorderBrush = Brushes.Gray, BorderThickness = new(1), CornerRadius = new(6), Padding = new(10),
