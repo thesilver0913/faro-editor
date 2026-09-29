@@ -3,33 +3,141 @@
         xmlns:local="using:Faro.Editor"
         x:Class="Faro.Editor.MainWindow"
         Title="Faro" Icon="/Assets/faro-icon.png" Width="1400" Height="860">
-  <!-- Default layout (spec §14): canvas left, code editor top-right, chat bottom-right. -->
-  <DockControl InitializeLayout="True" InitializeFactory="True">
+  <DockPanel>
+  <!-- Undo/redo (spec §10) act on the history of the pane used last, named on the right. -->
+  <DockPanel DockPanel.Dock="Top">
+  <TextBlock x:Name="HistoryLabel" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0" Opacity="0.6" />
+  <Menu>
+    <MenuItem Header="_File">
+      <MenuItem Header="_Open Folder…" Click="OpenProject" InputGesture="Ctrl+O" HotKey="Ctrl+O" />
+      <MenuItem Header="_Close Project" Click="CloseProject" />
+      <MenuItem x:Name="TrustItem" Header="_Trust Project…" Click="TrustProject" />
+      <MenuItem Header="Project _Design…" Click="ProjectDesign" />
+      <Separator />
+      <MenuItem Header="_Save" Click="Save" InputGesture="Ctrl+S" />
+      <MenuItem Header="Save _As…" Click="SaveAs" InputGesture="Ctrl+Shift+S" />
+      <Separator />
+      <MenuItem Header="_Run" Click="Run" InputGesture="F5" HotKey="F5" />
+      <MenuItem Header="S_top" Click="Stop" InputGesture="Shift+F5" HotKey="Shift+F5" />
+      <MenuItem Header="Build Android _APK" Click="BuildApk" />
+      <Separator />
+      <MenuItem Header="E_xit" Click="Exit" />
+    </MenuItem>
+    <MenuItem Header="_Edit">
+      <MenuItem x:Name="UndoItem" Header="_Undo" Click="Undo" InputGesture="Ctrl+Z" />
+      <MenuItem x:Name="RedoItem" Header="_Redo" Click="Redo" InputGesture="Ctrl+Y" />
+      <Separator />
+      <MenuItem Header="Cu_t" Click="CutNodes" InputGesture="Ctrl+X" />
+      <MenuItem Header="_Copy" Click="CopyNodes" InputGesture="Ctrl+C" />
+      <MenuItem Header="_Paste" Click="PasteNodes" InputGesture="Ctrl+V" />
+      <MenuItem Header="D_uplicate" Click="DuplicateNodes" InputGesture="Ctrl+D" />
+      <MenuItem Header="_Delete" Click="Delete" InputGesture="Delete" />
+      <Separator />
+      <MenuItem Header="_Sync Components" Click="SyncComponents" />
+      <Separator />
+      <MenuItem Header="_Preferences…" Click="Preferences" InputGesture="Ctrl+OemComma" HotKey="Ctrl+OemComma" />
+    </MenuItem>
+    <MenuItem Header="_Select">
+      <MenuItem Header="_All Nodes" Click="SelectAll" />
+      <MenuItem Header="_None" Click="SelectNone" InputGesture="Ctrl+Shift+A" HotKey="Ctrl+Shift+A" />
+      <Separator />
+      <MenuItem Header="Node by _ID…" Click="SelectById" />
+      <MenuItem Header="Nodes with _Broken Bindings" Click="SelectBroken" />
+    </MenuItem>
+    <MenuItem Header="_Debug">
+      <MenuItem Header="_Start Debugging" Click="StartDebugging" InputGesture="F6" HotKey="F6" />
+      <MenuItem Header="S_top Debugging" Click="StopDebugging" InputGesture="Shift+F6" HotKey="Shift+F6" />
+      <Separator />
+      <MenuItem Header="_Continue" Click="ContinueDebugging" InputGesture="F8" HotKey="F8" />
+      <MenuItem Header="Step _Over" Click="StepOver" InputGesture="F10" HotKey="F10" />
+      <MenuItem Header="Step _Into" Click="StepInto" InputGesture="Shift+F10" HotKey="Shift+F10" />
+      <Separator />
+      <MenuItem Header="Toggle _Breakpoint" Click="ToggleBreakpoint" InputGesture="F9" HotKey="F9" />
+    </MenuItem>
+    <MenuItem Header="_Window">
+      <MenuItem Header="_Explorer" Click="ShowExplorer" />
+      <MenuItem Header="_Source Control" Click="ShowSourceControl" />
+      <MenuItem Header="_Layers" Click="ShowLayers" />
+      <MenuItem Header="_Parts" Click="ShowPalette" />
+      <MenuItem Header="_Canvas" Click="ShowCanvas" />
+      <MenuItem Header="_Inspector" Click="ShowInspector" />
+      <MenuItem Header="C_ode" Click="ShowCode" />
+      <MenuItem Header="Co_nsole">
+        <MenuItem Header="_Problems" Click="ShowProblems" />
+        <MenuItem Header="_Output" Click="ShowOutput" />
+        <MenuItem Header="_AI Chat" Click="ShowChat" />
+        <MenuItem Header="_History" Click="ShowHistory" />
+      </MenuItem>
+      <Separator />
+      <MenuItem x:Name="PaletteItem" Header="Command _Palette…" Click="CommandPalette" InputGesture="Ctrl+Shift+P" HotKey="Ctrl+Shift+P" />
+      <MenuItem Header="_Reset Layout" Click="ResetLayout" />
+      <MenuItem Header="_Full Screen" Click="ToggleFullScreen" InputGesture="F11" HotKey="F11" />
+    </MenuItem>
+    <MenuItem Header="_Help">
+      <MenuItem Header="_Getting Started Guide" Click="OpenGuide" />
+      <MenuItem Header="Check for _Updates…" Click="CheckUpdates" />
+      <MenuItem Header="Open _Logs Folder" Click="OpenLogs" />
+      <MenuItem Header="_About Faro" Click="About" />
+    </MenuItem>
+  </Menu>
+  </DockPanel>
+  <!-- Default layout (spec §14 + explorer/inspector): explorer and layers | parts left, canvas top-center, code | console (problems, vibe coding tabs) bottom-center, inspector right. -->
+  <DockControl x:Name="Dock" InitializeLayout="True" InitializeFactory="True">
     <DockControl.Factory>
       <Factory />
     </DockControl.Factory>
     <RootDock Id="Root" IsCollapsable="False" DefaultDockable="{Binding #MainLayout}">
       <ProportionalDock x:Name="MainLayout" Id="MainLayout" Orientation="Horizontal">
-        <ToolDock Id="CanvasPane" Proportion="0.55" Alignment="Left">
-          <Tool Id="Canvas" Title="Canvas" CanClose="False">
-            <local:CanvasView />
-          </Tool>
-        </ToolDock>
-        <ProportionalDockSplitter />
-        <ProportionalDock Id="RightPane" Orientation="Vertical">
-          <ToolDock Id="CodePane" Alignment="Top">
-            <Tool Id="Code" Title="Code" CanClose="False">
-              <TextBlock Margin="16" Opacity="0.6" Text="Code editor (AvaloniaEdit + C# LSP) — next step" />
+        <ProportionalDock Id="LeftPane" Proportion="0.15" Orientation="Vertical">
+          <ToolDock Id="ExplorerPane" Alignment="Left" Proportion="0.5">
+            <Tool Id="Explorer" Title="Explorer" CanClose="False">
+              <local:ExplorerView />
+            </Tool>
+            <Tool Id="SourceControl" Title="Source Control" CanClose="False">
+              <local:GitView />
             </Tool>
           </ToolDock>
           <ProportionalDockSplitter />
-          <ToolDock Id="ChatPane" Alignment="Bottom">
-            <Tool Id="Chat" Title="Vibe Coding" CanClose="False">
-              <TextBlock Margin="16" Opacity="0.6" Text="Chat (provider-agnostic LLM) — next step" />
+          <!-- The screen's node tree and the parts to add (Figma's layers / assets). -->
+          <ToolDock Id="LayersPane" Alignment="Left" Proportion="0.5">
+            <Tool Id="Layers" Title="Layers" CanClose="False">
+              <local:LayersView />
+            </Tool>
+            <Tool Id="Palette" Title="Parts" CanClose="False">
+              <local:PaletteView />
             </Tool>
           </ToolDock>
         </ProportionalDock>
+        <ProportionalDockSplitter />
+        <ProportionalDock Id="CenterPane" Proportion="0.63" Orientation="Vertical">
+          <ToolDock Id="CanvasPane" Proportion="0.6">
+            <Tool Id="Canvas" Title="Canvas" CanClose="False">
+              <local:CanvasView />
+            </Tool>
+          </ToolDock>
+          <ProportionalDockSplitter />
+          <ProportionalDock Id="BottomPane" Orientation="Horizontal">
+            <ToolDock Id="CodePane">
+              <Tool Id="Code" Title="Code" CanClose="False">
+                <local:CodeView />
+              </Tool>
+            </ToolDock>
+            <ProportionalDockSplitter />
+            <ToolDock Id="ConsolePane">
+              <Tool Id="Console" Title="Console" CanClose="False">
+                <local:ConsoleView />
+              </Tool>
+            </ToolDock>
+          </ProportionalDock>
+        </ProportionalDock>
+        <ProportionalDockSplitter />
+        <ToolDock Id="InspectorPane" Proportion="0.22" Alignment="Right">
+          <Tool Id="Inspector" Title="Inspector" CanClose="False">
+            <local:InspectorView />
+          </Tool>
+        </ToolDock>
       </ProportionalDock>
     </RootDock>
   </DockControl>
+  </DockPanel>
 </Window>

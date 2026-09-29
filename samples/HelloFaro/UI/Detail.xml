@@ -1,6 +1,24 @@
 <UIGraph id="Detail" version="1">
   <Node id="root" type="Container.Stack" direction="Vertical" gap="8" padding="16">
     <Node id="count" type="Control.Text" sizing="Hug" />
+    <Node id="stamp" type="Control.Script" class="MyApp.Views.Stamp" widthSizing="Fill" />
+    <Node id="summary" type="Container.Grid" columns="Auto, *" gap="6" widthSizing="Fill">
+      <Node id="summaryTitle" type="Control.Text" row="0" column="0" columnSpan="2">
+        <Prop name="Text" value="選んだ注文(一覧の行をクリック)" />
+      </Node>
+      <Node id="itemsLabel" type="Control.Text">
+        <Prop name="Text" value="商品" />
+      </Node>
+      <Node id="itemsValue" type="Control.Text" alignSelf="End" widthSizing="Hug">
+        <Prop name="Text" value="りんご" />
+      </Node>
+      <Node id="totalLabel" type="Control.Text">
+        <Prop name="Text" value="価格" />
+      </Node>
+      <Node id="totalValue" type="Control.Text" alignSelf="End">
+        <Prop name="Text" value="¥120" />
+      </Node>
+    </Node>
     <Node id="back" type="Control.Button" sizing="Hug">
       <Prop name="Text" value="戻る" />
     </Node>

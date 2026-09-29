@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Faro.Runtime/Faro.Runtime.csproj" />
-    <Content Include="UI/**;Bindings/**;Assets/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="faro.json;UI/**;Bindings/**;Assets/**" CopyToOutputDirectory="PreserveNewest" />
     <!-- dotnet watch restarts the app when the UI graph or bindings change (spec §9). -->
     <Watch Include="UI/**;Bindings/**" />
   </ItemGroup>

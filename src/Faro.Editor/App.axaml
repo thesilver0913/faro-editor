@@ -2,11 +2,70 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:sty="using:FluentAvalonia.Styling"
              xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
+             xmlns:cc="using:AvaloniaEdit.CodeCompletion"
+             xmlns:dockc="using:Dock.Avalonia.Controls"
              x:Class="Faro.Editor.App"
              RequestedThemeVariant="Dark">
   <!-- Fluent base with an Adobe Spectrum-like accent (spec §13). -->
   <Application.Styles>
     <sty:FluentAvaloniaTheme PreferUserAccentColor="False" CustomAccentColor="#1473E6" />
     <dock:DockFluentTheme />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <!-- 1px light-gray separators between the docked panels: the line is the middle pixel of a 5px grab area. -->
+    <Style Selector="ProportionalStackPanelSplitter">
+      <Setter Property="Thickness" Value="5" />
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter:horizontal">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+          <GradientStop Offset="0.4" Color="Transparent" /><GradientStop Offset="0.4" Color="{DynamicResource FaroSeparator}" />
+          <GradientStop Offset="0.6" Color="{DynamicResource FaroSeparator}" /><GradientStop Offset="0.6" Color="Transparent" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter:vertical">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+          <GradientStop Offset="0.4" Color="Transparent" /><GradientStop Offset="0.4" Color="{DynamicResource FaroSeparator}" />
+          <GradientStop Offset="0.6" Color="{DynamicResource FaroSeparator}" /><GradientStop Offset="0.6" Color="Transparent" />
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <!-- Inactive tool tabs (Layers | Parts) keep a readable label under FluentAvalonia. -->
+    <Style Selector="dockc|ToolTabStripItem">
+      <Setter Property="Foreground" Value="{DynamicResource FaroTabInactive}" />
+    </Style>
+    <Style Selector="dockc|ToolTabStripItem:selected">
+      <Setter Property="Foreground" Value="#1473E6" />
+    </Style>
+    <!-- Under FluentAvalonia the completion popup has no background of its own. -->
+    <Style Selector="cc|CompletionListBox">
+      <Setter Property="Background" Value="{DynamicResource ToolTipBackground}" />
+    </Style>
   </Application.Styles>
+  <!-- AvaloniaEdit's Fluent theme expects these Avalonia FluentTheme keys, which FluentAvalonia doesn't define. -->
+  <Application.Resources>
+    <ResourceDictionary>
+    <!-- FluentAvalonia's controls read their font from this key: the bundled Noto Sans JP. -->
+    <FontFamily x:Key="ContentControlThemeFontFamily">avares://Faro.Editor/Assets/Fonts#Noto Sans JP</FontFamily>
+    <ResourceDictionary.ThemeDictionaries>
+      <ResourceDictionary x:Key="Dark">
+        <Color x:Key="FaroSeparator">#5C5C5C</Color>
+        <SolidColorBrush x:Key="FaroTabInactive" Color="#A0A0A0" />
+        <SolidColorBrush x:Key="FaroBubble" Color="#333333" />
+        <SolidColorBrush x:Key="ToolTipBackground" Color="#2B2B2B" />
+        <SolidColorBrush x:Key="ToolTipForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#555555" />
+      </ResourceDictionary>
+      <ResourceDictionary x:Key="Light">
+        <Color x:Key="FaroSeparator">#C8C8C8</Color>
+        <SolidColorBrush x:Key="FaroTabInactive" Color="#6E6E6E" />
+        <SolidColorBrush x:Key="FaroBubble" Color="#EAEAEA" />
+        <SolidColorBrush x:Key="ToolTipBackground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ToolTipForeground" Color="#1E1E1E" />
+        <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#C8C8C8" />
+      </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
 </Application>

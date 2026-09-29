@@ -2,14 +2,41 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>../../assets/faro.ico</ApplicationIcon>
+    <!-- The launcher first looks for .NET in dotnet/ next to Faro, where the Windows installer and the .deb put the
+         .NET 10 SDK when none is installed; then DOTNET_ROOT and the usual system-wide install. -->
+    <AppHostDotNetSearch>AppRelative;EnvironmentVariable;Global</AppHostDotNetSearch>
+    <AppHostRelativeDotNet>dotnet</AppHostRelativeDotNet>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Faro.Runtime/Faro.Runtime.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageReference Include="FluentAvaloniaUI" Version="3.1.0" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageReference Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Anthropic" Version="12.50.0" />
     <PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
     <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" />
+    <AvaloniaResource Include="../../assets/faro-splash.png" Link="Assets/faro-splash.png" />
+    <AvaloniaResource Include="../../assets/fonts/Inter-Regular.ttf" Link="Assets/Fonts/Inter-Regular.ttf" />
+    <!-- The editor's UI font: Noto Sans JP (Latin and Japanese in one family, so weights match). -->
+    <AvaloniaResource Include="../../assets/fonts/NotoSansJP-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
+    <!-- Java projects' Material 3 font (Faro.Runtime carries it for C#): copied into .faro/fonts. -->
+    <None Include="../../assets/fonts/GoogleSansFlex-*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Shipped with the editor for new projects: the runtime package and the sample template. -->
+    <None Include="../Faro.Runtime/bin/$(Configuration)/Faro.Runtime.$(Version).nupkg" Link="runtime/Faro.Runtime.$(Version).nupkg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/UI/**" LinkBase="templates/Sample/UI" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Source/**" LinkBase="templates/Sample/Source" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Bindings/**" LinkBase="templates/Sample/Bindings" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaro/Assets/**" LinkBase="templates/Sample/Assets" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Java projects: the JavaFX runtime binder as sources (vendored into .faro/runtime-java) and the Java sample. -->
+    <None Include="../Faro.Runtime.Java/**/*.java" LinkBase="runtime-java" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/UI/**" LinkBase="templates/SampleJava/UI" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Bindings/**" LinkBase="templates/SampleJava/Bindings" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Assets/**" LinkBase="templates/SampleJava/Assets" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/HelloFaroJava/Source/**" LinkBase="templates/SampleJava/Source" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

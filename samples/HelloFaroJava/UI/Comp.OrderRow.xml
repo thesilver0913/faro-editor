@@ -1,0 +1,10 @@
+<ComponentDef id="Comp.OrderRow">
+  <Node id="root" type="Container.Stack" direction="Horizontal" gap="8">
+    <Node id="name" type="Control.Text" widthSizing="Fill">
+      <Prop name="Text" value="商品名" />
+    </Node>
+    <Node id="price" type="Control.Text" sizing="Hug">
+      <Prop name="Text" value="¥0" />
+    </Node>
+  </Node>
+</ComponentDef>
