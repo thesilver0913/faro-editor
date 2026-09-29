@@ -332,9 +332,6 @@ public sealed class CanvasView : UserControl
         Button? add = null;
         // The tool panel (Adobe's, down the canvas's left edge): editing the selection. Related tools share a button that opens them.
         static Control Symbol(FASymbol symbol) => new FASymbolIcon { Symbol = symbol, FontSize = 16 };
-        var arrange = Icons.ToolGroup("Arrange", [
-            new(() => Symbol(FASymbol.ChevronUp), "Move up (Alt+Up)", () => MoveSelection(-1)),
-            new(() => Symbol(FASymbol.ChevronDown), "Move down (Alt+Down)", () => MoveSelection(+1))]);
         // Figma's align buttons for the selected node (CanvasEdit.Align: alignSelf, anchors, or Spacers along a stack).
         var align = Icons.ToolGroup("Align", [.. new[] {
             (true, "Start", "Align left"), (true, "Center", "Align horizontal centers"), (true, "End", "Align right (along a row: a Spacer pushes it to the end)"),
@@ -354,7 +351,9 @@ public sealed class CanvasView : UserControl
                 }),
                 Icons.ToolButton(Symbol(FASymbol.Delete), "Delete the selected nodes (Del)", DeleteSelection),
                 new Separator { Margin = new(4, 2) },
-                arrange, align,
+                Icons.ToolButton(Symbol(FASymbol.ChevronUp), "Move up (Alt+Up)", () => MoveSelection(-1)),
+                Icons.ToolButton(Symbol(FASymbol.ChevronDown), "Move down (Alt+Down)", () => MoveSelection(+1)),
+                align,
             },
         };
         add = (Button)tools.Children[0];
