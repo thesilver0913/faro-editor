@@ -12,7 +12,7 @@ public partial class App : Application
     /// <summary>"0.1.8" or "0.1.8-dev1" (without the commit hash the SDK appends).</summary>
     public static string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
 
-    static string? root;
+    static string? root, crashReport;
 
     /// <summary>The bundled UI font, the same on every OS.</summary>
     public const string UiFont = "avares://Faro.Editor/Assets/Fonts#Noto Sans JP";
@@ -28,6 +28,12 @@ public partial class App : Application
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
 
         FaroSettings.Current.ApplyTheme();
+        if (crashReport is not null) // the crash watcher: only the report
+        {
+            desktop.MainWindow = CrashWatcher.Window(crashReport);
+            desktop.MainWindow.Show();
+            return;
+        }
         // Discarded untitled projects go once no earlier Faro process holds their files.
         _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(() => ProjectSetup.DeletePending(Workspace.Root.Length > 0 ? Workspace.Root : null)));
         if (FaroSettings.Current.SetupDone) Start(desktop, null);
@@ -111,7 +117,13 @@ public partial class App : Application
             Console.WriteLine(Version);
             return;
         }
-        Log.Start();
+        if (args is ["--watch", var pid] && int.TryParse(pid, out var editor)) // the crash watcher waits, then shows the report if the editor crashed
+        {
+            if ((crashReport = CrashWatcher.Watch(editor)) is null) return;
+            Log.MarkCrashesSeen();
+            args = [];
+        }
+        else Log.Start();
         if (!OperatingSystem.IsWindows()) ImportShellPath();
         // The .NET SDK the installer put next to Faro also builds and runs the projects (dotnet restore / watch run).
         var bundled = Path.Combine(AppContext.BaseDirectory, "dotnet");
@@ -130,6 +142,7 @@ public partial class App : Application
             Console.WriteLine(apk is null ? "APK build failed." : $"APK: {apk}");
             Environment.Exit(apk is null ? 1 : 0);
         }
+        if (crashReport is null) CrashWatcher.Spawn();
         root = args.FirstOrDefault() is { } path ? Path.GetFullPath(path) : null; // no folder given: welcome screen
         AppBuilder.Configure<App>().UsePlatformDetect()
             .With(new FontManagerOptions { DefaultFamilyName = UiFont })
