@@ -554,6 +554,21 @@ Check(javaPom.Contains("<list>myapp.services.OrderService</list>") && javaPom.Co
     && javaIndex.Contains("faro.json") && javaIndex.Contains("UI/MainScreen.xml") && javaIndex.Contains("Bindings/MainScreen.xml"), "java android pom and bundled project files");
 Directory.Delete(AndroidApk.Head(javaSample), true);
 
+// Crash watcher: a clean exit (marker gone) shows nothing; a crash shows the report written since the start, else a new one.
+var crashes = Path.Combine(root, "crashes");
+Directory.CreateDirectory(crashes);
+File.WriteAllText(Path.Combine(crashes, "crash-old.txt"), "old");
+File.SetLastWriteTimeUtc(Path.Combine(crashes, "crash-old.txt"), DateTime.UtcNow.AddHours(-1));
+File.WriteAllText(Path.Combine(crashes, "running-1"), "");
+var noManaged = CrashWatcher.Outcome(crashes, 1);
+File.SetLastWriteTimeUtc(noManaged!, DateTime.UtcNow.AddMinutes(-2)); // an earlier session's report
+File.WriteAllText(Path.Combine(crashes, "running-2"), "");
+File.SetLastWriteTimeUtc(Path.Combine(crashes, "running-2"), DateTime.UtcNow.AddMinutes(-1));
+File.WriteAllText(Path.Combine(crashes, "crash-new.txt"), "boom");
+Check(CrashWatcher.Outcome(crashes, 3) is null && noManaged is not null && File.ReadAllText(noManaged).Contains("without a .NET exception")
+    && CrashWatcher.Outcome(crashes, 2) == Path.Combine(crashes, "crash-new.txt") && !File.Exists(Path.Combine(crashes, "running-2"))
+    && CrashWatcher.IssueUrl(null, new string('x', 50_000), "crash-new.txt").Length < 8000, "crash watcher outcome and issue link");
+
 Directory.Delete(root, true);
 Console.WriteLine("All checks passed.");
 

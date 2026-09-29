@@ -4,7 +4,7 @@ namespace Faro.Editor;
 
 /// <summary>
 /// Daily log files and crash reports in the settings folder's "logs" (AppData/Faro/logs), kept 14 days.
-/// Local only: nothing is sent anywhere; the user attaches a report to an issue if they want.
+/// Local only: nothing is sent anywhere; the user sends a report as an issue if they want (<see cref="CrashWatcher"/>).
 /// </summary>
 public static class Log
 {
@@ -41,13 +41,14 @@ public static class Log
         TaskScheduler.UnobservedTaskException += (_, e) => { Error("Unobserved task exception", e.Exception); e.SetObserved(); };
     }
 
-    public static string? Crash(Exception e)
+    public static string? Crash(Exception e, string? folder = null)
     {
         Error("Crash", e);
+        folder ??= Folder;
         try
         {
-            Directory.CreateDirectory(Folder);
-            var file = Path.Combine(Folder, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+            Directory.CreateDirectory(folder);
+            var file = Path.Combine(folder, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
             File.WriteAllText(file, $"""
                 Faro {App.Version}
                 OS: {RuntimeInformation.OSDescription} ({RuntimeInformation.ProcessArchitecture})
@@ -69,17 +70,17 @@ public static class Log
         return newest is not null && File.GetLastWriteTimeUtc(newest) > FaroSettings.Current.CrashesSeen ? newest : null;
     }
 
-    /// <summary>At startup: "Faro quit unexpectedly" with the report and a prefilled GitHub issue.</summary>
-    public static async void OfferCrashReport(Avalonia.Controls.Window owner)
+    /// <summary>At startup, if the crash watcher couldn't show it: the newest unseen crash report.</summary>
+    public static void OfferCrashReport(Avalonia.Controls.Window owner)
     {
         if (UnseenCrash() is not { } report) return;
+        MarkCrashesSeen();
+        CrashWatcher.Window(report).ShowDialog(owner);
+    }
+
+    public static void MarkCrashesSeen()
+    {
         FaroSettings.Current.CrashesSeen = DateTime.UtcNow;
         FaroSettings.Current.Save();
-        switch (await Dialogs.Choose(owner, L.T("Faro quit unexpectedly"), L.T("A crash report was saved. Attaching it to an issue helps fix the problem.") + "\n\n" + report,
-                    [L.T("Open Report"), L.T("Report Issue")]))
-        {
-            case 0: Updates.Open(report); break;
-            case 1: Updates.Open($"https://github.com/{Updates.Repository}/issues/new?title={Uri.EscapeDataString("Crash: " + Path.GetFileName(report))}&body={Uri.EscapeDataString(L.T("Please attach the crash report and describe what you were doing.") + $"\n\nFaro {App.Version}")}"); break;
-        }
     }
 }

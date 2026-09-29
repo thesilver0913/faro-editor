@@ -196,7 +196,7 @@ The debugger (netcoredbg for C#, java-debug for Java) is downloaded automaticall
 | The app won't run | The Output tab. C# needs the .NET 10 SDK; Java needs JDK 21 and Maven (Preferences › Tools) |
 | No completion | The language server status above the code. Java takes a while to load the first time |
 | Changes don't show | If it says "Unbuilt code changes", Run (F5) applies them |
-| Crashes or odd behavior | Help › Open Logs Folder. After a crash, Faro offers to report it on the next launch |
+| Crashes or odd behavior | Help › Open Logs Folder. After a crash, a report window opens right away (Details shows the error) |
 
 ---
 
