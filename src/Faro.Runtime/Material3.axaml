@@ -1,0 +1,172 @@
+<!--
+  Material 3 Expressive for Faro apps (see AppDesign.cs). Colors are the M3 roles "M3Primary" … from the seed color.
+  Per-node options arrive as classes from m3.* attributes:
+    Button     m3.variant Filled|Tonal|Outlined|Text|Elevated, m3.size XS|S|M|L|XL, m3.shape Round|Square
+    TextInput  m3.variant Filled|Outlined
+    Text       m3.type DisplayLarge … LabelSmall, m3.emphasized true, m3.color Primary|OnSurfaceVariant|…
+    Container  m3.surface Surface|Lowest|Low|Container|High|Highest|Primary|Secondary|Tertiary, m3.corner None|XS|S|M|L|XL|Full, m3.elevation 0-5
+  Expressive: large rounded shapes, and buttons morph to a squarer corner while pressed on a spring.
+  Type: Google Sans Flex (M3 Expressive's typeface, OFL) and Noto Sans JP for Japanese, both bundled in Faro.Runtime.
+-->
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ControlTheme x:Key="{x:Type Button}" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+      <Setter Property="Foreground" Value="{DynamicResource M3OnPrimary}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="MinWidth" Value="48" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="CornerRadius" Value="20" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <CornerRadiusTransition Property="CornerRadius" Duration="0:0:0.35">
+            <CornerRadiusTransition.Easing><SpringEasing Mass="1" Stiffness="1400" Damping="40" /></CornerRadiusTransition.Easing>
+          </CornerRadiusTransition>
+        </Transitions>
+      </Setter>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                  ClipToBounds="True">
+            <Border.Transitions><Transitions><BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15" /></Transitions></Border.Transitions>
+            <Panel>
+              <!-- State layer: the content color at 8% (hover) / 10% (focus, pressed), as M3 specifies. -->
+              <Border Name="PART_State" Background="{TemplateBinding Foreground}" Opacity="0">
+                <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.1" /></Transitions></Border.Transitions>
+              </Border>
+              <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Padding="{TemplateBinding Padding}" Foreground="{TemplateBinding Foreground}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Panel>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+
+      <Style Selector="^:pointerover /template/ Border#PART_State"><Setter Property="Opacity" Value="0.08" /></Style>
+      <Style Selector="^:focus-visible /template/ Border#PART_State"><Setter Property="Opacity" Value="0.1" /></Style>
+      <Style Selector="^:pressed /template/ Border#PART_State"><Setter Property="Opacity" Value="0.1" /></Style>
+
+      <!-- Variants -->
+      <Style Selector="^.m3-variant-tonal">
+        <Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSecondaryContainer}" />
+      </Style>
+      <Style Selector="^.m3-variant-outlined">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource M3OutlineVariant}" />
+        <Setter Property="BorderThickness" Value="1" />
+      </Style>
+      <Style Selector="^.m3-variant-text">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+        <Setter Property="Padding" Value="12,0" />
+      </Style>
+      <Style Selector="^.m3-variant-elevated">
+        <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLow}" />
+        <Setter Property="Foreground" Value="{DynamicResource M3Primary}" />
+      </Style>
+      <Style Selector="^.m3-variant-elevated /template/ Border#PART_Root"><Setter Property="BoxShadow" Value="0 1 2 0 #4D000000, 0 1 3 1 #26000000" /></Style>
+      <Style Selector="^.m3-variant-elevated:pointerover /template/ Border#PART_Root"><Setter Property="BoxShadow" Value="0 1 2 0 #4D000000, 0 2 6 2 #26000000" /></Style>
+
+      <!-- Sizes (Expressive): height, padding, label size; round = fully rounded corners -->
+      <Style Selector="^.m3-size-xs"><Setter Property="MinHeight" Value="32" /><Setter Property="Padding" Value="12,0" /><Setter Property="CornerRadius" Value="16" /></Style>
+      <Style Selector="^.m3-size-m"><Setter Property="MinHeight" Value="56" /><Setter Property="Padding" Value="24,0" /><Setter Property="FontSize" Value="16" /><Setter Property="CornerRadius" Value="28" /></Style>
+      <Style Selector="^.m3-size-l"><Setter Property="MinHeight" Value="96" /><Setter Property="Padding" Value="48,0" /><Setter Property="FontSize" Value="24" /><Setter Property="FontWeight" Value="Normal" /><Setter Property="CornerRadius" Value="48" /></Style>
+      <Style Selector="^.m3-size-xl"><Setter Property="MinHeight" Value="136" /><Setter Property="Padding" Value="64,0" /><Setter Property="FontSize" Value="32" /><Setter Property="FontWeight" Value="Normal" /><Setter Property="CornerRadius" Value="68" /></Style>
+      <Style Selector="^.m3-shape-square"><Setter Property="CornerRadius" Value="12" /></Style>
+      <Style Selector="^.m3-shape-square.m3-size-m"><Setter Property="CornerRadius" Value="16" /></Style>
+      <Style Selector="^.m3-shape-square.m3-size-l, ^.m3-shape-square.m3-size-xl"><Setter Property="CornerRadius" Value="28" /></Style>
+
+      <!-- Expressive shape morph: pressed buttons turn squarer, springing back on release -->
+      <Style Selector="^:pressed"><Setter Property="CornerRadius" Value="8" /></Style>
+      <Style Selector="^.m3-size-m:pressed"><Setter Property="CornerRadius" Value="12" /></Style>
+      <Style Selector="^.m3-size-l:pressed, ^.m3-size-xl:pressed"><Setter Property="CornerRadius" Value="16" /></Style>
+
+      <!-- ponytail: disabled dims the whole button instead of M3's 12% onSurface container; exact tokens need a second brush per role -->
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.38" /></Style>
+      <Style Selector="^:disabled /template/ Border#PART_Root"><Setter Property="BoxShadow" Value="none" /></Style>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <!-- The app window and the editor's artboard are the surface -->
+  <Style Selector="Window, Border.faro-screen">
+    <!-- Google Sans Flex, with the bundled Noto Sans JP for Japanese (which Google Sans Flex doesn't cover). -->
+    <Setter Property="TextElement.FontFamily" Value="avares://Faro.Runtime/Assets/Fonts#Google Sans Flex, avares://Faro.Runtime/Assets/Fonts#Noto Sans JP" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource M3OnSurface}" />
+    <Setter Property="TextElement.FontSize" Value="16" />
+  </Style>
+  <Style Selector="Window"><Setter Property="Background" Value="{DynamicResource M3Surface}" /></Style>
+  <Style Selector="Border.faro-screen"><Setter Property="Background" Value="{DynamicResource M3Surface}" /></Style>
+
+  <!-- Text: body large on the surface; m3.type picks the type scale -->
+  <Style Selector="TextBlock.m3-type-displaylarge"><Setter Property="FontSize" Value="57" /><Setter Property="LineHeight" Value="64" /></Style>
+  <Style Selector="TextBlock.m3-type-displaymedium"><Setter Property="FontSize" Value="45" /><Setter Property="LineHeight" Value="52" /></Style>
+  <Style Selector="TextBlock.m3-type-displaysmall"><Setter Property="FontSize" Value="36" /><Setter Property="LineHeight" Value="44" /></Style>
+  <Style Selector="TextBlock.m3-type-headlinelarge"><Setter Property="FontSize" Value="32" /><Setter Property="LineHeight" Value="40" /></Style>
+  <Style Selector="TextBlock.m3-type-headlinemedium"><Setter Property="FontSize" Value="28" /><Setter Property="LineHeight" Value="36" /></Style>
+  <Style Selector="TextBlock.m3-type-headlinesmall"><Setter Property="FontSize" Value="24" /><Setter Property="LineHeight" Value="32" /></Style>
+  <Style Selector="TextBlock.m3-type-titlelarge"><Setter Property="FontSize" Value="22" /><Setter Property="LineHeight" Value="28" /></Style>
+  <Style Selector="TextBlock.m3-type-titlemedium"><Setter Property="FontSize" Value="16" /><Setter Property="LineHeight" Value="24" /><Setter Property="FontWeight" Value="Medium" /></Style>
+  <Style Selector="TextBlock.m3-type-titlesmall"><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="20" /><Setter Property="FontWeight" Value="Medium" /></Style>
+  <Style Selector="TextBlock.m3-type-bodylarge"><Setter Property="FontSize" Value="16" /><Setter Property="LineHeight" Value="24" /></Style>
+  <Style Selector="TextBlock.m3-type-bodymedium"><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="20" /></Style>
+  <Style Selector="TextBlock.m3-type-bodysmall"><Setter Property="FontSize" Value="12" /><Setter Property="LineHeight" Value="16" /></Style>
+  <Style Selector="TextBlock.m3-type-labellarge"><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="20" /><Setter Property="FontWeight" Value="Medium" /></Style>
+  <Style Selector="TextBlock.m3-type-labelmedium"><Setter Property="FontSize" Value="12" /><Setter Property="LineHeight" Value="16" /><Setter Property="FontWeight" Value="Medium" /></Style>
+  <Style Selector="TextBlock.m3-type-labelsmall"><Setter Property="FontSize" Value="11" /><Setter Property="LineHeight" Value="16" /><Setter Property="FontWeight" Value="Medium" /></Style>
+  <!-- Expressive emphasized type: a heavier weight of the same size -->
+  <Style Selector="TextBlock.m3-emphasized-true"><Setter Property="FontWeight" Value="Bold" /></Style>
+  <Style Selector="TextBlock.m3-color-primary"><Setter Property="Foreground" Value="{DynamicResource M3Primary}" /></Style>
+  <Style Selector="TextBlock.m3-color-secondary"><Setter Property="Foreground" Value="{DynamicResource M3Secondary}" /></Style>
+  <Style Selector="TextBlock.m3-color-tertiary"><Setter Property="Foreground" Value="{DynamicResource M3Tertiary}" /></Style>
+  <Style Selector="TextBlock.m3-color-error"><Setter Property="Foreground" Value="{DynamicResource M3Error}" /></Style>
+  <Style Selector="TextBlock.m3-color-onsurfacevariant"><Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariant}" /></Style>
+
+  <!-- Text fields: filled (default) or outlined; the indicator / outline turns primary and 2px on focus -->
+  <Style Selector="TextBox">
+    <Setter Property="FontFamily" Value="avares://Faro.Runtime/Assets/Fonts#Google Sans Flex, avares://Faro.Runtime/Assets/Fonts#Noto Sans JP" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+    <Setter Property="MinHeight" Value="56" />
+    <Setter Property="Padding" Value="16,16" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="CaretBrush" Value="{DynamicResource M3Primary}" />
+  </Style>
+  <Style Selector="TextBox"><Setter Property="CornerRadius" Value="4,4,0,0" /></Style>
+  <Style Selector="TextBox.m3-variant-outlined"><Setter Property="CornerRadius" Value="4" /></Style>
+
+  <!-- Containers: surface roles, the shape scale and elevation levels -->
+  <Style Selector="Border.m3-surface-surface"><Setter Property="Background" Value="{DynamicResource M3Surface}" /></Style>
+  <Style Selector="Border.m3-surface-lowest"><Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLowest}" /></Style>
+  <Style Selector="Border.m3-surface-low"><Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLow}" /></Style>
+  <Style Selector="Border.m3-surface-container"><Setter Property="Background" Value="{DynamicResource M3SurfaceContainer}" /></Style>
+  <Style Selector="Border.m3-surface-high"><Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHigh}" /></Style>
+  <Style Selector="Border.m3-surface-highest"><Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighest}" /></Style>
+  <Style Selector="Border.m3-surface-primary"><Setter Property="Background" Value="{DynamicResource M3PrimaryContainer}" /></Style>
+  <Style Selector="Border.m3-surface-primary"><Setter Property="TextElement.Foreground" Value="{DynamicResource M3OnPrimaryContainer}" /></Style>
+  <Style Selector="Border.m3-surface-secondary"><Setter Property="Background" Value="{DynamicResource M3SecondaryContainer}" /></Style>
+  <Style Selector="Border.m3-surface-secondary"><Setter Property="TextElement.Foreground" Value="{DynamicResource M3OnSecondaryContainer}" /></Style>
+  <Style Selector="Border.m3-surface-tertiary"><Setter Property="Background" Value="{DynamicResource M3TertiaryContainer}" /></Style>
+  <Style Selector="Border.m3-surface-tertiary"><Setter Property="TextElement.Foreground" Value="{DynamicResource M3OnTertiaryContainer}" /></Style>
+  <Style Selector="Border.m3-corner-xs"><Setter Property="CornerRadius" Value="4" /></Style>
+  <Style Selector="Border.m3-corner-s"><Setter Property="CornerRadius" Value="8" /></Style>
+  <Style Selector="Border.m3-corner-m"><Setter Property="CornerRadius" Value="12" /></Style>
+  <Style Selector="Border.m3-corner-l"><Setter Property="CornerRadius" Value="16" /></Style>
+  <Style Selector="Border.m3-corner-xl"><Setter Property="CornerRadius" Value="28" /></Style>
+  <Style Selector="Border.m3-corner-full"><Setter Property="CornerRadius" Value="9999" /></Style>
+  <Style Selector="Border.m3-elevation-1"><Setter Property="BoxShadow" Value="0 1 2 0 #4D000000, 0 1 3 1 #26000000" /></Style>
+  <Style Selector="Border.m3-elevation-2"><Setter Property="BoxShadow" Value="0 1 2 0 #4D000000, 0 2 6 2 #26000000" /></Style>
+  <Style Selector="Border.m3-elevation-3"><Setter Property="BoxShadow" Value="0 1 3 0 #4D000000, 0 4 8 3 #26000000" /></Style>
+  <Style Selector="Border.m3-elevation-4"><Setter Property="BoxShadow" Value="0 2 3 0 #4D000000, 0 6 10 4 #26000000" /></Style>
+  <Style Selector="Border.m3-elevation-5"><Setter Property="BoxShadow" Value="0 4 4 0 #4D000000, 0 8 12 6 #26000000" /></Style>
+</Styles>

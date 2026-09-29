@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Packed on build: the editor copies this package into every new project (.faro/packages) so projects build anywhere. -->
+  <PropertyGroup>
+    <PackageId>Faro.Runtime</PackageId>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Faro</Authors>
+    <Description>Runtime binder for Faro projects.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="MaterialColorUtilities" Version="0.3.0" />
+    <!-- Material 3 Expressive's typeface (OFL), used by Material3.axaml. -->
+    <AvaloniaResource Include="../../assets/fonts/GoogleSansFlex-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
+    <!-- Japanese text in Material 3 apps (Google Sans Flex has no Japanese): Noto Sans JP, so both look alike everywhere. -->
+    <AvaloniaResource Include="../../assets/fonts/NotoSansJP-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
