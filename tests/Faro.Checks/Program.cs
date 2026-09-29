@@ -146,6 +146,8 @@ Check(!mockBuilt.Keys.Any(k => k.Contains('~')) && mockBuilt.ContainsKey("orderL
 Check(FaroProject.Load(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/HelloFaro"))).Design is { Language: "Material3", Theme: "Light" } && AppDesign.Read(null) == new AppDesign()
     && AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse("""{"language":"Nope","seedColor":"red?","theme":"Dim"}""")) == new AppDesign(), "design read, unknown values fall back");
 Check(mockBuilt["btnDetail"].Classes.Contains("m3-variant-tonal") && mockBuilt["header"].Classes.Contains("m3-corner-xl") && !mockBuilt["btn1"].Classes.Any(), "m3.* attributes become style classes");
+var overridden = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="b" type="Instance" component="Comp.X" m3.variant="Text"><Node id="root" type="Control.Button" m3.variant="Outlined" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(overridden.Classes.Contains("m3-variant-text") && !overridden.Classes.Contains("m3-variant-outlined"), "an instance's design options win over its master's");
 var scheme = AppDesign.Scheme(MaterialColorUtilities.Palettes.CorePalette.Of(0xFF6750A4), dark: false);
 Check(scheme["M3Primary"] is Avalonia.Media.ISolidColorBrush { Color: var primary } && primary == Avalonia.Media.Color.Parse("#65558F")
     && scheme["M3Surface"] is Avalonia.Media.ISolidColorBrush { Color.R: > 250 }, "M3 color roles from the seed");

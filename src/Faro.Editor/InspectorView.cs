@@ -155,7 +155,9 @@ public sealed class InspectorView : UserControl
         {
             body.Children.Add(Section(L.T("Material 3")));
             foreach (var (attribute, values) in options)
-                body.Children.Add(Row(L.T(char.ToUpperInvariant(attribute[3]) + attribute[4..]), Choice(node, attribute, values, unset: values[0])));
+                // An instance shows (and falls back to) its master's or variant's value; picking another one overrides it.
+                body.Children.Add(Row(L.T(char.ToUpperInvariant(attribute[3]) + attribute[4..]),
+                    Choice(node, attribute, values, unset: type == "Instance" ? (string?)node.Element("Node")?.Attribute(attribute) ?? values[0] : values[0])));
         }
         if (type == "Instance")
         {
@@ -258,7 +260,7 @@ public sealed class InspectorView : UserControl
     {
         var id = (string)node.Attribute("id")!;
         void Set(string value) => EditNode(id, $"Set {attribute}", n => CanvasEdit.SetAttribute(n, attribute, value == unset ? null : value));
-        var current = (string?)node.Attribute(attribute) ?? values[0];
+        var current = (string?)node.Attribute(attribute) ?? unset ?? values[0];
         if (values.Length <= 4) return Segmented(values, current, Set);
         var box = new ComboBox { ItemsSource = values, SelectedItem = current, MinWidth = 120 };
         box.SelectionChanged += (_, _) => Set((string)box.SelectedItem!);

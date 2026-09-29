@@ -270,6 +270,8 @@ public static class UiBuilder
             copy.Elements("Prop").Where(p => (string?)p.Attribute("name") == (string?)o.Attribute("prop")).Remove();
             copy.Add(new XElement("Prop", new XAttribute("name", (string?)o.Attribute("prop") ?? ""), new XAttribute("value", (string?)o.Attribute("value") ?? "")));
         }
+        // The instance's own design options ("m3.variant") win over its master's (or variant's): one style class each.
+        foreach (var option in node.Attributes().Where(a => a.Name.LocalName.Contains('.'))) copy.SetAttributeValue(option.Name, option.Value);
         return Build(copy, byId, root, $"{prefix}{(string?)node.Attribute("id")}/");
     }
 

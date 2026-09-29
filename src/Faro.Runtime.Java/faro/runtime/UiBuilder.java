@@ -396,6 +396,10 @@ public final class UiBuilder {
             p.setAttribute("value", o.getAttribute("value"));
             copy.appendChild(p);
         }
+        // The instance's own design options ("m3.variant") win over its master's (or variant's): one style class each.
+        var attributes = node.getAttributes();
+        for (var i = 0; i < attributes.getLength(); i++)
+            if (attributes.item(i).getNodeName().contains(".")) copy.setAttribute(attributes.item(i).getNodeName(), attributes.item(i).getNodeValue());
         var row = build(copy, byId, root, prefix + node.getAttribute("id") + "/");
         if ("true".equals(node.getAttribute("repeatable")) && row instanceof Region r) r.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE); // rows stretch across the list
         return row;
