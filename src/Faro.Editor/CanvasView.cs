@@ -330,22 +330,35 @@ public sealed class CanvasView : UserControl
         };
 
         Button? add = null;
-        add = Icons.Button(FASymbol.Add, "Add a node (or drag one from Parts)", () =>
-        {
-            var menu = new MenuFlyout();
-            foreach (var item in AddItems()) menu.Items.Add(item);
-            menu.ShowAt(add!);
-        });
-        var delete = Icons.Button(FASymbol.Delete, "Delete the selected nodes (Del)", DeleteSelection);
-        var up = Icons.Button(FASymbol.ChevronUp, "Move up (Alt+Up)", () => MoveSelection(-1));
-        var down = Icons.Button(FASymbol.ChevronDown, "Move down (Alt+Down)", () => MoveSelection(+1));
+        // The tool panel (Adobe's, down the canvas's left edge): editing the selection. Related tools share a button that opens them.
+        static Control Symbol(FASymbol symbol) => new FASymbolIcon { Symbol = symbol, FontSize = 16 };
+        var arrange = Icons.ToolGroup("Arrange", [
+            new(() => Symbol(FASymbol.ChevronUp), "Move up (Alt+Up)", () => MoveSelection(-1)),
+            new(() => Symbol(FASymbol.ChevronDown), "Move down (Alt+Down)", () => MoveSelection(+1))]);
         // Figma's align buttons for the selected node (CanvasEdit.Align: alignSelf, anchors, or Spacers along a stack).
-        var align = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        foreach (var (horizontal, where, tip) in new[] {
+        var align = Icons.ToolGroup("Align", [.. new[] {
             (true, "Start", "Align left"), (true, "Center", "Align horizontal centers"), (true, "End", "Align right (along a row: a Spacer pushes it to the end)"),
-            (false, "Start", "Align top"), (false, "Center", "Align vertical centers"), (false, "End", "Align bottom (along a column: a Spacer pushes it to the end)") })
-            align.Children.Add(Icons.Align(horizontal, where, tip, () => Edit(tip.Split(" (")[0], (_, screen) =>
-                Selection.Count == 1 && CanvasEdit.Align(screen, Selection.First(), horizontal, where) ? [screen] : [])));
+            (false, "Start", "Align top"), (false, "Center", "Align vertical centers"), (false, "End", "Align bottom (along a column: a Spacer pushes it to the end)") }
+            .Select(a => new Icons.Tool(() => Icons.Align(a.Item1, a.Item2), a.Item3, () => Edit(a.Item3.Split(" (")[0], (_, screen) =>
+                Selection.Count == 1 && CanvasEdit.Align(screen, Selection.First(), a.Item1, a.Item2) ? [screen] : [])))]);
+        var tools = new StackPanel
+        {
+            Spacing = 4, Margin = new(6, 8),
+            Children =
+            {
+                Icons.ToolButton(Symbol(FASymbol.Add), "Add a node (or drag one from Parts)", () =>
+                {
+                    var menu = new MenuFlyout { Placement = PlacementMode.RightEdgeAlignedTop };
+                    foreach (var item in AddItems()) menu.Items.Add(item);
+                    menu.ShowAt(add!);
+                }),
+                Icons.ToolButton(Symbol(FASymbol.Delete), "Delete the selected nodes (Del)", DeleteSelection),
+                new Separator { Margin = new(4, 2) },
+                arrange, align,
+            },
+        };
+        add = (Button)tools.Children[0];
+        DockPanel.SetDock(tools, Avalonia.Controls.Dock.Left);
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
@@ -500,11 +513,11 @@ public sealed class CanvasView : UserControl
         }
         DataState();
         Workspace.Changed += DataState;
-        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, compare, zoomBar, add, delete, up, down, align, sync, previewToggle, dataToggle, run, status } });
+        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, compare, zoomBar, sync, previewToggle, dataToggle, run, status } });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         designScope.Child = zoomHost;
         viewport.Content = designScope;
-        Content = new DockPanel { Children = { bar, viewport } };
+        Content = new DockPanel { Children = { bar, tools, viewport } };
     }
 
     /// <summary>

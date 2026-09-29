@@ -36,16 +36,38 @@ public static class Icons
         [(false, "End")] = "M3,19H21V21H3Z M6,7H10V17H6Z M14,3H18V17H14Z",
     };
 
-    /// <summary>An align button (tooltip translated).</summary>
-    public static Button Align(bool horizontal, string where, string tip, Action click)
+    public static PathIcon Align(bool horizontal, string where) => new() { Data = Geometry.Parse(AlignPaths[(horizontal, where)]), Width = 16, Height = 16 };
+
+    /// <summary>A tool of a tool panel: its icon (made fresh for each place it shows), tooltip and action.</summary>
+    public sealed record Tool(Func<Control> Icon, string Tip, Action Run);
+
+    /// <summary>A square tool button (Adobe's tool panel).</summary>
+    public static Button ToolButton(Control icon, string tip, Action click)
     {
-        var button = new Button
-        {
-            Content = new PathIcon { Data = Geometry.Parse(AlignPaths[(horizontal, where)]), Width = 16, Height = 16 },
-            Padding = new(6, 4),
-            [ToolTip.TipProperty] = L.T(tip),
-        };
+        var button = new Button { Content = icon, Width = 36, Height = 36, Padding = new(0), HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center, VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center, [ToolTip.TipProperty] = L.T(tip) };
         button.Click += (_, _) => click();
+        return button;
+    }
+
+    /// <summary>
+    /// Grouped tools, as in Adobe's tool panel: the button shows the last tool used (a corner mark says there are more);
+    /// clicking it opens the group beside it.
+    /// </summary>
+    public static Button ToolGroup(string tip, IReadOnlyList<Tool> tools)
+    {
+        var face = new Border { Child = tools[0].Icon() };
+        var mark = new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse("M6,0L6,6L0,6Z"), Fill = Brushes.Gray, Width = 6, Height = 6, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom, Margin = new(0, 0, -8, -8) };
+        var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 2 };
+        var flyout = new Flyout { Content = row, Placement = PlacementMode.RightEdgeAlignedTop };
+        foreach (var tool in tools)
+            row.Children.Add(ToolButton(tool.Icon(), tool.Tip, () =>
+            {
+                flyout.Hide();
+                face.Child = tool.Icon();
+                tool.Run();
+            }));
+        Button? button = null;
+        button = ToolButton(new Panel { Children = { face, mark } }, tip, () => flyout.ShowAt(button!));
         return button;
     }
 

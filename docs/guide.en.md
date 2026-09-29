@@ -112,7 +112,8 @@ In the same dialog, choose `Fluent` or `Material 3`, a seed color, and light or 
 - Undo / redo: Ctrl+Z / Ctrl+Y (UI edits if you last touched the canvas, code edits if you last touched the code)
 - Copy, paste, duplicate: Ctrl+C / Ctrl+V / Ctrl+D (bindings are duplicated too)
 - Delete: Delete; reorder: Alt+↑ / Alt+↓; right-click for more, such as Wrap in a container
-- **Align**: the align buttons above the canvas (left / center / right, top / middle / bottom). In a row, Align right puts a Spacer before the node so it sits at the right end; across a column it aligns just that node; in an Overlay it changes the anchor
+- **Tool panel**: down the canvas's left edge: add, delete, arrange and align (as in Adobe's tool panel, a button with a corner mark opens its group, and shows the tool used last)
+- **Align**: the Align tools (left / center / right, top / middle / bottom). In a row, Align right puts a Spacer before the node so it sits at the right end; across a column it aligns just that node; in an Overlay it changes the anchor
 - **Edit text**: double-click a text, button or text input on the canvas to change its text in place (Enter keeps it, Esc cancels)
 - The Console's **History** tab lists your UI edits: click one to go back to it
 
