@@ -417,7 +417,7 @@ public partial class MainWindow : Window
         {
             new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = $"Faro {App.Version}", FontSize = 20, FontWeight = FontWeight.SemiBold },
-            new TextBlock { Text = L.T("A visual UI editor: draw your app's screens and bind them to your C# or Java code.\n“Faro” is Italian for lighthouse."), TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("A visual UI editor: draw your app's screens and bind them to your C# or Java code."), TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = L.T("MIT License. The open-source components Faro uses are under Licenses."), Opacity = 0.7, TextWrapping = TextWrapping.Wrap },
             new StackPanel
             {

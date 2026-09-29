@@ -3,7 +3,7 @@
 <img src="assets/faro-icon.png" width="96" align="right" alt="Faro icon">
 
 **アプリの画面を描いて、C# / Java のコードに紐付けるビジュアル UI エディター。**
-Figma のように画面を描き、ボタンや一覧をコードのクラス・メソッドに紐付けると、そのまま動くアプリになります。“Faro” はイタリア語で灯台のことです。
+Figma のように画面を描き、ボタンや一覧をコードのクラス・メソッドに紐付けると、そのまま動くアプリになります。
 
 [English](#english) · [はじめてガイド](docs/guide.md) · [ダウンロード](https://github.com/thesilver0913/faro-editor/releases)
 
@@ -58,7 +58,7 @@ dotnet run --project tests/Faro.Checks                      # セルフチェッ
 
 ## English
 
-**A visual UI editor: draw your app's screens and bind them to your C# or Java code.** Lay out screens like in Figma, bind buttons and lists to your classes and methods, and it runs as a real app (Avalonia for C#, JavaFX for Java). “Faro” is Italian for lighthouse.
+**A visual UI editor: draw your app's screens and bind them to your C# or Java code.** Lay out screens like in Figma, bind buttons and lists to your classes and methods, and it runs as a real app (Avalonia for C#, JavaFX for Java).
 
 - **Get started**: install Faro from [Releases](https://github.com/thesilver0913/faro-editor/releases), create a new project from the **Sample** template, and follow the [Getting Started guide](docs/guide.en.md).
 - **Features**: layout without absolute positions, components and variants, tokens, Fluent / Material 3; bindings for events, text, lists, row selection and navigation with broken-binding hints; preview with live data, side-by-side sizes and themes, run with hot reload (C#), debugger; AI chat (Claude or OpenAI-compatible); code editor with completion, Git, Android APKs, English / Japanese UI.

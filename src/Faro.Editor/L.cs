@@ -72,7 +72,7 @@ public static class L
         [" (Restricted Mode)"] = "(制限モード)", ["Faro.Runtime update"] = "Faro.Runtime の更新", ["Update"] = "更新",
         ["This project uses Faro.Runtime {0}. This Faro ships {1}. Update the project to it?"] = "このプロジェクトは Faro.Runtime {0} を使っています。この Faro には {1} が入っています。更新しますか？",
         ["About Faro"] = "Faro について",
-        ["A visual UI editor: draw your app's screens and bind them to your C# or Java code.\n“Faro” is Italian for lighthouse."] = "アプリの画面を描いて、C# / Java のコードに紐付けるビジュアル UI エディターです。\n“Faro” はイタリア語で灯台のことです。",
+        ["A visual UI editor: draw your app's screens and bind them to your C# or Java code."] = "アプリの画面を描いて、C# / Java のコードに紐付けるビジュアル UI エディターです。",
         ["MIT License. The open-source components Faro uses are under Licenses."] = "MIT ライセンス。Faro が使っているオープンソースは「ライセンス」から見られます。", ["Licenses"] = "ライセンス",
 
         // Explorer
