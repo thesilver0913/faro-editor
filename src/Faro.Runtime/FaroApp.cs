@@ -92,6 +92,10 @@ public static class FaroApp
             window.Opened += (_, _) => Navigate(start); // after Opened: the error window needs a visible owner
         }
         else if (lifetime is IActivityApplicationLifetime activity) // Android: a new view per activity, the same screen
+        {
+            // Android may end a backgrounded app without Run returning: persistent instances are saved on the way out.
+            if (Application.Current?.TryGetFeature<IActivatableLifetime>() is { } activatable)
+                activatable.Deactivated += (_, _) => { foreach (var o in screenScoped.Values.Concat(singletons.Values)) Save(o); };
             activity.MainViewFactory = () =>
             {
                 (host.Parent as Panel)?.Children.Clear();
@@ -100,6 +104,7 @@ public static class FaroApp
                 if (host.Content is null) Navigate(start);
                 return view;
             };
+        }
     }
 
     /// <summary>What the last Navigate passed: the new screen's binds to members of its class use it (e.g. the tapped row's item).</summary>
@@ -116,12 +121,13 @@ public static class FaroApp
         Release(screenScoped.Values);
         screenScoped = [];
         Parameter = parameter;
+        if (errors is not null) errors.IsVisible = false; // Android: the last screen's errors
 
         var byId = new Dictionary<string, Control>();
         host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
         if (window is not null) window.Title = screenId;
-        var errors = Bind(graph.Root!.Element("Node")!, screenId, byId, events: true);
-        if (errors.Count > 0) ShowError(string.Join("\n\n", errors));
+        var failed = Bind(graph.Root!.Element("Node")!, screenId, byId, events: true);
+        if (failed.Count > 0) ShowError(string.Join("\n\n", failed));
     }
 
     /// <summary>
@@ -214,7 +220,16 @@ public static class FaroApp
             else if (host is not null) ShowError(string.Join("\n\n", errors));
         }
         changed = (_, _) => Render();
-        if (owner is INotifyPropertyChanged notify) notify.PropertyChanged += (_, e) => { if (e.PropertyName == prop.Name) Render(); };
+        if (owner is INotifyPropertyChanged notify)
+        {
+            PropertyChangedEventHandler replaced = null!;
+            replaced = (_, e) =>
+            {
+                if (host?.Content != screen) notify.PropertyChanged -= replaced; // a singleton owner: let go of the left screen
+                else if (e.PropertyName == prop.Name) Render();
+            };
+            notify.PropertyChanged += replaced;
+        }
         Render();
         firstErrors = null;
     }
@@ -278,9 +293,11 @@ public static class FaroApp
         };
         if (store?.TryGetValue(type, out var existing) == true) return existing;
         var path = PersistPath(type);
-        var created = attr?.Persistent == true && File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), type)!
-            : Activator.CreateInstance(type)!;
+        object? saved = null;
+        if (attr?.Persistent == true && File.Exists(path))
+            try { saved = JsonSerializer.Deserialize(File.ReadAllText(path), type); }
+            catch (Exception e) when (e is JsonException or NotSupportedException or IOException) { } // a damaged save: start fresh
+        var created = saved ?? Activator.CreateInstance(type)!;
         if (store is not null) store[type] = created;
         return created;
     }
@@ -289,13 +306,20 @@ public static class FaroApp
     {
         foreach (var o in instances)
         {
-            if (o.GetType().GetCustomAttribute<FaroLifetimeAttribute>()?.Persistent == true)
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(PersistPath(o.GetType()))!);
-                File.WriteAllText(PersistPath(o.GetType()), JsonSerializer.Serialize(o, o.GetType()));
-            }
+            Save(o);
             (o as IDisposable)?.Dispose();
         }
+    }
+
+    static void Save(object o)
+    {
+        if (o.GetType().GetCustomAttribute<FaroLifetimeAttribute>()?.Persistent != true) return;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(PersistPath(o.GetType()))!);
+            File.WriteAllText(PersistPath(o.GetType()), JsonSerializer.Serialize(o, o.GetType()));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException) { Console.Error.WriteLine($"Faro: couldn't save {o.GetType()}: {e.Message}"); }
     }
 
     static string PersistPath(Type type) => Path.Combine(

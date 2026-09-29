@@ -58,13 +58,15 @@ public sealed class FaroSettings
     static FaroSettings Load()
     {
         try { return JsonSerializer.Deserialize<FaroSettings>(File.ReadAllText(FilePath)) ?? new(); }
-        catch (Exception e) when (e is IOException or JsonException) { return new(); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { return new(); }
     }
 
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this));
+        var temp = FilePath + ".tmp"; // written whole, then swapped in: a crash mid-save can't lose the settings (trusted projects, recents)
+        File.WriteAllText(temp, JsonSerializer.Serialize(this));
+        File.Move(temp, FilePath, overwrite: true);
     }
 
     public IChatProvider CreateProvider() => Provider == "Claude"

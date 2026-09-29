@@ -34,6 +34,15 @@ public partial class App : Application
             desktop.MainWindow.Show();
             return;
         }
+        // A file Faro can't read or write (locked by another program, no permission) is reported, not a crash.
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            if (e.Exception is not (IOException or UnauthorizedAccessException)) return;
+            e.Handled = true;
+            Log.Error("File access", e.Exception);
+            if (desktop.MainWindow is { } owner)
+                _ = Dialogs.Info(owner, L.T("Couldn't access a file"), new TextBlock { Text = e.Exception.Message, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 });
+        };
         // Discarded untitled projects go once no earlier Faro process holds their files.
         _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(() => ProjectSetup.DeletePending(Workspace.Root.Length > 0 ? Workspace.Root : null)));
         if (FaroSettings.Current.SetupDone) Start(desktop, null);
@@ -91,8 +100,7 @@ public partial class App : Application
             try
             {
                 using var restore = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("dotnet", ["restore"]) { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true })!;
-                await restore.StandardOutput.ReadToEndAsync();
-                await restore.WaitForExitAsync();
+                await Task.WhenAll(restore.StandardOutput.ReadToEndAsync(), restore.StandardError.ReadToEndAsync(), restore.WaitForExitAsync()); // both pipes drained: a full one would hang the splash
             }
             catch (System.ComponentModel.Win32Exception) { } // no dotnet on PATH: the code pane will show unresolved references
         }

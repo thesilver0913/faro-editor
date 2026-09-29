@@ -14,6 +14,10 @@ public static class L
 
     public static string F(string english, params object?[] args) => string.Format(T(english), args);
 
+    /// <summary>A UI history step's label: a whole entry ("Rename node"), else "Verb rest" through "Verb {0}" ("Set width" → "width を設定").</summary>
+    public static string Step(string label) =>
+        !Japanese || Ja.ContainsKey(label) ? T(label) : label.Split(' ', 2) is [var verb, var rest] && Ja.ContainsKey(verb + " {0}") ? F(verb + " {0}", rest) : label;
+
     /// <summary>A word whose translation depends on where it's used ("Start" of an alignment isn't "Start" the app): "context|English" in the table.</summary>
     public static string T(string english, string context) => Japanese && Ja.TryGetValue(context + "|" + english, out var japanese) ? japanese : english;
 
@@ -78,7 +82,7 @@ public static class L
         ["Move"] = "移動", ["{0} has unsaved changes. Save it first."] = "{0} に未保存の変更があります。先に保存してください。",
         ["Rename…"] = "名前の変更…", ["Delete"] = "削除", ["New Screen"] = "新しい画面", ["New Component"] = "新しいコンポーネント", ["ID:"] = "ID:",
         ["New C# Class"] = "新しい C# クラス", ["New Java Class"] = "新しい Java クラス", ["New Java Class…"] = "新しい Java クラス…",
-        ["Java: syntax colors only (no language server yet)"] = "Java:色分けのみ(言語サーバーは未対応)", ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}",
+        ["Couldn't start {0}: {1}"] = "{0} を起動できませんでした: {1}", ["Couldn't access a file"] = "ファイルにアクセスできませんでした",
         ["Maven isn't installed, or `mvn` isn't on the PATH Faro sees. Install the JDK 21 and Maven from Preferences › Tools, or install them yourself (Ubuntu: sudo apt install maven openjdk-21-jdk) and restart Faro."]
             = "Maven が入っていないか、Faro から `mvn` が見えません。環境設定 › 部品 から JDK 21 と Maven を入れるか、自分で入れて(Ubuntu:sudo apt install maven openjdk-21-jdk)Faro を起動し直してください。",
         ["Tools"] = "部品", ["Installed"] = "導入済み", ["Not installed"] = "未導入",
@@ -120,7 +124,7 @@ public static class L
         ["Describe the class or method you need… (Ctrl+Enter to send)"] = "必要なクラスやメソッドを説明してください…(Ctrl+Enter で送信)",
         ["Approve"] = "承認", ["Reject"] = "却下", ["New file: "] = "新規ファイル: ", ["Change: "] = "変更: ", ["Syntax error, "] = "構文エラー、",
         ["`{0}` is being edited in the code editor (unsaved changes). Save it first, then ask again."] = "`{0}` はコードエディタで編集中です(未保存)。保存してからもう一度依頼してください。",
-        ["Ignored {0}: generated files must be .cs files under Source/."] = "{0} は無視しました: 生成できるのは Source/ 以下の .cs ファイルだけです。",
+        ["Ignored {0}: generated files must be {1} files under Source/."] = "{0} は無視しました: 生成できるのは Source/ 以下の {1} ファイルだけです。", ["`{0}` is being edited in the code editor (unsaved changes). Save it to approve."] = "`{0}` はコードエディタで編集中です(未保存)。保存すると承認できます。",
         ["Changed on disk"] = "ディスク上で変更されています", ["Overwrite"] = "上書き",
         ["{0} changed outside Faro since it was opened. Saving overwrites those changes."] = "{0} は開いた後に Faro の外で変更されました。保存するとその変更を上書きします。",
         ["Changed on disk too: saving will ask before overwriting."] = "ディスク上でも変更されています。保存するときに上書きを確認します。",
@@ -202,6 +206,15 @@ public static class L
         ["Install"] = "インストール", ["Download"] = "ダウンロード", ["Release Notes"] = "リリースノート",
         ["Fit"] = "全体表示", ["Add"] = "追加", ["Cut"] = "切り取り", ["Copy"] = "コピー", ["Paste"] = "貼り付け", ["Duplicate"] = "複製",
         ["Move up"] = "前へ移動", ["Move down"] = "後ろへ移動", ["Select parent"] = "親を選択", ["Wrap in"] = "コンテナで囲む", ["Edit master component"] = "マスターを編集",
+        // UI history steps (History tab)
+        ["Set {0}"] = "{0} を設定", ["Add {0}"] = "{0} を追加", ["Delete {0}"] = "{0} を削除", ["Move {0}"] = "{0} を移動", ["Resize {0}"] = "{0} のサイズ変更",
+        ["Rename node"] = "Node の名前変更", ["Add image"] = "画像を追加", ["Add binding"] = "紐付けを追加", ["Rebind"] = "紐付け先を変更",
+        ["Set script class"] = "Script のクラスを設定", ["Set variant"] = "バリアントを設定", ["Set repeatable"] = "繰り返しを設定", ["Set mock rows"] = "モック行を設定",
+        ["Set binding target"] = "紐付け先を設定", ["Set binding mode"] = "紐付けのモードを設定", ["Set binding format"] = "紐付けの書式を設定",
+        ["Sync components"] = "コンポーネントを同期", ["Set design"] = "デザインを設定", ["New screen"] = "新しい画面", ["New component"] = "新しいコンポーネント",
+        ["Rename screen"] = "画面の名前変更", ["Rename component"] = "コンポーネントの名前変更", ["Delete screen"] = "画面を削除", ["Delete component"] = "コンポーネントを削除",
+        ["{0} was changed outside Faro, so \"{1}\" can't be undone or redone."] = "{0} が Faro の外で変更されたため、「{1}」は元に戻せません(やり直せません)。",
+        ["Saved {0}."] = "{0} を保存しました。", ["Saved. Bindings followed: "] = "保存しました。紐付けを追従: ",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

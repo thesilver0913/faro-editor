@@ -43,7 +43,7 @@ public sealed class HistoryView : UserControl
     void Build()
     {
         building = true;
-        var labels = UiHistory.Labels.Prepend(L.T("Opened")).ToList();
+        var labels = UiHistory.Labels.Select(L.Step).Prepend(L.T("Opened")).ToList();
         list.ItemsSource = labels.Select((label, i) => new ListBoxItem { Content = label, Opacity = i > UiHistory.Applied ? 0.45 : 1 }).ToList();
         list.SelectedIndex = UiHistory.Applied;
         building = false;

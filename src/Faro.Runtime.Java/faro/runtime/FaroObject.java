@@ -10,6 +10,8 @@ public abstract class FaroObject {
 
     public void addChangeListener(Consumer<String> listener) { listeners.add(listener); }
 
+    public void removeChangeListener(Consumer<String> listener) { listeners.remove(listener); }
+
     /** Tells bindings these properties changed; they read the getters again. */
     protected void changed(String... properties) {
         for (var property : properties)

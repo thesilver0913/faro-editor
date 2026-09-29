@@ -182,7 +182,7 @@ public final class FaroApp {
             if (!errors.isEmpty()) showError(String.join("\n\n", errors));
         };
         render.run();
-        if (owner instanceof FaroObject observable) observable.addChangeListener(changed -> { if (changed.equals(name)) render.run(); });
+        if (owner instanceof FaroObject observable) watch(observable, name, render);
     }
 
     /** Members of the row item's class (inside a list) or of the navigation parameter's class bind to that object. */
@@ -232,7 +232,7 @@ public final class FaroApp {
                 catch (ReflectiveOperationException e) { showError(target + ": " + e.getCause()); }
             };
             pull.run();
-            if (source instanceof FaroObject observable) observable.addChangeListener(changed -> { if (changed.equals(name)) pull.run(); });
+            if (source instanceof FaroObject observable) watch(observable, name, pull);
             if ("TwoWay".equals(bind.getAttribute("mode"))) {
                 var setter = setter(type, name, getter.getReturnType());
                 fx.addListener((o, before, after) -> {
@@ -241,6 +241,17 @@ public final class FaroApp {
                 });
             }
         }
+    }
+
+    /** Runs <code>update</code> when the property changes, until the screen is left (a singleton outlives it: no stale listeners). */
+    private static void watch(FaroObject observable, String property, Runnable update) {
+        var screen = stage.getScene().getRoot();
+        @SuppressWarnings("unchecked") Consumer<String>[] self = new Consumer[1];
+        self[0] = changed -> {
+            if (stage.getScene().getRoot() != screen) observable.removeChangeListener(self[0]);
+            else if (changed.equals(property)) update.run();
+        };
+        observable.addChangeListener(self[0]);
     }
 
     /** Neutral event names → JavaFX. */
@@ -334,8 +345,11 @@ public final class FaroApp {
             var text = saved.getProperty(m.getName().substring(3));
             if (text == null) continue;
             var t = m.getParameterTypes()[0];
-            Object value = t == String.class ? text : t == int.class ? Integer.valueOf(text) : t == long.class ? Long.valueOf(text)
-                : t == double.class ? Double.valueOf(text) : t == boolean.class ? Boolean.valueOf(text) : null;
+            Object value;
+            try {
+                value = t == String.class ? text : t == int.class ? Integer.valueOf(text) : t == long.class ? Long.valueOf(text)
+                    : t == double.class ? Double.valueOf(text) : t == boolean.class ? Boolean.valueOf(text) : null;
+            } catch (NumberFormatException e) { continue; } // a damaged value: keep the default
             if (value != null) m.invoke(o, value);
         }
     }
@@ -346,8 +360,9 @@ public final class FaroApp {
             if (lifetime != null && lifetime.persistent()) {
                 var saved = new Properties();
                 for (var m : o.getClass().getMethods())
-                    if (m.getName().startsWith("get") && m.getParameterCount() == 0 && m.getDeclaringClass() != Object.class && (m.getReturnType().isPrimitive() || m.getReturnType() == String.class))
-                        try { saved.setProperty(m.getName().substring(3), String.valueOf(m.invoke(o))); } catch (ReflectiveOperationException ignored) { }
+                    if ((m.getName().startsWith("get") || m.getName().startsWith("is") && m.getReturnType() == boolean.class) && m.getParameterCount() == 0
+                        && m.getDeclaringClass() != Object.class && (m.getReturnType().isPrimitive() || m.getReturnType() == String.class))
+                        try { saved.setProperty(m.getName().substring(m.getName().startsWith("is") ? 2 : 3), String.valueOf(m.invoke(o))); } catch (ReflectiveOperationException ignored) { }
                 var file = persistFile(o.getClass());
                 file.getParentFile().mkdirs();
                 try (var out = new FileWriter(file, java.nio.charset.StandardCharsets.UTF_8)) { saved.store(out, "Faro"); }

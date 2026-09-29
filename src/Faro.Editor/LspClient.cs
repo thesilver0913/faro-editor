@@ -125,7 +125,7 @@ public sealed class LspClient : IDisposable
     void ReadLoop()
     {
         var stdout = process.StandardOutput.BaseStream;
-        while (ReadMessage(stdout) is { } message)
+        while (Next(stdout) is { } message)
         {
             if (message["method"] is null && message["id"] is { } id)
             {
@@ -137,6 +137,19 @@ public sealed class LspClient : IDisposable
                 Diagnostics?.Invoke((string)message["params"]!["uri"]!, message["params"]!["diagnostics"]!.AsArray());
             else if (message["id"] is { } requestId) // server→client request we don't implement
                 Send(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = requestId.DeepClone(), ["result"] = null });
+        }
+        try { if (!process.HasExited) process.Kill(); } // unreadable output: restart it (Exited) rather than hang
+        catch (InvalidOperationException) { }
+    }
+
+    /// <summary>The next message, or null once the server is gone or sends something unreadable (this thread must not throw: it would end Faro).</summary>
+    public static JsonNode? Next(Stream stream)
+    {
+        try { return ReadMessage(stream); }
+        catch (Exception e) when (e is IOException or System.Text.Json.JsonException or FormatException or OverflowException or ObjectDisposedException)
+        {
+            Log.Error("Language server / debugger connection", e);
+            return null;
         }
     }
 

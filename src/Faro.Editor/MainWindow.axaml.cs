@@ -59,13 +59,16 @@ public partial class MainWindow : Window
         {
             if (closeConfirmed) return;
             e.Cancel = true;
-            if (!await LeaveUntitled()) return;
-            if (CodeView.AnyDirty && !await Dialogs.Confirm(this, L.T("Unsaved changes"), L.T("Some code files have unsaved changes. Close Faro and discard them?"), L.T("Discard and Close")))
-                return;
+            if (!await ConfirmClose()) return;
             closeConfirmed = true;
             Close();
         };
     }
+
+    /// <summary>Before Faro ends (closing, installing an update): the untitled project and unsaved code are dealt with; false to stay.</summary>
+    public async Task<bool> ConfirmClose() =>
+        await LeaveUntitled()
+        && (!CodeView.AnyDirty || await Dialogs.Confirm(this, L.T("Unsaved changes"), L.T("Some code files have unsaved changes. Close Faro and discard them?"), L.T("Discard and Close")));
 
     // Layout (spec §14)
 
@@ -399,9 +402,9 @@ public partial class MainWindow : Window
 
     // Help
 
-    // ponytail: the guide on canary (main stays empty until the stable release); switch to main then
+    /// <summary>The getting-started guide on main (the stable release's docs), in the UI language.</summary>
     void OpenGuide(object? sender, RoutedEventArgs e) =>
-        Updates.Open($"https://github.com/{Updates.Repository}/blob/canary/docs/{(FaroSettings.Current.Language == "ja" ? "guide.md" : "guide.en.md")}");
+        Updates.Open($"https://github.com/{Updates.Repository}/blob/main/docs/{(FaroSettings.Current.Language == "ja" ? "guide.md" : "guide.en.md")}");
 
     void CheckUpdates(object? sender, RoutedEventArgs e) => Updates.Offer(this, manual: true);
 
