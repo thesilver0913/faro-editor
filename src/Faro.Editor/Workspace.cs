@@ -43,7 +43,7 @@ public static class Workspace
         FileSystemEventHandler onChange = (_, e) =>
         {
             var rel = Path.GetRelativePath(root, e.FullPath);
-            if (rel.Split(Path.DirectorySeparatorChar)[0] is "UI" or "Bindings" or "Source" && !reloadQueued)
+            if (rel.Split(Path.DirectorySeparatorChar)[0] is "UI" or "Bindings" or "Source" or "Comments" && !reloadQueued)
             {
                 reloadQueued = true; // one save raises several events: one reload for all of them
                 Dispatcher.UIThread.Post(() => { reloadQueued = false; Reload(); }, DispatcherPriority.Background);

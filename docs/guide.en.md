@@ -231,7 +231,11 @@ The debugger (netcoredbg for C#, java-debug for Java) is downloaded automaticall
 ![Source Control](images/source-control.png)
 
 - **Android**: File › Build Android APK puts an APK in `dist/` (the first time, it fetches the Android tools, which takes a while; Java is Linux only)
-- A project is a plain folder: `UI/` (screens), `Bindings/` (bindings), `Source/` (code), `Assets/` (images), `faro.json` (settings)
+- A project is a plain folder: `UI/` (screens), `Bindings/` (bindings), `Source/` (code), `Assets/` (images), `Comments/` (review comments), `faro.json` (settings)
+
+### Comments (review)
+
+Right-click a node on the canvas › **Comment…** (with nothing selected, it's on the screen). A commented node gets a yellow pin; clicking it opens the Console's **Comments** tab, where you reply (Enter), **Resolve** / **Reopen** or delete, and filter to unresolved ones. Comments are saved in `Comments/<screenId>.xml`, so committing them shares them with your team through Git (the author is git's `user.name`). Renaming a node takes its comments along; a removed node's comments stay, marked "(removed)". They are never packed into the app.
 
 ---
 

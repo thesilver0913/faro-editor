@@ -108,6 +108,23 @@ Check(UiHistory.Labels.TakeLast(3).SequenceEqual(["Write one", "Write two", "Wri
 File.Delete(historyFile);
 UiHistory.Clear();
 
+// Review comments: Comments/<screen>.xml, threads with replies and resolved; a node rename and a screen rename take them along
+Avalonia.Threading.Dispatcher.UIThread.VerifyAccess(); // the dispatcher belongs to this thread, not the file watcher's
+Workspace.Open(root);
+Comments.Add(root, "MainScreen", "title", "Bigger title?");
+Comments.Reply(Comments.Load(root, "MainScreen")!.Root!.Element("Comment")!, "Done in 22px");
+Comments.SetResolved(Comments.Load(root, "MainScreen")!.Root!.Element("Comment")!, true);
+var commentScreen = Workspace.Project!.Graph("MainScreen")!;
+UiHistory.Commit("Rename node", CanvasEdit.Rename(Workspace.Project, commentScreen, "title", "heading").Changed);
+var thread = Comments.All(root).Single();
+Check(thread.Screen == "MainScreen" && (string?)thread.Comment.Attribute("node") == "heading" && Comments.IsResolved(thread.Comment)
+    && thread.Comment.Elements("Reply").Single().Attribute("text")!.Value == "Done in 22px" && thread.Comment.Attribute("author")!.Value.Length > 0
+    && ProjectFiles.RenameScreen(Workspace.Project, "MainScreen", "Home") is var moves && moves.ContainsKey(Comments.PathFor(root, "Home")) && moves[Comments.PathFor(root, "MainScreen")] is null,
+    "review comments: replies, resolve, follow node and screen renames");
+UiHistory.Undo(); // the rename
+Directory.Delete(Path.Combine(root, "Comments"), true);
+UiHistory.Clear();
+
 // Debugger: breakpoints toggle per line; LSP and DAP share the Content-Length framing.
 Debugger.Toggle("/p/A.cs", 3); Debugger.Toggle("/p/A.cs", 5); Debugger.Toggle("/p/A.cs", 3);
 var dapBody = """{"type":"event","event":"stopped","body":{"threadId":1}}""";
