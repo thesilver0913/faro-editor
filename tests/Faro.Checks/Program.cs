@@ -343,6 +343,14 @@ Check(JavaProject.ClassFile("shop/cart", "Cart") is var javaClass && javaClass.S
 Check(BuildError.Parse("[ERROR] /home/me/App/Source/app/Foo.java:[12,5] cannot find symbol", out _) == new BuildError("/home/me/App/Source/app/Foo.java", 12, 5, "javac", "cannot find symbol"), "Maven compile error parsed");
 Check(JavaProject.DesignCss(new AppDesign("Material3")) is { } javaCss && javaCss.Contains("m3-primary: #65558f;") && javaCss.Contains(".button.m3-variant-tonal")
     && JavaProject.DesignCss(new AppDesign()) is null, "JavaFX Material 3 stylesheet from the seed");
+// Every resource Looks.axaml draws with is in each language's table, light and dark; the Java CSS comes out whole
+var looksXaml = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Faro.Runtime/Looks.axaml")));
+var lookKeys = System.Text.RegularExpressions.Regex.Matches(looksXaml, @"DynamicResource (Faro\w+)").Select(m => m.Groups[1].Value).Distinct().ToList();
+var palette = MaterialColorUtilities.Palettes.CorePalette.Of(0xFF6750A4, MaterialColorUtilities.Palettes.Style.TonalSpot);
+var missingLook = DesignLooks.Languages.SelectMany(l => new[] { false, true }.SelectMany(dark => lookKeys.Where(k => k != "FaroFont" && !DesignLooks.Look(l, palette, dark).ContainsKey(k)).Select(k => $"{l}/{(dark ? "dark" : "light")}: {k}"))).ToList();
+Check(lookKeys.Count > 30 && missingLook.Count == 0 && AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse("""{"language":"Neumorphism"}""")).Language == "Neumorphism", "design languages fill every look resource" + (missingLook.Count > 0 ? ": " + string.Join(", ", missingLook.Take(5)) : ""));
+Check(DesignLooks.Languages.All(l => JavaProject.DesignCss(new AppDesign(l, AppDesign.DefaultSeed, "Dark")) is { } css && css.Contains(".check-box.faro-switch > .box") && !css.Contains("NaN") && !css.Contains("{{"))
+    && JavaProject.DesignCss(new AppDesign("NeoBrutalism"))!.Contains("-fx-translate-x: 4"), "JavaFX stylesheets for the other design languages");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))
     && Throws<ArgumentException>(() => ProjectSetup.Create("relative/dir", "Ok", "Empty")) && Path.IsPathRooted(ProjectSetup.DefaultLocation), "project name and location validated");
 var existing = Path.Combine(projects, "existing-folder");

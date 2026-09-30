@@ -189,7 +189,7 @@ public static class L
         ["Git is off in Restricted Mode."] = "制限モードでは Git は使えません。", ["Git isn't installed (git-scm.com)."] = "Git が入っていません(git-scm.com)。",
         ["This folder isn't a Git repository."] = "このフォルダは Git リポジトリではありません。", ["Branch: {0}"] = "ブランチ: {0}", ["No changes."] = "変更はありません。", ["Done."] = "完了しました。",
         ["Close"] = "閉じる", ["Project _Design…"] = "プロジェクトのデザイン(_D)…", ["Project Design"] = "プロジェクトのデザイン", ["Design language"] = "デザイン言語", ["Seed color"] = "シードカラー", ["Apply"] = "適用",
-        ["Material 3 generates its color roles (light and dark) from the seed color. Nodes get Material 3 options in the inspector."] = "Material 3 はシードカラーから色の役割(ライト・ダーク)を作ります。各 Node の Material 3 の設定はインスペクターにあります。",
+        ["Every design language takes its colors (light and dark) from the seed color. Material 3 also gives nodes options in the inspector; Cupertino (iOS), Neumorphism (soft raised shapes), NeoBrutalism (thick outlines, hard shadows) and Simple (quiet, neutral) restyle the parts as they are."] = "どのデザイン言語もシードカラーから色(ライト・ダーク)を作ります。Material 3 は各 Node の設定がインスペクターにあります。Cupertino(iOS 風)、Neumorphism(柔らかく浮き出る形)、NeoBrutalism(太い輪郭と硬い影)、Simple(落ち着いた無彩色)は部品をそのまま着せ替えます。",
         ["Material 3"] = "Material 3", ["Variant"] = "種類", ["Size"] = "サイズ", ["Shape"] = "形", ["Type"] = "文字スタイル", ["Emphasized"] = "強調", ["Color"] = "色", ["Surface"] = "面の色", ["Corner"] = "角丸", ["Elevation"] = "影の高さ",
         ["Open _Logs Folder"] = "ログフォルダーを開く(_L)", ["_Getting Started Guide"] = "はじめてガイド(_G)", ["Faro quit unexpectedly"] = "Faro が予期せず終了しました", ["Report Issue"] = "問題を報告",
         ["A crash report was saved. Sending it as an issue helps fix the problem. Nothing is sent without you."] = "クラッシュレポートを保存しました。Issue として送っていただくと修正に役立ちます。操作しない限り何も送信されません。",

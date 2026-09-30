@@ -105,7 +105,18 @@ Change a token once and every screen follows.
 
 ### Design language
 
-In the same dialog, choose `Fluent` or `Material 3`, a seed color, and light or dark. With Material 3, the inspector's Material 3 section offers per-node options such as the button style (Filled / Tonal / Outlined…).
+In the same dialog, choose a design language, a seed color, and light or dark.
+
+| Design language | Look |
+|---|---|
+| Fluent | Windows-like (Avalonia's default) |
+| Material 3 | Google's Material 3 Expressive. The inspector's Material 3 section offers per-node options such as the button style (Filled / Tonal / Outlined…) |
+| Cupertino | iOS-like |
+| Neumorphism | Soft shapes raised from the surface |
+| NeoBrutalism | Bright colors, thick outlines, hard shadows |
+| Simple | Quiet and neutral (in the style of shadcn/ui) |
+
+Every language takes its colors from the seed color.
 
 ### Editing basics
 
