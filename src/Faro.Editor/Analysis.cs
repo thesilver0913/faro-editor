@@ -748,7 +748,10 @@ public static class CanvasEdit
         node.SetAttributeValue("id", newId);
         var binds = project.BindsFor(ScreenId(screen)).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == oldId || n.StartsWith(oldId + "/"))).ToList();
         binds.ForEach(b => b.SetAttributeValue("nodeId", newId + ((string)b.Attribute("nodeId")!)[oldId.Length..]));
-        return (null, [screen, .. binds.Select(b => b.Document!).Distinct()]);
+        var notes = Comments.Load(project.Root, ScreenId(screen));
+        var moved = notes?.Descendants("Comment").Where(c => (string?)c.Attribute("node") == oldId).ToList() ?? [];
+        moved.ForEach(c => c.SetAttributeValue("node", newId)); // its comments go along
+        return (null, [screen, .. binds.Select(b => b.Document!).Distinct(), .. moved.Count > 0 ? [notes!] : Array.Empty<XDocument>()]);
     }
 
     /// <summary>The screen's own Bindings/&lt;screenId&gt;.xml, created (empty) when missing.</summary>
@@ -869,12 +872,18 @@ public static partial class ProjectFiles
         var changes = new Dictionary<string, string?> { [PathOf(doc)] = null };
         if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == (string?)doc.Root!.Attribute("id")) is { } own)
             changes[PathOf(own)] = null;
+        if (File.Exists(Comments.PathFor(project.Root, (string)doc.Root!.Attribute("id")!))) changes[Comments.PathFor(project.Root, (string)doc.Root!.Attribute("id")!)] = null;
         return changes;
     }
 
-    /// <summary>A screen's or component's own bindings file moves with its id.</summary>
+    /// <summary>A screen's or component's own bindings file (and comments) moves with its id.</summary>
     static void MoveBindings(FaroProject project, string oldId, string newId, Dictionary<string, string?> changes)
     {
+        if (File.Exists(Comments.PathFor(project.Root, oldId))) // and its review comments
+        {
+            changes[Comments.PathFor(project.Root, newId)] = File.ReadAllText(Comments.PathFor(project.Root, oldId));
+            changes[Comments.PathFor(project.Root, oldId)] = null;
+        }
         if (project.BindingFiles.FirstOrDefault(d => FaroProject.ScreenOf(d) == oldId) is not { } own) return;
         changes[PathOf(own)] = null;
         changes[Path.Combine(project.Root, "Bindings", newId + ".xml")] = Text(own);

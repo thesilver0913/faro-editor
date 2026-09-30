@@ -45,6 +45,7 @@
 - **デザイン言語**は `faro.json` の `design`(Fluent / Material3 / Cupertino / Neumorphism / NeoBrutalism / Simple / Carbon / Clay / Retro、`seedColor`、`theme`)。Fluent と Material3 以外の 7 つは共通のテンプレート `Faro.Runtime/Looks.axaml` と値の表 `DesignLooks.cs`(Java の CSS も同じ表から)で、Node ごとの設定も共通の `look.variant`(ボタン)・`look.surface`(コンテナ)。Node ごとの言語固有の設定は `m3.variant="Tonal"` のような `<言語>.<名前>` 属性で持ち、UiBuilder がスタイルクラス(`m3-variant-tonal`)に変えて `Faro.Runtime/Material3.axaml` が見た目を付ける(ほかの言語では無視される)
 - **ライブ更新**:Run は `FARO_LIVE` にプロジェクトのフォルダを渡し、実行中のアプリ(C#・Java)が `UI/`・`Bindings/`・`faro.json` の保存を監視して、いまの画面を同じインスタンスのまま組み直す(UI 変更での再起動はしない)
 - **画面の切り替え**:`Navigate` の紐付けの `transition`(`Slide`・`Fade`・`None`)、既定は `faro.json` の `"transition"`(なければ Slide)。コードは `FaroApp.Navigate(id, 値, transition)`・`FaroApp.Back()`(来た動きを逆向きに)。Node の `animate="300"` で色の変化が滑らかに・表示でフェードイン。C# は自前の重ね置き(`FaroApp.PlayTransition`。TransitioningContentControl は使わない)
+- **コメント**:`Comments/<画面ID>.xml`(Git で共有するレビュー。アプリには入れない)。キャンバスの右クリック › Comment…、ピン、Console の Comments タブ(`src/Faro.Editor/Comments.cs`)。Node の名前変更に付いていく
 - **色の紐付け**:全部品の `Foreground`、コンテナの `Background` に紐付けられる(値は `#RRGGBB` か `$color.x` の文字列。状態ごとの色より優先)。**入力部品**に `Control.NumberInput`(`Value`)と `Control.DateInput`(`Date` は `yyyy-MM-dd` の文字列)。コードから別のクラスのインスタンスは `FaroApp.Get<T>()`(Java `FaroApp.get(T.class)`)。`NumberInput` の刻みは `Step`。日付・数値の書式は `faro.json` の `"locale"`(`ja-JP` など。空なら端末の設定)
 - キャンバスは `designScope` にアプリと同じ Avalonia の `FluentTheme` を足して、エディターの FluentAvalonia のテンプレートではなくアプリ本来の見た目で描く
 - **アイコン部品**(`Control.Icon`、`Icon` プロパティ)は Material Icons(Apache 2.0)の抜粋を `Faro.Runtime/IconSet.cs` と Java の `IconSet.java` に同じ表で持つ(足すときは両方に。チェックが比べる)
@@ -52,7 +53,7 @@
 - **Android** は APK の出力まで(エミュレーター連携はしない)。C# は `src/Faro.Editor/AndroidApk.cs` が `.faro/android` に Android 用プロジェクトを生成して `dotnet publish` する。ランタイムは `FaroApplication` がデスクトップ(Window)と Android(`IActivityApplicationLifetime`)の両方を扱う。Java は `JavaProject.WriteAndroid` が `.faro/android/pom.xml`(GluonFX、Linux のみ、`GRAALVM_HOME` 必須)を生成し、プロジェクトのファイルを `faro/` のリソースと `index.txt` で APK に入れる(Java ランタイムの `FaroApp.url` がフォルダかリソースかを切り替える)
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
 - **デバッガー**は `src/Faro.Editor/Debugger.cs`(DAP):C# は netcoredbg(ビルドした dll を `dotnet` で起動)、Java は jdtls に `bundles` で読み込ませた java-debug(`vscode.java.startDebugSession` のポートに TCP で接続し、`Main` を起動)。どちらも `Components` が入れる。画面は `DebugView`(Console の Debug タブ。ウォッチ式も)とコードエディタのブレークポイント欄(右クリックで条件・ヒット回数。ヒット回数は Faro が数える)
-- 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat・History・Debug をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
+- 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat・History・Debug・Comments をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
 - 詳細は `docs/development.md`(開発者向けドキュメント。旧 README の内容)を参照。README は利用者向けの入口。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある
 
 ## ブランチとバージョン

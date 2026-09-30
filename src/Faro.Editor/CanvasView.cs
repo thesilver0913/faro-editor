@@ -123,6 +123,8 @@ public sealed class CanvasView : UserControl
                 Item("Select parent", null, () => Select([(string)single!.Parent!.Attribute("id")!]), single is not null && !isRoot),
                 wrap,
                 Item("Rename…", null, RenameSelection, single is not null),
+                new Separator(),
+                Item("Comment…", null, AddComment, CurrentScreen is not null),
             },
         };
         if ((string?)single?.Attribute("type") == "Instance")
@@ -157,6 +159,39 @@ public sealed class CanvasView : UserControl
             return changed;
         });
         if (error is not null) await Dialogs.Info(owner, L.T("Rename"), new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+    }
+
+    /// <summary>A review comment on the selected node (none: on the screen), saved in Comments/ (Console › Comments).</summary>
+    async void AddComment()
+    {
+        if (CurrentScreen is not { } screen || TopLevel.GetTopLevel(this) is not Window owner) return;
+        var node = Selection.Count == 1 ? Selection.First() : "";
+        if (await Dialogs.Prompt(owner, L.T("Comment"), node.Length > 0 ? L.F("Comment on {0}:", node) : L.T("Comment on this screen:"), "") is { Length: > 0 } text)
+            Comments.Add(Workspace.Root, screen, node, text);
+    }
+
+    readonly Canvas pins = new(); // unresolved comments (clickable, unlike the selection overlay)
+
+    /// <summary>A pin per commented node (at its top-right; the screen's own and a removed node's at the artboard's), unresolved only.</summary>
+    void DrawPins()
+    {
+        pins.Children.Clear();
+        if (preview || compareMode != 0 || CurrentScreen is not { } screen || Comments.Load(Workspace.Root, screen)?.Root is not { } notes) return;
+        foreach (var group in notes.Elements("Comment").Where(c => !Comments.IsResolved(c)).GroupBy(c => (string?)c.Attribute("node") ?? ""))
+        {
+            var at = byId.GetValueOrDefault(group.Key) is { } c && c.TranslatePoint(new Point(c.Bounds.Width, 0), pins) is { } p ? p : new Point(pins.Bounds.Width, 0);
+            var pin = new Border
+            {
+                MinWidth = 20, Height = 20, CornerRadius = new(10, 10, 10, 2), Background = new SolidColorBrush(Color.Parse("#FFB400")),
+                BorderBrush = Brushes.White, BorderThickness = new(1.5), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+                Child = new TextBlock { Text = group.Count().ToString(), FontSize = 11, FontWeight = FontWeight.Bold, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+                [ToolTip.TipProperty] = string.Join("\n\n", group.Select(n => $"{(string?)n.Attribute("author")}: {(string?)n.Attribute("text")}")),
+            };
+            pin.PointerPressed += (_, e) => { Comments.Show(screen, group.Key); e.Handled = true; };
+            Canvas.SetLeft(pin, at.X - 6);
+            Canvas.SetTop(pin, at.Y - 14);
+            pins.Children.Add(pin);
+        }
     }
 
     static CanvasEdit.Clip? clipboard;
@@ -440,6 +475,7 @@ public sealed class CanvasView : UserControl
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
             if (preview) return; // the controls themselves take the clicks
+            if (e.Source is Visual v && pins.IsVisualAncestorOf(v)) return; // a comment pin takes its own click
             // The selection's handles (right edge, bottom edge, corner) resize it to a fixed width / height.
             if (e.GetCurrentPoint(artboard).Properties.IsLeftButtonPressed && Handle(e.GetPosition(overlay)) is { } axes && byId.GetValueOrDefault(Selection.First()) is { } resized)
             {
@@ -547,8 +583,9 @@ public sealed class CanvasView : UserControl
                 Edit("Resize " + rid, (_, screen) =>
                 {
                     if (CanvasEdit.Find(screen, rid) is not { } n) return [];
-                    if (axes.W) { CanvasEdit.SetAttribute(n, "widthSizing", "Fixed"); CanvasEdit.SetAttribute(n, "width", w.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
-                    if (axes.H) { CanvasEdit.SetAttribute(n, "heightSizing", "Fixed"); CanvasEdit.SetAttribute(n, "height", h.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+                    // a click on a handle without a drag leaves the size unset (NaN): nothing to write
+                    if (axes.W && !double.IsNaN(w)) { CanvasEdit.SetAttribute(n, "widthSizing", "Fixed"); CanvasEdit.SetAttribute(n, "width", w.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+                    if (axes.H && !double.IsNaN(h)) { CanvasEdit.SetAttribute(n, "heightSizing", "Fixed"); CanvasEdit.SetAttribute(n, "height", h.ToString(System.Globalization.CultureInfo.InvariantCulture)); }
                     return [screen];
                 });
                 return;
@@ -762,12 +799,14 @@ public sealed class CanvasView : UserControl
         ScreenNodeIds = [.. idOf.Values];
         Selection.IntersectWith(ScreenNodeIds);
         (overlay.Parent as Panel)?.Children.Remove(overlay);
-        artboard.Child = new Panel { Children = { built, overlay } };
+        (pins.Parent as Panel)?.Children.Remove(pins);
+        artboard.Child = new Panel { Children = { built, overlay, pins } };
         zoomHost.Child = compareMode switch { 0 => artboard, 3 => Flow(), _ => Compare(graph.Root!.Element("Node")!) };
         if (preview) WirePreview(CurrentScreen ?? "");
         if (previewTransition is { } kind && compareMode == 0) PlayIn(built, kind, artboard.Bounds.Width);
         previewTransition = null;
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
+        Dispatcher.UIThread.Post(DrawPins, DispatcherPriority.Loaded);
         foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
             if (byId.TryGetValue(group.Key, out var control))
             {
