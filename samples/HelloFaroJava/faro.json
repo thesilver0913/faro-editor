@@ -1,7 +1,7 @@
 {
   "name": "HelloFaroJava",
   "language": "Java",
-  "runtime": "1.0.1-beta.4",
+  "runtime": "1.0.1-beta.5",
   "startScreen": "MainScreen",
   "design": {
     "language": "Material3",

@@ -351,6 +351,53 @@ var missingLook = DesignLooks.Languages.SelectMany(l => new[] { false, true }.Se
 Check(lookKeys.Count > 30 && missingLook.Count == 0 && AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse("""{"language":"Neumorphism"}""")).Language == "Neumorphism", "design languages fill every look resource" + (missingLook.Count > 0 ? ": " + string.Join(", ", missingLook.Take(5)) : ""));
 Check(DesignLooks.Languages.All(l => JavaProject.DesignCss(new AppDesign(l, AppDesign.DefaultSeed, "Dark")) is { } css && css.Contains(".check-box.faro-switch > .box") && !css.Contains("NaN") && !css.Contains("{{"))
     && JavaProject.DesignCss(new AppDesign("NeoBrutalism"))!.Contains("-fx-translate-x: 4"), "JavaFX stylesheets for the other design languages");
+// Accessibility (Problems): contrast of the design language's pairs and of node colors, small touch targets, unlabeled fields
+var a11yProject = FaroProject.Load(sampleDir);
+a11yProject.Screens["X"] = System.Xml.Linq.XDocument.Parse("""
+    <UIGraph id="X"><Node id="root" type="Container.Stack" background="#FFFFFF">
+      <Node id="gray" type="Control.Text" foreground="#BBBBBB" /><Node id="tiny" type="Control.Button" widthSizing="Fixed" width="30" />
+      <Node id="bare" type="Control.TextInput" /><Node id="label" type="Control.Text" /><Node id="named" type="Control.TextInput" />
+    </Node></UIGraph>
+    """);
+var a11y = AccessibilityCheck.Check(a11yProject).Where(i => i.Screen == "X").Select(i => i.NodeId).ToList();
+Check(a11y.SequenceEqual(["gray", "tiny", "bare"]) && Math.Abs(AccessibilityCheck.Ratio(Avalonia.Media.Colors.Black, Avalonia.Media.Colors.White) - 21) < 0.01
+    && AppDesign.Languages.Where(l => l != "Fluent").All(l => new[] { false, true }.All(dark => AccessibilityCheck.Colors(new AppDesign(l), dark) is { } p
+        && AccessibilityCheck.Ratio(p.OnButton, p.Button) >= 4.5 && AccessibilityCheck.Ratio(p.OnSurface, p.Surface) >= 4.5 && AccessibilityCheck.Ratio(p.Muted, p.Field) >= 3)), "accessibility warnings (contrast, touch size, unlabeled field); every design language passes its own contrast");
+// Canvas spacing handles and Distribute: one padding side (all four equal → one value), the gap, a Stack spread
+var spaced = System.Xml.Linq.XDocument.Parse("""<UIGraph id="S"><Node id="root" type="Container.Stack" padding="8 16"><Node id="a" type="Control.Text" /><Node id="b" type="Control.Text" /></Node></UIGraph>""");
+Check(CanvasEdit.SetSpacing(spaced, "root", false, 0, 12) && (string?)spaced.Root!.Element("Node")!.Attribute("padding") == "12 16 8 16"
+    && CanvasEdit.SetSpacing(spaced, "root", false, 1, 8) && CanvasEdit.SetSpacing(spaced, "root", false, 3, 8) && CanvasEdit.SetSpacing(spaced, "root", false, 0, 8)
+    && (string?)spaced.Root!.Element("Node")!.Attribute("padding") == "8"
+    && CanvasEdit.SetSpacing(spaced, "root", true, 0, 20.4) && (string?)spaced.Root!.Element("Node")!.Attribute("gap") == "20"
+    && !CanvasEdit.SetSpacing(spaced, "a", true, 0, 4) && !CanvasEdit.Distribute(spaced, ["a"])
+    && CanvasEdit.Distribute(spaced, ["a", "b"]) && (string?)spaced.Root!.Element("Node")!.Attribute("justify") == "SpaceBetween",
+    "canvas spacing handles and distribute");
+// Live reload: older projects' dotnet watch restart on UI changes is dropped when their runtime is updated
+var liveParent = Path.Combine(Path.GetTempPath(), "faro-live-" + Guid.NewGuid().ToString("N"));
+var liveDir = ProjectSetup.Create(liveParent, "LiveApp", "Empty");
+var liveCsproj = Directory.EnumerateFiles(liveDir, "*.csproj").First();
+File.WriteAllText(liveCsproj, File.ReadAllText(liveCsproj).Replace("</ItemGroup>", "  <!-- dotnet watch restarts the app when the UI graph or bindings change (spec §9). -->\n    <Watch Include=\"UI/**;Bindings/**\" />\n  </ItemGroup>"));
+ProjectSetup.UpdateRuntime(liveDir);
+Check(!File.ReadAllText(liveCsproj).Contains("<Watch") && File.ReadAllText(liveCsproj).Contains("Faro.Runtime"), "live reload replaces dotnet watch's restart in older projects");
+Directory.Delete(liveParent, recursive: true);
+// Icon part: the same symbol table in both runtimes, drawn from the node's Icon prop
+var javaIcons = System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Faro.Runtime.Java/faro/runtime/IconSet.java"))),
+    @"Map\.entry\(""(\w+)"", ""([^""]+)""\)").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value);
+var iconNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="i" type="Control.Icon"><Prop name="Icon" value="home" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(IconSet.Paths.Count > 50 && javaIcons.Count == IconSet.Paths.Count && IconSet.Paths.All(p => javaIcons.GetValueOrDefault(p.Key) == p.Value)
+    && IconSet.Paths.Values.All(d => System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlHhVvCcSsQqTtAaZz0-9.,\- ]+$")) && iconNode is FaroIcon { Icon: "home" } && Bindable.For(iconNode)?.Props.ContainsKey("Icon") == true,
+    "icon part: the same symbols in both runtimes, built and bindable");
+// Screen flow (canvas): Navigate binds, including a component's, as links; columns by steps from the start screen
+var flowProject = FaroProject.Load(sampleDir);
+var flow = ScreenFlow.Edges(flowProject);
+Check(flow.Contains(("MainScreen", "Detail")) && flow.Contains(("Detail", "MainScreen"))
+    && ScreenFlow.Columns(flowProject, flow) is [["MainScreen"], ["Detail"]], "screen flow from Navigate bindings");
+// Per-node options for those languages: look.variant / look.surface become the classes both stylesheets draw
+var carded = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="c" type="Container.Stack" look.surface="Card"><Node id="b" type="Control.Button" look.variant="Outlined" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(carded.Classes.Contains("look-surface-card") && carded is Avalonia.Controls.Border { Child: Avalonia.Controls.Panel { Children: [Avalonia.Controls.Button outlined] } } && outlined.Classes.Contains("look-variant-outlined")
+    && JavaProject.DesignCss(new AppDesign("Retro")) is { } retroCss && retroCss.Contains(".button.look-variant-outlined") && retroCss.Contains(".look-surface-inset")
+    && retroCss.Contains("-fx-border-color: #ffffff #808080 #808080 #ffffff") && JavaProject.DesignCss(new AppDesign("Carbon"))!.Contains("-fx-background-insets: 0, 0 0 1 0"),
+    "per-node look options, Retro bevels and Carbon's field rule");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))
     && Throws<ArgumentException>(() => ProjectSetup.Create("relative/dir", "Ok", "Empty")) && Path.IsPathRooted(ProjectSetup.DefaultLocation), "project name and location validated");
 var existing = Path.Combine(projects, "existing-folder");

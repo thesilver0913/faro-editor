@@ -78,7 +78,7 @@ Drag a part from the **Parts** tab onto the canvas, or click it to add it inside
 ![Parts](images/parts.png)
 
 - **Containers**: `Stack` (in a row or a column), `Wrap` (wrapping), `Grid` (rows and columns), `Overlay` (layered, pinned to a corner or the center)
-- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `CheckBox`, `Switch`, `Slider`, `Select` (a drop-down of choices), `Progress` (a progress bar), `Divider` (a thin line), `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
+- **Controls**: `Button`, `TextInput`, `Text`, `Image`, `CheckBox`, `Switch`, `Slider`, `Select` (a drop-down of choices), `Progress` (a progress bar), `Divider` (a thin line), `Icon` (a symbol from the bundled icon set, drawn in the text color), `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
 
 Faro has **no absolute positions**. Where a node goes is decided by which container it's in, its order, and the settings below.
 
@@ -115,8 +115,11 @@ In the same dialog, choose a design language, a seed color, and light or dark.
 | Neumorphism | Soft shapes raised from the surface |
 | NeoBrutalism | Bright colors, thick outlines, hard shadows |
 | Simple | Quiet and neutral (in the style of shadcn/ui) |
+| Carbon | IBM's design: square shapes, fields with a bottom rule |
+| Clay | Puffy, clay-like shapes in pastel colors |
+| Retro | Windows 95 bevels |
 
-Every language takes its colors from the seed color.
+Every language takes its colors from the seed color. In the languages other than Material 3, the inspector's section named after the language picks a button's **Variant** (Filled / Tonal / Outlined / Text) and a container's **Panel** (Card: raised from the surface / Inset: sunk into it). The settings carry over when you switch between these languages.
 
 ### Editing basics
 
@@ -124,7 +127,9 @@ Every language takes its colors from the seed color.
 - Copy, paste, duplicate: Ctrl+C / Ctrl+V / Ctrl+D (bindings are duplicated too)
 - Delete: Delete; reorder: Alt+↑ / Alt+↓; right-click for more, such as Wrap in a container
 - **Tool panel**: down the canvas's left edge: add, delete, move up, move down and align (as in Adobe's tool panel, a button with a corner mark opens its group, and shows the tool used last)
-- **Align**: the Align tools (left / center / right, top / middle / bottom). In a row, Align right puts a Spacer before the node so it sits at the right end; across a column it aligns just that node; in an Overlay it changes the anchor
+- **Align**: the Align tools (left / center / right, top / middle / bottom). In a row, Align right puts a Spacer before the node so it sits at the right end; across a column it aligns just that node; in an Overlay it changes the anchor. With several nodes selected they align together, and **Distribute evenly** spreads nodes of one Stack from end to end
+- **Drag spacing**: select a container and its padding and the gaps between its children show in pink. Drag a band to change its value (as with Figma's Auto Layout)
+- **Measure**: select a node, hold Alt and point at another: red lines show the distances between them
 - **Edit text**: double-click a text, button or text input on the canvas to change its text in place (Enter keeps it, Esc cancels)
 - The Console's **History** tab lists your UI edits: click one to go back to it
 
@@ -184,12 +189,14 @@ If a name is wrong, or a rename in the code breaks a binding, the node gets a **
 ![Data preview](images/data-preview.png)
 
 - **Compare**: from One artboard ▾, choose All sizes (Phone / Tablet / Desktop) or Light and dark
+- **Screen flow**: the same menu's Screen flow shows every screen small, with an arrow for each `Navigate` binding. Click a screen to open it
+- **Accessibility**: Problems warns about low text contrast (the design language's colors and a node's own), parts smaller than 44px to tap, and text fields with no hint or label
 
 ![Light and dark](images/compare-light-dark.png)
 
 ### Run
 
-**Run** (F5) on the canvas starts the app in its own window. Output and build errors go to the Console. In C#, code changes apply while the app runs (hot reload) and UI changes restart it. Java builds with Maven and starts (run again to see changes).
+**Run** (F5) on the canvas starts the app in its own window. Output and build errors go to the Console. In C#, code changes apply while the app runs (hot reload). **Screen changes** (UI, bindings, design, tokens) rebuild the screen in place when saved, in C# and Java alike, without stopping the app (what's typed and other state stay). Java code changes apply when you run again.
 
 ### Debug
 

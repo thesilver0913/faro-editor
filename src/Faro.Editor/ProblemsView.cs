@@ -32,7 +32,7 @@ public sealed class ProblemsView : UserControl
     void Render()
     {
         list.Children.Clear();
-        if (Workspace.Issues.Count == 0 && Workspace.BuildErrors.Count == 0)
+        if (Workspace.Issues.Count == 0 && Workspace.BuildErrors.Count == 0 && Workspace.Accessibility.Count == 0)
         {
             list.Children.Add(new TextBlock { Text = L.T("No problems."), Opacity = 0.6 });
             return;
@@ -48,6 +48,10 @@ public sealed class ProblemsView : UserControl
                 Item((issue.NodeId.Length > 0 ? issue.NodeId + ": " : "") + issue.Message
                     + (issue.Suggestions.Count > 0 ? " " + L.F("Did you mean {0}?", issue.Suggestions[0]) : ""), () => Reveal(issue));
         }
+        // Accessibility warnings (lint): after the errors, each with the screen it's on
+        if (Workspace.Accessibility.Count > 0) Header($"{L.T("Accessibility")} ({Workspace.Accessibility.Count})");
+        foreach (var issue in Workspace.Accessibility)
+            Item("⚠ " + (issue.Screen.Length > 0 ? issue.Screen + " › " : "") + (issue.NodeId.Length > 0 ? issue.NodeId + ": " : "") + issue.Message, () => Reveal(issue));
     }
 
     void Header(string text) => list.Children.Add(new TextBlock { Text = text, FontWeight = FontWeight.SemiBold, Margin = new(0, 6, 0, 2) });

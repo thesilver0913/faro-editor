@@ -26,6 +26,7 @@ public sealed class InspectorView : UserControl
         ["Control.Slider"] = ["Value", "Minimum", "Maximum"],
         ["Control.Select"] = ["Options", "Selected"],
         ["Control.Progress"] = ["Value"],
+        ["Control.Icon"] = ["Icon"],
     };
 
     readonly StackPanel body = new() { Spacing = 8, Margin = new(12) };
@@ -135,7 +136,8 @@ public sealed class InspectorView : UserControl
         {
             body.Children.Add(Section(L.T(type == "Instance" ? "Overrides" : "Properties")));
             foreach (var prop in props)
-                body.Children.Add(Row(prop, prop is "Source" or "BackgroundTexture"
+                body.Children.Add(Row(prop, prop == "Icon" && type == "Control.Icon" ? IconField(CanvasEdit.GetProp(node, prop) ?? "star", value => EditNode(id, "Set Icon", n => CanvasEdit.SetProp(n, "Icon", value)))
+                    : prop is "Source" or "BackgroundTexture"
                     ? AssetField(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))
                     : Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
@@ -163,6 +165,15 @@ public sealed class InspectorView : UserControl
             foreach (var (attribute, values) in options)
                 // An instance shows (and falls back to) its master's or variant's value; picking another one overrides it.
                 body.Children.Add(Row(L.T(char.ToUpperInvariant(attribute[3]) + attribute[4..]),
+                    Choice(node, attribute, values, unset: type == "Instance" ? (string?)node.Element("Node")?.Attribute(attribute) ?? values[0] : values[0])));
+        }
+        // The table-driven languages (Cupertino … Retro) share their options: look.variant on buttons, look.surface on containers.
+        if (Workspace.Project?.Design.Language is { } language && DesignLooks.Languages.Contains(language)
+            && (LookOptions.GetValueOrDefault(styled) ?? (styled.StartsWith("Container.") ? LookOptions["Container"] : null)) is { } lookOptions)
+        {
+            body.Children.Add(Section(language));
+            foreach (var (attribute, values) in lookOptions)
+                body.Children.Add(Row(L.T(attribute == "look.surface" ? "Panel" : "Variant"),
                     Choice(node, attribute, values, unset: type == "Instance" ? (string?)node.Element("Node")?.Attribute(attribute) ?? values[0] : values[0])));
         }
         if (type == "Instance")
@@ -283,6 +294,28 @@ public sealed class InspectorView : UserControl
         size.IsVisible = UiBuilder.Sizing(node, axis) == "Fixed";
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
+
+    /// <summary>The Icon part's symbol: the bundled set (IconSet), each shown with its picture.</summary>
+    static ComboBox IconField(string value, Action<string> set)
+    {
+        var box = new ComboBox
+        {
+            ItemsSource = IconSet.Paths.Keys.ToList(), SelectedItem = value, MinWidth = 160, MaxDropDownHeight = 360,
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((name, _) => new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { new FaroIcon { Icon = name, Width = 18, Height = 18 }, new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center } },
+            }),
+        };
+        box.SelectionChanged += (_, _) => { if (box.SelectedItem is string name && name != value) set(name); };
+        return box;
+    }
+
+    static readonly Dictionary<string, (string Attribute, string[] Values)[]> LookOptions = new()
+    {
+        ["Control.Button"] = [("look.variant", ["Filled", "Tonal", "Outlined", "Text"])],
+        ["Container"] = [("look.surface", ["None", "Card", "Inset"])],
+    };
 
     static readonly Dictionary<string, (string Attribute, string[] Values)[]> M3Options = new()
     {

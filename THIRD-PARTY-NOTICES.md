@@ -23,6 +23,12 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 | Noto Sans JP(Regular・Bold。可変フォントから固定の太さを切り出したもの) | Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source' | SIL Open Font License 1.1(全文は `assets/fonts/NotoSansJP-LICENSE.txt`) | エディター全体の UI フォントと、Material 3 アプリの日本語(Faro.Runtime に同梱) |
 | Google Sans Flex(Regular・Medium・Bold。同上) | Copyright 2015 The Google Sans Flex Authors | SIL Open Font License 1.1(全文は `assets/fonts/GoogleSansFlex-LICENSE.txt`) | Material 3 Expressive の書体。Faro.Runtime(C# のアプリ)と Java プロジェクトの `.faro/fonts` に同梱 |
 
+## アイコン
+
+| 名前 | 著作権表示 | ライセンス | 用途 |
+|---|---|---|---|
+| Material Icons(Outlined。@material-design-icons/svg 0.14.15 から 69 個のパスを抜き出したもの) | Copyright Google LLC | Apache License 2.0(https://www.apache.org/licenses/LICENSE-2.0) | アイコン部品(`Control.Icon`)。`Faro.Runtime/IconSet.cs` と Java 版の `IconSet.java` に同梱 |
+
 ## 実行時にダウンロードするツール(配布物には含まれません)
 
 | 名前 | バージョン | 著作権表示 | リポジトリ | 用途 |

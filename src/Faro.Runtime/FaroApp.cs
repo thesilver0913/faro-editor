@@ -59,6 +59,7 @@ public static class FaroApp
     static ContentControl host = null!; // holds the current screen
     static TextBox? errors; // Android: errors show over the screen
     static string start = "";
+    static string? current; // the screen shown (live reload rebuilds it)
     static readonly Dictionary<Type, object> singletons = [];
     static Dictionary<Type, object> screenScoped = [];
 
@@ -90,6 +91,7 @@ public static class FaroApp
         {
             desktop.MainWindow = window = new Window { Width = 480, Height = 720, Content = host };
             window.Opened += (_, _) => Navigate(start); // after Opened: the error window needs a visible owner
+            WatchLive();
         }
         else if (lifetime is IActivityApplicationLifetime activity) // Android: a new view per activity, the same screen
         {
@@ -121,14 +123,55 @@ public static class FaroApp
         Release(screenScoped.Values);
         screenScoped = [];
         Parameter = parameter;
-        if (errors is not null) errors.IsVisible = false; // Android: the last screen's errors
+        Show(screenId, graph);
+    }
 
+    static void Show(string screenId, XDocument graph)
+    {
+        current = screenId;
+        if (errors is not null) errors.IsVisible = false; // Android: the last screen's errors
         var byId = new Dictionary<string, Control>();
         host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
         if (window is not null) window.Title = screenId;
         var failed = Bind(graph.Root!.Element("Node")!, screenId, byId, events: true);
         if (failed.Count > 0) ShowError(string.Join("\n\n", failed));
     }
+
+    /// <summary>
+    /// Live reload: when the editor runs the app it passes the project folder in FARO_LIVE. Saved changes to UI/, Bindings/
+    /// and faro.json (design, tokens) rebuild the current screen in place, with the same instances, so its state stays.
+    /// </summary>
+    static void WatchLive()
+    {
+        if (Environment.GetEnvironmentVariable("FARO_LIVE") is not { Length: > 0 } dir || !Directory.Exists(dir)) return;
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) }; // editors save in bursts
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            try
+            {
+                var design = project.Design;
+                project = FaroProject.Load(dir);
+                if (project.Design != design && Application.Current is { } app) FaroApplication.ApplyDesign(app, project.Design);
+                if (current is not null && project.Screens.TryGetValue(current, out var graph)) Show(current, graph);
+            }
+            catch (Exception e) { ShowError($"Live reload: {e.Message}"); } // a half-written file: the next save retries
+        };
+        var watcher = new FileSystemWatcher(dir) { IncludeSubdirectories = true, EnableRaisingEvents = true };
+        FileSystemEventHandler changed = (_, e) =>
+        {
+            var path = Path.GetRelativePath(dir, e.FullPath).Replace('\\', '/');
+            if (path.StartsWith("UI/") || path.StartsWith("Bindings/") || path == "faro.json")
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => { timer.Stop(); timer.Start(); });
+        };
+        watcher.Changed += changed;
+        watcher.Created += changed;
+        watcher.Deleted += changed;
+        watcher.Renamed += (s, e) => changed(s, e);
+        live = watcher;
+    }
+
+    static FileSystemWatcher? live; // kept alive for the app's lifetime
 
     /// <summary>
     /// Design-time data (the editor's canvas): the screen's property bindings (not events) on controls built from it,
@@ -350,8 +393,16 @@ public sealed class FaroApplication : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme());
-        FaroApp.Project.Design.Apply(Styles, Resources);
-        RequestedThemeVariant = FaroApp.Project.Design.Variant;
+        ApplyDesign(this, FaroApp.Project.Design);
+    }
+
+    /// <summary>The design language over Fluent (again on a live reload that changes it).</summary>
+    internal static void ApplyDesign(Application app, AppDesign design)
+    {
+        while (app.Styles.Count > 1) app.Styles.RemoveAt(1);
+        app.Resources = new ResourceDictionary();
+        design.Apply(app.Styles, app.Resources);
+        app.RequestedThemeVariant = design.Variant;
     }
 
     public override void OnFrameworkInitializationCompleted()

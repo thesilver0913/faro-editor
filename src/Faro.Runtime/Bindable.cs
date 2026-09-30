@@ -35,6 +35,7 @@ public static class Bindable
             Common(("Text", TextBox.TextProperty), ("Placeholder", TextBox.PlaceholderTextProperty))),
         new("Control.Text", typeof(TextBlock), [], Common(("Text", TextBlock.TextProperty))),
         new("Control.Image", typeof(Image), [], Common()),
+        new("Control.Icon", typeof(FaroIcon), [], Common(("Icon", FaroIcon.IconProperty))),
         new("Container.", typeof(Border), new() { ["Click"] = InputElement.TappedEvent }, Common()), // Stack / Wrap / Grid; Click: a tap (e.g. a list row)
     ];
 

@@ -186,8 +186,6 @@ public static partial class ProjectSetup
                   <ItemGroup>
                     <PackageReference Include="Faro.Runtime" Version="{version}" />
                     <Content Include="faro.json;UI/**;Bindings/**;Assets/**" CopyToOutputDirectory="PreserveNewest" />
-                    <!-- dotnet watch restarts the app when the UI graph or bindings change (spec §9). -->
-                    <Watch Include="UI/**;Bindings/**" />
                   </ItemGroup>
                 </Project>
 
@@ -225,6 +223,9 @@ public static partial class ProjectSetup
     [System.Text.RegularExpressions.GeneratedRegex(@"(<PackageReference\s+Include=""Faro\.Runtime""\s+Version="")([^""]+)("")")]
     private static partial System.Text.RegularExpressions.Regex RuntimeReference();
 
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s*<!-- dotnet watch restarts[^>]*-->|\s*<Watch Include=""UI/\*\*;Bindings/\*\*"" />")]
+    private static partial System.Text.RegularExpressions.Regex OldWatch();
+
     /// <summary>The Faro.Runtime version the project's .csproj references; null if it doesn't use the package (e.g. the in-repo sample).</summary>
     public static string? ProjectRuntime(string dir) => JavaProject.Is(dir) ? JavaProject.ProjectRuntime(dir) :
         Directory.EnumerateFiles(dir, "*.csproj").Select(f => RuntimeReference().Match(File.ReadAllText(f)))
@@ -244,8 +245,9 @@ public static partial class ProjectSetup
             foreach (var old in Directory.EnumerateFiles(Path.Combine(dir, ".faro", "packages"), "Faro.Runtime.*.nupkg").Where(p => p != Path.Combine(dir, ".faro", "packages", Path.GetFileName(package))))
                 File.Delete(old);
             Vendor(dir, package);
+            // Older projects had dotnet watch restart the app on UI changes; the runtime now reloads them in place (FARO_LIVE).
             foreach (var csproj in Directory.EnumerateFiles(dir, "*.csproj"))
-                File.WriteAllText(csproj, RuntimeReference().Replace(File.ReadAllText(csproj), $"${{1}}{version}${{3}}"));
+                File.WriteAllText(csproj, OldWatch().Replace(RuntimeReference().Replace(File.ReadAllText(csproj), $"${{1}}{version}${{3}}"), ""));
         }
         var json = Path.Combine(dir, ProjectFile);
         if (File.Exists(json) && JsonNode.Parse(File.ReadAllText(json)) is JsonObject meta)

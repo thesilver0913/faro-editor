@@ -35,6 +35,7 @@ public static class UiBuilder
             "Control.Select" => new ComboBox { ItemsSource = Options(Prop(node, "Options")), SelectedItem = Prop(node, "Selected") },
             "Control.Progress" => new ProgressBar { Minimum = 0, Maximum = 100, Value = PropNum(node, "Value") ?? 0 },
             "Control.Divider" => Divider(),
+            "Control.Icon" => new FaroIcon { Icon = Prop(node, "Icon") ?? "star" },
             _ => new TextBlock { Text = $"[unknown type: {type}]", Foreground = Brushes.Red },
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)
