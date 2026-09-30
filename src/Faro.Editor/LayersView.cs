@@ -77,6 +77,7 @@ public sealed class LayersView : UserControl
         title.Text = shownScreen ?? "";
         items.Clear();
         parentOf.Clear();
+        syncing = true; // replacing the items clears the tree's selection: that isn't the user deselecting
         tree.ItemsSource = CanvasView.CurrentGraph()?.Root?.Element("Node") is { } root ? new[] { Item(root) } : [];
         ShowSelection();
     }

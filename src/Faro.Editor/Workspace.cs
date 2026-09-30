@@ -20,6 +20,8 @@ public static class Workspace
     public static List<RegistryMember> Registry { get; private set; } = [];
     public static List<string> ScriptClasses { get; private set; } = [];
     public static List<BindingIssue> Issues { get; private set; } = [];
+    /// <summary>Accessibility warnings (contrast, touch targets, unlabeled fields), listed in Problems.</summary>
+    public static List<BindingIssue> Accessibility { get; private set; } = [];
     public static string? LoadError { get; private set; }
     public static event Action? Changed;
 
@@ -65,7 +67,7 @@ public static class Workspace
     /// <summary>Started/stopped, or the build errors changed.</summary>
     public static event Action? RunChanged;
 
-    /// <summary>Runs the project with hot reload; code saves hot-reload, UI graph changes restart (dotnet watch).</summary>
+    /// <summary>Runs the project: code saves hot-reload (dotnet watch); the app reloads saved UI/ and Bindings/ changes in place (FARO_LIVE).</summary>
     public static void Run()
     {
         if (Running || !Trusted) return;
@@ -77,6 +79,7 @@ public static class Workspace
             CreateNoWindow = true, // Windows: output goes to the console tab, not an empty command prompt
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            Environment = { ["FARO_LIVE"] = Root },
         };
         var process = new System.Diagnostics.Process { StartInfo = start, EnableRaisingEvents = true };
         System.Diagnostics.DataReceivedEventHandler read = (_, e) => { if (e.Data is { } line) Dispatcher.UIThread.Post(() => Add(line)); };
@@ -176,6 +179,7 @@ public static class Workspace
             report?.Invoke("Checking bindings…", 60);
             ScriptClasses = Editor.Registry.ScriptClasses(Path.Combine(Root, "Source"));
             Issues = BindingCheck.Check(Project, Registry, ScriptClasses);
+            Accessibility = AccessibilityCheck.Check(Project);
             if (IsJava) JavaProject.WriteDesignCss(Root, Project.Design); // the Java runtime's Material 3 styles
             CheckBuilt();
             LoadError = null;

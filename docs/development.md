@@ -43,12 +43,13 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **キャンバスのズーム**:−/+、全体表示(Fit、パネル幅に合わせる)、Ctrl+ホイール、倍率をクリックで 100%
 - **キャンバスの右クリックメニュー**:追加・切り取り(Ctrl+X)・コピー・貼り付け・複製・削除・前後へ移動・親を選択・コンテナで囲む(Stack/Overlay/Grid、ID と紐付けはそのまま)・名前の変更・マスターを編集(インスタンス)
 - **エクスプローラー(VSCode 風)**:プロジェクトフォルダ全体を表示(bin/obj/.git は非表示)。C# 以外のテキストファイル(faro.json、.csproj、XML など)もコードエディタで開ける(言語サーバーは C# プロジェクトの .cs と Java プロジェクトの .java)。新しいファイル/フォルダ、切り取り・コピー・貼り付け、名前の変更(F2)、削除(Del)、ドラッグで移動、OS のファイルマネージャーからドロップしてコピー、パスのコピー、ファイルマネージャーで表示。UI/ と Bindings/ のファイルは画面に属するため、普通のファイルとしては移動・貼り付けしない(画面・コンポーネントの名前変更と削除は従来どおり参照も追従)
-- **ツール列**:キャンバスの左端に選択中の Node を編集する道具(追加・削除・上へ・下へ・揃え▸)。▸ のグループは押すと横に開き、最後に使った道具が表に出る(`Icons.ToolGroup`)。上のバーは画面・大きさ・比較・ズーム・同期・プレビュー・データ・実行
+- **ツール列**:キャンバスの左端に選択中の Node を編集する道具(追加・削除・上へ・下へ・揃え▸。揃えは複数選択にもまとめて効き、グループの最後に「等間隔に並べる」= 同じ Stack の `justify="SpaceBetween"`、`CanvasEdit.Distribute`)。▸ のグループは押すと横に開き、最後に使った道具が表に出る(`Icons.ToolGroup`)。上のバーは画面・大きさ・比較・ズーム・同期・プレビュー・データ・実行
 - **揃えボタンとスペーサー**:ツール列の揃え 6 種(`CanvasEdit.Align`)。Stack の主軸方向は `Control.Spacer`(既定で Fill の空の部品)を前に置く(右・下)/ 両側に置く(中央)/ 取り除く(左・上)。交差方向は `alignSelf`(コンテナの `alignment` と同じなら属性を消す)、Overlay は `anchorX` / `anchorY`、Grid は `alignSelf`
 - **文字のその場編集**:キャンバスで Text・Button・TextInput(プレースホルダー)・Text を上書きできるインスタンスをダブルクリックすると、その上に入力欄が開き、Enter か外をクリックで 1 回の UI 編集として保存(Esc で取り消し)
 - **キャンバスの便利機能**:Node のコピー(Ctrl+C)・貼り付け(Ctrl+V)・複製(Ctrl+D)。ID がかぶるものは番号を振り直し、紐付けも新しい ID で複製する。プレビューの大きさを Phone / Tablet / Desktop で切り替え(アプリ全体の設定に保存)
 - **画像**:Image の Source などは Assets/ の画像から選べる。エクスプローラーの画像をキャンバスへドラッグすると Image Node として追加。モック行で画像の Source も差し替えられる
 - **Run / Stop**:キャンバスの Run(F5)で `dotnet watch run` を起動し、出力を Console の Output タブに表示。もう一度押す(または Shift+F5)と止まる。エディターを閉じるとアプリも止まる
+- **ライブ更新**:Run は環境変数 `FARO_LIVE` にプロジェクトのフォルダを渡す。実行中のアプリ(C# は `FaroApp.WatchLive`、Java は `FaroApp.watchLive`)は `UI/`・`Bindings/`・`faro.json`(Java は `.faro/design.css` も)を監視し、保存されると(200ms まとめて)プロジェクトを読み直して**いまの画面を同じインスタンスのまま組み直す**(入力中の値などが残る)。デザイン言語が変わればスタイルも差し替える。以前の `dotnet watch` による UI 変更時の再起動(`.csproj` の `<Watch>`)は、ランタイムの更新時に取り除く(`ProjectSetup.UpdateRuntime`)
 - **レイアウトの保存**(仕様§14):パネルの大きさとウィンドウサイズをアプリ全体の設定(`settings.json`)に保存し、次回起動時に戻す。Window → Reset Layout で既定に戻る。パネルの移動・タブ化・切り離しは保存しない
 - **外部での変更**:コードエディタで開いているファイルが Faro の外で変わると、未保存の編集がなければ読み込み直す。編集中なら状態行で知らせ、保存するときに上書きしてよいか確認する
 - `samples/HelloFaro` はこのリポジトリ内での開発用で、Runtime をプロジェクト参照している
@@ -105,6 +106,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **サイズ変更ハンドル**:選択した Node の右端・下端・右下角をドラッグすると、幅・高さを Fixed にしてその大きさにする
 - **プレビュー**:キャンバスのツールバーの「プレビュー」で、モックデータのまま入力・クリックでき、Navigate の紐付けで画面が切り替わる(コードは実行しない。Script 部品は最後のビルドのまま動く)
 - **並べて比べる**:ツールバーの「1 枚で表示 ▾」で「全サイズを並べる」(Phone / Tablet / Desktop)か「ライトとダークを並べる」(いまのサイズ)。並んだ画面は見るだけで、編集は 1 枚表示に戻して行う。「幅に合わせる」で全体が収まる
+- **画面の流れ**(Figma のプロトタイプ表示):同じメニューの「画面の流れ」。`ScreenFlow.Edges` が画面の `Navigate` の紐付けと、画面が持つコンポーネントの紐付けからリンクを集め、`ScreenFlow.Columns` が開始画面からの段数で列に並べる(たどり着けない画面は最後の列)。各画面は縮小したライブ表示で、前向きの矢印は右端から次の列の左端へ(上寄り)、戻る矢印は左端から右端へ(下寄り)。クリックでその画面を開く
+- **余白・間隔のハンドル**(Figma の Auto Layout):コンテナを 1 つ選ぶと、内側の余白 4 辺と Stack の子どもの間隔をピンクの帯で描く(`SpacingBars`)。帯をドラッグするとその場で画面に反映し(値のラベル付き)、離したときに `CanvasEdit.SetSpacing` で 1 ステップとして保存する(余白は 4 辺そろえば 1 つの値、違えば「上 右 下 左」)
+- **距離を測る**:Node を 1 つ選び、Alt を押したまま別の Node に乗せると、あいだの距離を赤い線と数値で描く(中に入っていれば 4 辺まで、離れていれば隙間)。Alt を離すと消える
 - **データ**:ツールバーの「データ」で、モック行の代わりに紐付けが最後のビルドから持ってくる値を表示する(リストは `Items` の紐付けの実データ、テキストは紐付けたプロパティの値)。クラスは毎回新しく作り、イベントは付けず、永続化も書き込まない。Script 部品と同じくプロジェクトのコードを動かすため、信頼した C# プロジェクトだけ(Java は別の JVM で動くため対象外)。まだビルドしていなければ状態欄に表示される
 - **インスペクター**:セクションごとに折りたためる。選択肢が 4 つまでの項目(幅・高さのサイジング、揃え、方向、アンカーなど)はボタンの並び
 - ツールバーはアイコン(ツールチップ付き)で、同じ並びのボタン・ドロップダウンは高さを揃える。主な操作(実行・新規プロジェクト・ダイアログの OK)はアクセント色
@@ -166,7 +170,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **紐付け**:`target` は `パッケージ.クラス.メンバー`。イベントは引数なし(または行の要素・遷移で渡した値を受ける引数 1 つ)の public メソッド(`myapp.services.OrderService.submit`)、プロパティは Bean プロパティ(`getName()`/`isName()`、TwoWay なら `setName(...)` も → `myapp.models.UserProfile.name`)
 - 変更通知は `FaroObject` を継承して `changed("name", "greeting")` を呼ぶ。生存期間は `@FaroLifetime(value = Lifetime.SINGLETON, persistent = true)`(永続化は文字列・数値・真偽値の Bean プロパティを `.properties` に保存)
 - **Script 部品**は `FaroScript` を継承して `build()` で JavaFX の Node を返す。キャンバスでは枠表示(実物は実行時)
-- **実行**:キャンバスの Run で `mvn javafx:run`(ホットリロードなし、保存後にもう一度 Run)。javac のエラーは Problems に出る
+- **実行**:キャンバスの Run で `mvn javafx:run`(コードのホットリロードはなく、保存後にもう一度 Run。画面の変更はライブ更新で反映)。javac のエラーは Problems に出る
 - **Material 3**:エディターが `faro.json` の `design` から JavaFX 用 CSS(`.faro/design.css`)を作り、ランタイムが読み込む(押したときの形の変化はバネなしで切り替わるだけ)
 - **レジストリ**:.java の宣言をソースから読み取る(未ビルドでも可)。コメント・文字列・入れ子のクラスは除外
 - 既知の制限:Java のメンバー名変更の紐付け追従は未対応(補完とエラー表示は jdtls)。AI Chat の生成コードは承認前の構文チェックなし(ビルドで検出)
@@ -206,7 +210,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **開始画面は `faro.json` の `startScreen`**(コードに書かないので言語に依存しない)。`Program.cs` は `FaroApp.Run(args, typeof(Program).Assembly)` だけ。存在しない画面を指していれば Problems に出る
 - **`target` の書式**:`<クラスの識別子>.<メンバー名>`。**最後の `.` より後がメンバー名**、それより前(C# では `名前空間.クラス名`)は言語ごとのレジストリ抽出・ランタイムが決める識別子として扱う。将来の言語でクラスを持たない関数はモジュール名をクラスの位置に書く想定
 - **イベント・プロパティ名はフレームワーク非依存**:`<Bind>` の `event`/`prop` には Node 種類ごとの共通名だけを使い、Avalonia の名前への対応は `Faro.Runtime/Bindable.cs` の表だけが持つ(別フレームワーク対応時はこの表を差し替える)。共通名以外(例:旧形式の `OnClick`)は Problems に出て候補(`Click`)を示す
-- **部品と共通名**:Button(`Click`・`Text`)、TextInput(`Changed`・`Text`・`Placeholder`)、Text(`Text`)、Image、CheckBox / Switch(`Changed`・`Text`・`Checked`)、Slider(`Changed`・`Value`・`Minimum`・`Maximum`)、Select(`Changed`・`Selected`・`Options`)、Progress(`Value`、0〜100)、Divider、Spacer、Script、コンテナ(`Click`)。全部品に `Visible`・`Enabled`。Java では Switch をチェックボックスを CSS でスイッチの形にしたもので作り(`UiBuilder.CSS` を data: スタイルシートで読み込む)、Progress は 0〜1 に換算、TwoWay の書き戻しはメンバーの型(int など)に変換する。Material 3 では、これらの部品も M3 の部品の形で出す:C# は `Material3.axaml` の ControlTheme(チェックボックス・スイッチ・Expressive のスライダー・線形の進捗)と `AppDesign.Scheme` の ComboBox の色(塗りの入力欄と同じ形のドロップダウン)、区切り線は Outline Variant。Java は `JavaProject.DesignCss` の CSS で同じ形にし、JavaFX のスライダーには塗られた部分がないので、ランタイムが値の位置までトラックを塗る(色は CSS の `faro-track-on` / `faro-track-off`)
+- **部品と共通名**:Button(`Click`・`Text`)、TextInput(`Changed`・`Text`・`Placeholder`)、Text(`Text`)、Image、CheckBox / Switch(`Changed`・`Text`・`Checked`)、Slider(`Changed`・`Value`・`Minimum`・`Maximum`)、Select(`Changed`・`Selected`・`Options`)、Progress(`Value`、0〜100)、Divider、Icon(`Icon`)、Spacer、Script、コンテナ(`Click`)。全部品に `Visible`・`Enabled`。Java では Switch をチェックボックスを CSS でスイッチの形にしたもので作り(`UiBuilder.CSS` を data: スタイルシートで読み込む)、Progress は 0〜1 に換算、TwoWay の書き戻しはメンバーの型(int など)に変換する。Material 3 では、これらの部品も M3 の部品の形で出す:C# は `Material3.axaml` の ControlTheme(チェックボックス・スイッチ・Expressive のスライダー・線形の進捗)と `AppDesign.Scheme` の ComboBox の色(塗りの入力欄と同じ形のドロップダウン)、区切り線は Outline Variant。Java は `JavaProject.DesignCss` の CSS で同じ形にし、JavaFX のスライダーには塗られた部分がないので、ランタイムが値の位置までトラックを塗る(色は CSS の `faro-track-on` / `faro-track-off`)
+- **アイコン部品**(`Control.Icon`):Google の Material Icons(Outlined、Apache 2.0)から選んだ 69 個の 24×24 のパスを同梱(C# は `IconSet.cs` の `FaroIcon`、Java は `IconSet.java` の `IconSet.View`。同じ表であることをチェックが確かめる)。24px の枠ごと描くので記号の余白が保たれ、大きさを Fixed にすると拡大する。色は文字色(`foreground` やデザイン言語)に従う。インスペクターは絵付きの一覧から選ぶ
+- **アクセシビリティ**(`AccessibilityCheck`、問題パネルの警告):デザイン言語の色の組(ボタンの文字と塗り 4.5:1、本文と面 4.5:1、入力欄のヒント 3:1。テーマが System ならライトとダークの両方)、Node に付けた `foreground` と自分か祖先の `background`(トークンも解く)、Fixed で 44px 未満の押せる部品、プレースホルダーも直前の説明文もない入力欄。赤いバッジ(壊れた紐付け)とは分け、赤くしない。チェックは全デザイン言語が自分の色の組で基準を満たすことも確かめる
 
   | Node 種類 | イベント | プロパティ |
   |---|---|---|

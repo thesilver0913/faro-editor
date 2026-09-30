@@ -122,6 +122,36 @@ public static class Registry
     static bool IsPublic(SyntaxTokenList modifiers) => modifiers.Any(SyntaxKind.PublicKeyword);
 }
 
+/// <summary>The app's screen flow (Figma's prototype view): who navigates where, from Navigate bindings.</summary>
+public static class ScreenFlow
+{
+    /// <summary>Screen → screen links: a screen's own Navigate binds, and those of the components it holds (Bindings/&lt;Comp&gt;.xml).</summary>
+    public static List<(string From, string To)> Edges(FaroProject project) =>
+        project.Screens.SelectMany(screen =>
+            project.BindsFor(screen.Key)
+                .Concat(screen.Value.Root?.Element("Node") is { } root ? UiBuilder.InstancePaths(root).SelectMany(p => project.BindsFor(p.Component)) : [])
+                .Select(b => (string?)b.Attribute("target") ?? "")
+                .Where(t => t.StartsWith("Navigate:"))
+                .Select(t => (From: screen.Key, To: FaroApp.NavigateScreenId(t, project.Screens.Keys))))
+            .Where(e => project.Screens.ContainsKey(e.To))
+            .Distinct().ToList();
+
+    /// <summary>Columns by steps from the start screen (breadth first); screens nothing reaches go in a last column.</summary>
+    public static List<List<string>> Columns(FaroProject project, List<(string From, string To)> edges)
+    {
+        var start = project.StartScreen is { } s && project.Screens.ContainsKey(s) ? s : project.Screens.Keys.FirstOrDefault();
+        var columns = new List<List<string>>();
+        var seen = new HashSet<string>();
+        for (var layer = start is null ? [] : new List<string> { start }; layer.Count > 0; layer = [.. layer.SelectMany(f => edges.Where(e => e.From == f).Select(e => e.To)).Distinct().Where(seen.Add)])
+        {
+            if (columns.Count == 0) seen.Add(start!);
+            columns.Add(layer);
+        }
+        if (project.Screens.Keys.Where(k => !seen.Contains(k)).Order().ToList() is { Count: > 0 } rest) columns.Add(rest);
+        return columns;
+    }
+}
+
 public static class BindingCheck
 {
     /// <summary>Finds broken bindings (red badges, spec §6) with up to 3 near-name suggestions each.</summary>
@@ -431,7 +461,7 @@ public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
         ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image",
-         "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.Progress", "Control.Divider", "Control.Spacer", "Control.Script"];
+         "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.Progress", "Control.Divider", "Control.Icon", "Control.Spacer", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
 
@@ -520,6 +550,7 @@ public static class CanvasEdit
                 "Control.Slider" => [("Minimum", "0"), ("Maximum", "100"), ("Value", "50")],
                 "Control.Select" => [("Options", "Option 1, Option 2, Option 3"), ("Selected", "Option 1")],
                 "Control.Progress" => [("Value", "50")],
+                "Control.Icon" => [("Icon", "star")],
                 _ => Array.Empty<(string, string)>(),
             })
                 node.Add(new XElement("Prop", new XAttribute("name", name), new XAttribute("value", value)));
@@ -529,6 +560,31 @@ public static class CanvasEdit
         else if (selected?.Parent is XElement { Name.LocalName: "Node" }) selected.AddAfterSelf(node);
         else screen.Root!.Element("Node")!.Add(node);
         return node;
+    }
+
+    /// <summary>
+    /// A spacing handle on the canvas (Figma): a container's "gap", or one side of its "padding" (0 top, 1 right, 2 bottom,
+    /// 3 left), written back as one value when all four sides match, else "top right bottom left".
+    /// </summary>
+    public static bool SetSpacing(XDocument screen, string id, bool gap, int side, double value)
+    {
+        if (Find(screen, id) is not { } node || !IsContainer(node)) return false;
+        var text = Math.Max(0, Math.Round(value)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (gap) { SetAttribute(node, "gap", text); return true; }
+        var t = UiBuilder.Sides((string?)node.Attribute("padding"));
+        var sides = new[] { t.Top, t.Right, t.Bottom, t.Left };
+        sides[side] = Math.Max(0, Math.Round(value));
+        SetAttribute(node, "padding", sides.Distinct().Count() == 1 ? text : string.Join(" ", sides.Select(v => v.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+        return true;
+    }
+
+    /// <summary>Distribute (Figma): nodes side by side in one Stack spread over it, the free space evenly between them.</summary>
+    public static bool Distribute(XDocument screen, IReadOnlyCollection<string> ids)
+    {
+        var parents = ids.Select(id => Find(screen, id)?.Parent).Distinct().ToList();
+        if (ids.Count < 2 || parents is not [{ Name.LocalName: "Node" } parent] || (string?)parent.Attribute("type") != "Container.Stack") return false;
+        SetAttribute(parent, "justify", "SpaceBetween");
+        return true;
     }
 
     /// <summary>

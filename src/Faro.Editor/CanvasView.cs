@@ -266,7 +266,7 @@ public sealed class CanvasView : UserControl
     }
 
     /// <summary>Compare: the screen side by side on every device size, or in light and dark (read-only copies; editing stays on one artboard).</summary>
-    static readonly string[] CompareModes = ["One artboard", "All sizes", "Light and dark"];
+    static readonly string[] CompareModes = ["One artboard", "All sizes", "Light and dark", "Screen flow"];
     static int compareMode;
 
     Control Compare(XElement node)
@@ -311,6 +311,74 @@ public sealed class CanvasView : UserControl
         return built;
     }
 
+    ComboBox compare = null!;
+
+    /// <summary>
+    /// Screen flow (Figma's prototype view): every screen as a small live preview, in columns by steps from the start
+    /// screen, with an arrow for each Navigate binding (ScreenFlow). Clicking a screen opens it on the artboard.
+    /// </summary>
+    Control Flow()
+    {
+        var project = Workspace.Project!;
+        var edges = ScreenFlow.Edges(project);
+        var columns = ScreenFlow.Columns(project, edges);
+        var (width, height) = Sizes.GetValueOrDefault(FaroSettings.Current.ArtboardSize, Sizes["Phone"]);
+        const double scale = 0.35, gapX = 110, gapY = 50, label = 26;
+        var (boxW, boxH) = (width * scale, height * scale + label);
+        var canvas = new Canvas { Width = columns.Count * (boxW + gapX) + gapX, Height = columns.Max(c => c.Count) * (boxH + gapY) + gapY };
+        var at = new Dictionary<string, Point>();
+        for (var x = 0; x < columns.Count; x++)
+            for (var y = 0; y < columns[x].Count; y++)
+            {
+                var id = columns[x][y];
+                at[id] = new(gapX / 2 + x * (boxW + gapX), gapY + y * (boxH + gapY));
+                var board = new Border { Width = width, Height = height, Classes = { "faro-screen" }, ClipToBounds = true,
+                    Child = project.Screens[id].Root?.Element("Node") is { } root ? BuildScreen(root, []) : null, IsHitTestVisible = false };
+                var box = new Button
+                {
+                    Padding = new(0), Background = Brushes.Transparent, BorderThickness = new(id == CurrentScreen ? 2 : 1),
+                    BorderBrush = id == CurrentScreen ? Brushes.DodgerBlue : new SolidColorBrush(Color.FromArgb(0x60, 0x80, 0x80, 0x80)),
+                    Content = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBlock { Text = id + (id == project.StartScreen ? "  ▶" : ""), Height = label, Padding = new(6, 4), FontWeight = FontWeight.SemiBold },
+                            new Viewbox { Width = boxW, Height = boxH - label, Child = board },
+                        },
+                    },
+                    [ToolTip.TipProperty] = L.T("Open this screen"),
+                };
+                box.Click += (_, _) => { compare.SelectedIndex = 0; screens.SelectedItem = id; };
+                Canvas.SetLeft(box, at[id].X);
+                Canvas.SetTop(box, at[id].Y);
+                canvas.Children.Add(box);
+            }
+        // Arrows: forward ones leave a right edge for the next column's left edge (higher up); backward ones go from a left
+        // edge back to a right edge (lower down), so a two-way link shows two arrows; within a column they loop out on the left.
+        var ink = new SolidColorBrush(Color.Parse("#2680EB"));
+        foreach (var (from, to) in edges)
+        {
+            var (a, b) = (at[from], at[to]);
+            var (start, end, out1, out2, dir) = b.X > a.X ? (new Point(a.X + boxW, a.Y + boxH * 0.4), new Point(b.X, b.Y + boxH * 0.4), 1.0, -1.0, -1)
+                : b.X < a.X ? (new Point(a.X, a.Y + boxH * 0.6), new Point(b.X + boxW, b.Y + boxH * 0.6), -1.0, 1.0, 1)
+                : (new Point(a.X, a.Y + boxH * 0.5), new Point(b.X, b.Y + boxH * 0.5), -1.0, -1.0, -1);
+            var bend = Math.Max(Math.Abs(end.X - start.X) / 2, 60);
+            canvas.Children.Insert(0, new Avalonia.Controls.Shapes.Path
+            {
+                Stroke = ink, StrokeThickness = 2,
+                Data = Geometry.Parse(FormattableString.Invariant($"M {start.X},{start.Y} C {start.X + out1 * bend},{start.Y} {end.X + out2 * bend},{end.Y} {end.X},{end.Y}")),
+            });
+            canvas.Children.Add(new Avalonia.Controls.Shapes.Path // the arrowhead, pointing into the target
+            {
+                Fill = ink,
+                Data = Geometry.Parse(FormattableString.Invariant($"M {end.X},{end.Y} L {end.X + dir * 9},{end.Y - 5} L {end.X + dir * 9},{end.Y + 5} Z")),
+            });
+        }
+        if (edges.Count == 0)
+            canvas.Children.Add(new TextBlock { Text = L.T("No Navigate bindings yet: bind a button's Click to Navigate:<Screen> to see the flow."), Opacity = 0.6, [Canvas.TopProperty] = 8.0, [Canvas.LeftProperty] = gapX / 2 });
+        return canvas;
+    }
+
     readonly Button run = new() { Classes = { "accent" }, Padding = new(8, 4), [ToolTip.TipProperty] = L.T("Run the app (F5) / Stop (Shift+F5)") };
 
     public CanvasView()
@@ -319,6 +387,7 @@ public sealed class CanvasView : UserControl
         Focusable = true;
         zoomHost.Child = artboard;
         run.Click += (_, _) => ConsoleView.RunOrStop();
+        KeyUp += (_, e) => { if (e.Key is Avalonia.Input.Key.LeftAlt or Avalonia.Input.Key.RightAlt && measureId is not null) { measureId = null; DrawSelection(); } };
         sync.Click += (_, _) => SyncComponents();
         screens.SelectionChanged += (_, _) =>
         {
@@ -337,7 +406,9 @@ public sealed class CanvasView : UserControl
             (true, "Start", "Align left"), (true, "Center", "Align horizontal centers"), (true, "End", "Align right (along a row: a Spacer pushes it to the end)"),
             (false, "Start", "Align top"), (false, "Center", "Align vertical centers"), (false, "End", "Align bottom (along a column: a Spacer pushes it to the end)") }
             .Select(a => new Icons.Tool(() => Icons.Align(a.Item1, a.Item2), a.Item3, () => Edit(a.Item3.Split(" (")[0], (_, screen) =>
-                Selection.Count == 1 && CanvasEdit.Align(screen, Selection.First(), a.Item1, a.Item2) ? [screen] : [])))]);
+                Selection.ToList().Aggregate(false, (any, id) => CanvasEdit.Align(screen, id, a.Item1, a.Item2) | any) ? [screen] : []))),
+            new Icons.Tool(() => new PathIcon { Data = Geometry.Parse("M3,3H5V21H3Z M19,3H21V21H19Z M8,7H11V17H8Z M13,7H16V17H13Z"), Width = 16, Height = 16 },
+                "Distribute evenly (two or more nodes in one Stack)", () => Edit("Distribute", (_, screen) => CanvasEdit.Distribute(screen, [.. Selection]) ? [screen] : []))]);
         var tools = new StackPanel
         {
             Spacing = 4, Margin = new(6, 8),
@@ -366,6 +437,14 @@ public sealed class CanvasView : UserControl
             if (e.GetCurrentPoint(artboard).Properties.IsLeftButtonPressed && Handle(e.GetPosition(overlay)) is { } axes && byId.GetValueOrDefault(Selection.First()) is { } resized)
             {
                 (resizeId, resizeAxes, resizeFrom, pressAt) = (Selection.First(), axes, resized.Bounds.Size, e.GetPosition(overlay));
+                e.Pointer.Capture(artboard);
+                e.Handled = true;
+                return;
+            }
+            // A spacing handle (padding / gap bar of the selected container) drags its value.
+            if (e.GetCurrentPoint(artboard).Properties.IsLeftButtonPressed && SpacingAt(e.GetPosition(overlay)) is { } bar)
+            {
+                (spacing, spacingValue, pressAt) = (bar, bar.Value, e.GetPosition(overlay));
                 e.Pointer.Capture(artboard);
                 e.Handled = true;
                 return;
@@ -402,14 +481,37 @@ public sealed class CanvasView : UserControl
                 Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded);
                 return;
             }
+            if (spacing is { } dragged && byId.GetValueOrDefault(dragged.Id) is Border container)
+            {
+                // Live: the container's padding or gap follows the pointer; the file changes on release
+                spacingValue = Math.Max(0, Math.Round(dragged.Value + ((dragged.Vertical ? p.Y - pressAt.Y : p.X - pressAt.X) * dragged.Sign)));
+                if (dragged.Gap && container.Child is Grid grid) grid.RowSpacing = grid.ColumnSpacing = spacingValue;
+                else if (!dragged.Gap)
+                {
+                    var t = container.Padding;
+                    container.Padding = dragged.Side switch
+                    {
+                        0 => new(t.Left, spacingValue, t.Right, t.Bottom), 1 => new(t.Left, t.Top, spacingValue, t.Bottom),
+                        2 => new(t.Left, t.Top, t.Right, spacingValue), _ => new(spacingValue, t.Top, t.Right, t.Bottom),
+                    };
+                }
+                spacingAt = p;
+                Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded);
+                return;
+            }
             if (dragId is null)
             {
+                // Alt: distances from the selection to the node under the pointer (Figma's red measurements)
+                var measuring = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Alt) && Selection.Count == 1 && !preview
+                    ? NodeAt(p, new HashSet<string?>()) is { } over && over != Selection.First() ? over : CurrentGraph()?.Root?.Element("Node")?.Attribute("id")?.Value
+                    : null;
+                if (measuring != measureId) { measureId = measuring; DrawSelection(); }
                 artboard.Cursor = preview ? null : Handle(p) switch
                 {
                     (true, true) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.BottomRightCorner),
                     (true, false) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeWestEast),
                     (false, true) => new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeNorthSouth),
-                    _ => null,
+                    _ => SpacingAt(p) is { } bar ? new Avalonia.Input.Cursor(bar.Vertical ? Avalonia.Input.StandardCursorType.SizeNorthSouth : Avalonia.Input.StandardCursorType.SizeWestEast) : null,
                 };
                 return;
             }
@@ -422,6 +524,14 @@ public sealed class CanvasView : UserControl
         artboard.AddHandler(PointerReleasedEvent, (_, e) =>
         {
             if (preview) return; // don't take the pointer capture away from a pressed control
+            if (spacing is { } done)
+            {
+                spacing = null;
+                e.Pointer.Capture(null);
+                var value = spacingValue;
+                Edit(done.Gap ? "Set gap" : "Set padding", (_, screen) => CanvasEdit.SetSpacing(screen, done.Id, done.Gap, done.Side, value) ? [screen] : []);
+                return;
+            }
             if (resizeId is { } rid && byId.GetValueOrDefault(rid) is { } sized)
             {
                 resizeId = null;
@@ -499,7 +609,7 @@ public sealed class CanvasView : UserControl
             if (preview) Select([]);
             Render();
         };
-        var compare = new ComboBox { ItemsSource = CompareModes.Select(m => L.T(m)).ToList(), SelectedIndex = compareMode, [ToolTip.TipProperty] = L.T("Compare the screen on every size, or in light and dark") };
+        compare = new ComboBox { ItemsSource = CompareModes.Select(m => L.T(m)).ToList(), SelectedIndex = compareMode, [ToolTip.TipProperty] = L.T("Compare the screen on every size, or in light and dark, or see the flow between screens") };
         compare.SelectionChanged += (_, _) => { compareMode = Math.Max(0, compare.SelectedIndex); Render(); };
         var dataToggle = new Avalonia.Controls.Primitives.ToggleButton { Content = Icons.Label(FASymbol.Library, L.T("Data")), Padding = new(8, 4), IsChecked = data };
         dataToggle.IsCheckedChanged += (_, _) => { data = dataToggle.IsChecked == true; Render(); DrawSelection(); };
@@ -636,7 +746,7 @@ public sealed class CanvasView : UserControl
         Selection.IntersectWith(ScreenNodeIds);
         (overlay.Parent as Panel)?.Children.Remove(overlay);
         artboard.Child = new Panel { Children = { built, overlay } };
-        zoomHost.Child = compareMode == 0 ? artboard : Compare(graph.Root!.Element("Node")!);
+        zoomHost.Child = compareMode switch { 0 => artboard, 3 => Flow(), _ => Compare(graph.Root!.Element("Node")!) };
         if (preview) WirePreview(CurrentScreen ?? "");
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
         foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
@@ -709,6 +819,89 @@ public sealed class CanvasView : UserControl
     (bool W, bool H) resizeAxes;
     Size resizeFrom;
 
+    /// <summary>A spacing handle: one side of a container's padding (0 top … 3 left) or a gap between its children.</summary>
+    sealed record SpacingBar(string Id, bool Gap, int Side, Rect Rect, bool Vertical, double Sign, double Value);
+    SpacingBar? spacing;
+    double spacingValue;
+    Point spacingAt;
+    string? measureId;
+
+    /// <summary>The selected container's padding sides and the gaps between its children (a Stack's), as draggable bars.</summary>
+    List<SpacingBar> SpacingBars()
+    {
+        if (Selection.Count != 1 || dragId is not null || CurrentGraph() is not { } graph || CanvasEdit.Find(graph, Selection.First()) is not { } node
+            || !CanvasEdit.IsContainer(node) || byId.GetValueOrDefault(Selection.First()) is not Border border) return [];
+        var id = Selection.First();
+        var (box, t) = (RectOf(border), border.Padding);
+        var bars = new List<SpacingBar>
+        {
+            new(id, false, 0, new Rect(box.X, box.Y, box.Width, t.Top), true, 1, t.Top),
+            new(id, false, 1, new Rect(box.Right - t.Right, box.Y, t.Right, box.Height), false, -1, t.Right),
+            new(id, false, 2, new Rect(box.X, box.Bottom - t.Bottom, box.Width, t.Bottom), true, -1, t.Bottom),
+            new(id, false, 3, new Rect(box.X, box.Y, t.Left, box.Height), false, 1, t.Left),
+        };
+        if ((string?)node.Attribute("type") == "Container.Stack" && (string?)node.Attribute("justify") != "SpaceBetween")
+        {
+            var horizontal = (string?)node.Attribute("direction") == "Horizontal";
+            var gap = double.TryParse((string?)node.Attribute("gap"), System.Globalization.CultureInfo.InvariantCulture, out var g) ? g : 0;
+            var children = node.Elements("Node").Select(n => byId.GetValueOrDefault((string?)n.Attribute("id") ?? "")).OfType<Control>().Select(RectOf).ToList();
+            for (var i = 1; i < children.Count; i++)
+                bars.Add(horizontal
+                    ? new(id, true, 0, new Rect(children[i - 1].Right, box.Y + t.Top, children[i].X - children[i - 1].Right, box.Height - t.Top - t.Bottom), false, 1, gap)
+                    : new(id, true, 0, new Rect(box.X + t.Left, children[i - 1].Bottom, box.Width - t.Left - t.Right, children[i].Y - children[i - 1].Bottom), true, 1, gap));
+        }
+        return bars;
+    }
+
+    /// <summary>The spacing bar under the pointer (thin ones grab 3px either side).</summary>
+    SpacingBar? SpacingAt(Point p) => preview || Handle(p) is not null ? null
+        : SpacingBars().FirstOrDefault(b => (b.Vertical ? b.Rect.Inflate(new Thickness(0, Math.Max(0, 3 - b.Rect.Height / 2))) : b.Rect.Inflate(new Thickness(Math.Max(0, 3 - b.Rect.Width / 2), 0))).Contains(p));
+
+    void Mark(Rect r, IBrush fill)
+    {
+        var mark = new Avalonia.Controls.Shapes.Rectangle { Width = Math.Max(r.Width, 1), Height = Math.Max(r.Height, 1), Fill = fill };
+        Canvas.SetLeft(mark, r.X);
+        Canvas.SetTop(mark, r.Y);
+        overlay.Children.Add(mark);
+    }
+
+    void Tag(string text, Point at, IBrush back)
+    {
+        var tag = new Border { Background = back, CornerRadius = new(3), Padding = new(4, 1), Child = new TextBlock { Text = text, FontSize = 11, Foreground = Brushes.White } };
+        Canvas.SetLeft(tag, at.X);
+        Canvas.SetTop(tag, at.Y);
+        overlay.Children.Add(tag);
+    }
+
+    /// <summary>Alt-hover (Figma): red lines from the selection to the hovered node's edges (inside it) or across the gaps between them.</summary>
+    void DrawMeasure()
+    {
+        if (measureId is null || Selection.Count != 1 || byId.GetValueOrDefault(Selection.First()) is not { } a || byId.GetValueOrDefault(measureId) is not { } b) return;
+        var (s, o) = (RectOf(a), RectOf(b));
+        var red = new SolidColorBrush(Color.Parse("#F24822"));
+        void Line(Point from, Point to)
+        {
+            var length = Math.Round(Math.Abs(to.X - from.X) + Math.Abs(to.Y - from.Y));
+            if (length < 1) return;
+            Mark(from.X == to.X ? new Rect(from.X, Math.Min(from.Y, to.Y), 1, Math.Abs(to.Y - from.Y)) : new Rect(Math.Min(from.X, to.X), from.Y, Math.Abs(to.X - from.X), 1), red);
+            Tag(length.ToString(System.Globalization.CultureInfo.InvariantCulture), new((from.X + to.X) / 2 + 3, (from.Y + to.Y) / 2 + 3), red);
+        }
+        if (o.Contains(s)) // inside it: to each of its edges
+        {
+            Line(new(s.Center.X, s.Top), new(s.Center.X, o.Top));
+            Line(new(s.Center.X, s.Bottom), new(s.Center.X, o.Bottom));
+            Line(new(s.Left, s.Center.Y), new(o.Left, s.Center.Y));
+            Line(new(s.Right, s.Center.Y), new(o.Right, s.Center.Y));
+            return;
+        }
+        var y = Math.Clamp(s.Center.Y, Math.Max(s.Top, o.Top), Math.Max(Math.Min(s.Bottom, o.Bottom), Math.Max(s.Top, o.Top)));
+        var x = Math.Clamp(s.Center.X, Math.Max(s.Left, o.Left), Math.Max(Math.Min(s.Right, o.Right), Math.Max(s.Left, o.Left)));
+        if (o.Left >= s.Right) Line(new(s.Right, y), new(o.Left, y));
+        if (o.Right <= s.Left) Line(new(o.Right, y), new(s.Left, y));
+        if (o.Top >= s.Bottom) Line(new(x, s.Bottom), new(x, o.Top));
+        if (o.Bottom <= s.Top) Line(new(x, o.Bottom), new(x, s.Top));
+    }
+
     /// <summary>The single selection's box on the overlay (null for none or several).</summary>
     Rect? SelectedBox() => Selection.Count == 1 && byId.GetValueOrDefault(Selection.First()) is { } c && c.TranslatePoint(default, overlay) is { } p
         ? new Rect(p, c.Bounds.Size) : null;
@@ -748,6 +941,11 @@ public sealed class CanvasView : UserControl
                 Canvas.SetTop(handle, y - 4);
                 overlay.Children.Add(handle);
             }
+        // Spacing (Figma's Auto Layout handles): padding and gaps tinted; the one being dragged shows its value
+        var pink = new SolidColorBrush(Color.FromArgb(0x40, 0xF2, 0x48, 0x9A));
+        foreach (var bar in SpacingBars()) Mark(bar.Rect, bar == spacing ? new SolidColorBrush(Color.FromArgb(0x80, 0xF2, 0x48, 0x9A)) : pink);
+        if (spacing is { } active) Tag($"{(active.Gap ? L.T("Gap") : L.T("Padding"))} {spacingValue}", new(spacingAt.X + 12, spacingAt.Y + 12), new SolidColorBrush(Color.Parse("#D6247A")));
+        DrawMeasure();
         var selected = Selection.Count == 1 && CurrentGraph() is { } graph
             ? graph.Descendants("Node").FirstOrDefault(n => (string?)n.Attribute("id") == Selection.First())
             : null;

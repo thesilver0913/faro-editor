@@ -91,6 +91,53 @@ public final class FaroApp {
             stage.setScene(scene);
             stage.show();
             navigate(start);
+            watchLive(scene);
+        }
+    }
+
+    /**
+     * Live reload: when the editor runs the app it passes the project folder in FARO_LIVE. Saved changes to UI/, Bindings/,
+     * faro.json (tokens) and .faro/design.css rebuild the current screen in place, with the same instances, so its state stays.
+     */
+    private static void watchLive(Scene scene) {
+        var dir = System.getenv("FARO_LIVE");
+        if (dir == null || dir.isEmpty() || index != null || !new File(dir).isDirectory()) return;
+        var thread = new Thread(() -> {
+            try (var service = java.nio.file.FileSystems.getDefault().newWatchService()) {
+                for (var sub : new String[] { "", "UI", "Bindings", ".faro" }) {
+                    var path = new File(root, sub).toPath();
+                    if (path.toFile().isDirectory())
+                        path.register(service, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE, java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY, java.nio.file.StandardWatchEventKinds.ENTRY_DELETE);
+                }
+                while (true) {
+                    var key = service.take();
+                    Thread.sleep(200); // editors save in bursts
+                    key.pollEvents();
+                    key.reset();
+                    for (java.nio.file.WatchKey more; (more = service.poll()) != null; ) { more.pollEvents(); more.reset(); }
+                    javafx.application.Platform.runLater(() -> reload(scene));
+                }
+            } catch (IOException | InterruptedException e) { /* live reload ends with the app */ }
+        }, "faro-live");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private static void reload(Scene scene) {
+        try {
+            screens.clear();
+            components.clear();
+            binds.clear();
+            UiBuilder.tokens = tokens(read("faro.json"));
+            load();
+            scene.getStylesheets().removeIf(css -> !css.startsWith("data:"));
+            scene.getStylesheets().removeIf(css -> css.startsWith("data:text/css;charset=utf-8,")); // the last design.css
+            var design = read(".faro/design.css");
+            if (!design.isEmpty()) // as data: so JavaFX doesn't serve its cached copy; fonts resolve against the project folder
+                scene.getStylesheets().add("data:text/css;charset=utf-8," + java.net.URLEncoder.encode(design.replace("url('fonts/", "url('" + new File(root, ".faro/fonts").toURI() + "/"), java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"));
+            if (current != null && screens.get(current) instanceof Element graph) show(current, graph);
+        } catch (RuntimeException e) {
+            showError("Live reload: " + e.getMessage()); // a half-written file: the next save retries
         }
     }
 
@@ -112,6 +159,13 @@ public final class FaroApp {
         release(screenScoped.values());
         screenScoped = new HashMap<>();
         FaroApp.parameter = parameter;
+        show(screenId, graph);
+    }
+
+    private static String current; // the screen shown (live reload rebuilds it)
+
+    private static void show(String screenId, Element graph) {
+        current = screenId;
         var byId = new HashMap<String, Node>();
         var rootNode = UiBuilder.children(graph, "Node").get(0);
         var content = UiBuilder.build(rootNode, byId, root, "");
@@ -300,6 +354,7 @@ public final class FaroApp {
                 yield list;
             }
             case "Placeholder" -> control instanceof TextInputControl t ? t.promptTextProperty() : null;
+            case "Icon" -> control instanceof IconSet.View icon ? icon.icon : null;
             case "Visible" -> control.visibleProperty();
             case "Enabled" -> {
                 var enabled = new SimpleBooleanProperty(!control.isDisable());

@@ -77,6 +77,7 @@ public final class UiBuilder {
                 yield select;
             }
             case "Control.Progress" -> new javafx.scene.control.ProgressBar(propNumber(node, "Value", 0) / 100);
+            case "Control.Icon" -> new IconSet.View(prop(node, "Icon") instanceof String name && !name.isEmpty() ? name : "star");
             case "Control.Divider" -> new javafx.scene.control.Separator("Horizontal".equals(((Element) node.getParentNode()).getAttribute("direction")) ? Orientation.VERTICAL : Orientation.HORIZONTAL);
             default -> {
                 var label = new Label("[unknown type: " + type + "]");

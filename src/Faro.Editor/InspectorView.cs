@@ -26,6 +26,7 @@ public sealed class InspectorView : UserControl
         ["Control.Slider"] = ["Value", "Minimum", "Maximum"],
         ["Control.Select"] = ["Options", "Selected"],
         ["Control.Progress"] = ["Value"],
+        ["Control.Icon"] = ["Icon"],
     };
 
     readonly StackPanel body = new() { Spacing = 8, Margin = new(12) };
@@ -135,7 +136,8 @@ public sealed class InspectorView : UserControl
         {
             body.Children.Add(Section(L.T(type == "Instance" ? "Overrides" : "Properties")));
             foreach (var prop in props)
-                body.Children.Add(Row(prop, prop is "Source" or "BackgroundTexture"
+                body.Children.Add(Row(prop, prop == "Icon" && type == "Control.Icon" ? IconField(CanvasEdit.GetProp(node, prop) ?? "star", value => EditNode(id, "Set Icon", n => CanvasEdit.SetProp(n, "Icon", value)))
+                    : prop is "Source" or "BackgroundTexture"
                     ? AssetField(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))
                     : Field(CanvasEdit.GetProp(node, prop) ?? "", value => EditNode(id, $"Set {prop}", n => CanvasEdit.SetProp(n, prop, value)))));
         }
@@ -291,6 +293,22 @@ public sealed class InspectorView : UserControl
         var size = AttributeField(node, axis);
         size.IsVisible = UiBuilder.Sizing(node, axis) == "Fixed";
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
+    }
+
+    /// <summary>The Icon part's symbol: the bundled set (IconSet), each shown with its picture.</summary>
+    static ComboBox IconField(string value, Action<string> set)
+    {
+        var box = new ComboBox
+        {
+            ItemsSource = IconSet.Paths.Keys.ToList(), SelectedItem = value, MinWidth = 160, MaxDropDownHeight = 360,
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((name, _) => new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { new FaroIcon { Icon = name, Width = 18, Height = 18 }, new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center } },
+            }),
+        };
+        box.SelectionChanged += (_, _) => { if (box.SelectedItem is string name && name != value) set(name); };
+        return box;
     }
 
     static readonly Dictionary<string, (string Attribute, string[] Values)[]> LookOptions = new()

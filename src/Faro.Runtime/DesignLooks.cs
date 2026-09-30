@@ -112,7 +112,7 @@ public static class DesignLooks
                 var gloss = dark ? "#26FFFFFF" : "#B3FFFFFF";
                 Palette(Tone(p.Primary, 94, 12), Tone(p.Neutral, 15, 90), Tone(p.NeutralVariant, 40, 70), Tone(p.Neutral, 99, 22),
                     Colors.Transparent, Tone(p.Primary, 86, 25), Tone(p.Neutral, 99, 90));
-                v["FaroAccent"] = Tone(p.Primary, 55, 75);
+                v["FaroAccent"] = Tone(p.Primary, 45, 75); // 45: white labels stay above 4.5:1
                 v["FaroOnAccent"] = Tone(p.Primary, 100, 10);
                 (v["FaroButton"], v["FaroOnButton"]) = (v["FaroAccent"], v["FaroOnAccent"]);
                 v["FaroButtonWeight"] = FontWeight.Bold;
@@ -185,7 +185,7 @@ public static class DesignLooks
 
         // Fluent's text boxes and combo boxes (their templates stay; the colors and borders are the language's)
         var field = d["FaroField"];
-        var fieldBorder = (Thickness)d["FaroFieldBorderThickness"];
+        var fieldBorder = (Thickness)d["FaroFieldBorderThickness"]!;
         foreach (var state in new[] { "", "PointerOver", "Focused" })
         {
             d["TextControlBackground" + state] = field;
