@@ -32,6 +32,17 @@ Check(issues.Count == 2, "two broken bindings found");
 project.Binds.First().SetAttributeValue("nodeId", "price");
 Check(BindingCheck.Check(project, registry).Any(i => i.Message.StartsWith("Node 'price' does not exist")), "snapshot-internal ids are not screen nodes");
 
+// A list (repeatable instance) has no events of its own: a tap goes on its row root, and the check says so
+project = FaroProject.Load(root);
+project.Binds.First(b => (string?)b.Attribute("nodeId") == "orderList/root").SetAttributeValue("nodeId", "orderList");
+Check(BindingCheck.Check(project, registry).Any(i => i.NodeId == "orderList" && i.Message.Contains("orderList/root")), "an event on a list points to its row root");
+// The canvas's Script preview with a bin/ folder but no build yet: "not built", not a crash
+var emptyBuild = Directory.CreateTempSubdirectory("faro-nobuild").FullName;
+Directory.CreateDirectory(Path.Combine(emptyBuild, "bin", "Debug"));
+File.WriteAllText(Path.Combine(emptyBuild, "App.csproj"), "<Project />");
+Check(ScriptPreview.LatestBuild(emptyBuild) is null, "Script preview before the first build");
+Directory.Delete(emptyBuild, recursive: true);
+
 // Bindings are per screen (Bindings/<ScreenId>.xml): the same node id on another screen is not affected.
 project = FaroProject.Load(root);
 Check(project.BindsFor("MainScreen").Any(b => (string?)b.Attribute("nodeId") == "btn1") && !project.BindsFor("Detail").Any(b => (string?)b.Attribute("nodeId") == "btn1"), "binds belong to their screen's file");
@@ -125,6 +136,26 @@ var vocabIssues = BindingCheck.Check(project, registry).Where(i => i.Screen == "
 Check(vocabIssues.Count == 1 && vocabIssues[0].Message == "Control.Button has no event 'OnClick'." && vocabIssues[0].Suggestions[0] == "Click", "Avalonia event names are rejected, the neutral name suggested");
 Check(Bindable.TypeOf(CanvasEdit.Find(project.Screens["MainScreen"], "orderList")!) == "Container.Stack" && Bindable.For("Container.Stack")!.Props.ContainsKey("Visible")
     && Bindable.For(new Avalonia.Controls.Button())!.Events["Click"] == Avalonia.Controls.Button.ClickEvent && Bindable.For(new Avalonia.Controls.TextBox())!.Type == "Control.TextInput", "neutral names map to Avalonia per node type");
+// Colors bind as "#RRGGBB" or a token, dates as "yyyy-MM-dd" both ways; number and date inputs; the same names in Java
+UiBuilder.Tokens = new Dictionary<string, string> { ["color.expense"] = "#C62828" };
+var javaAppSource = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Faro.Runtime.Java/faro/runtime/FaroApp.java")));
+var numberNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="n" type="Control.NumberInput"><Prop name="Value" value="12" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(UiBuilder.ColorBinding.Convert("$color.expense", typeof(Avalonia.Media.IBrush), null, System.Globalization.CultureInfo.InvariantCulture) is Avalonia.Media.ISolidColorBrush { Color: var expense } && expense == Avalonia.Media.Color.Parse("#C62828")
+    && UiBuilder.ColorBinding.Convert("", typeof(Avalonia.Media.IBrush), null, System.Globalization.CultureInfo.InvariantCulture) is null
+    && UiBuilder.DateBinding.Convert("2026-09-30", typeof(DateTime?), null, System.Globalization.CultureInfo.InvariantCulture) is DateTime { Day: 30 } date
+    && (string?)UiBuilder.DateBinding.ConvertBack(date, typeof(string), null, System.Globalization.CultureInfo.InvariantCulture) == "2026-09-30"
+    && numberNode is Avalonia.Controls.NumericUpDown { Value: 12 } && Bindable.For(numberNode)!.Props.ContainsKey("Value") && Bindable.For("Control.DateInput")!.Props.ContainsKey("Date")
+    && Bindable.For("Control.Text")!.Props.ContainsKey("Foreground") && Bindable.For("Container.Stack")!.Props.ContainsKey("Background")
+    && new[] { "\"Foreground\"", "\"Background\"", "\"Date\"", "Spinner", "public static <T> T get(" }.All(javaAppSource.Contains), "bound colors, dates and numbers, in both runtimes");
+UiBuilder.Tokens = new Dictionary<string, string>();
+// A number input steps by "Step"; faro.json "locale" is written by the design dialog and read back
+var stepNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="n" type="Control.NumberInput"><Prop name="Step" value="100" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+var localeDir = Directory.CreateTempSubdirectory("faro-locale").FullName;
+File.WriteAllText(Path.Combine(localeDir, "faro.json"), """{ "name": "L" }""");
+foreach (var (file, text) in ProjectSetup.DesignChange(localeDir, new AppDesign(), new Dictionary<string, string>(), "ja-JP")) File.WriteAllText(file, text);
+Check(stepNode is Avalonia.Controls.NumericUpDown { Increment: 100 } && FaroProject.Load(localeDir).Locale == "ja-JP"
+    && javaAppSource.Contains("case \"Step\"") && javaAppSource.Contains("\"locale\""), "number input step, app locale in faro.json (both runtimes)");
+Directory.Delete(localeDir, recursive: true);
 var changedBox = new Avalonia.Controls.TextBox();
 var changedFired = false;
 changedBox.AddHandler(Bindable.For(changedBox)!.Events["Changed"], (EventHandler<Avalonia.Interactivity.RoutedEventArgs>)((_, _) => changedFired = true));

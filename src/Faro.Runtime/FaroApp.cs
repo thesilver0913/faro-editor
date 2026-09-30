@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -76,6 +77,9 @@ public static class FaroApp
     {
         userAssembly = assembly;
         project = FaroProject.Load(projectRoot);
+        if (project.Locale is { Length: > 0 } locale)
+            try { CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = new CultureInfo(locale); }
+            catch (CultureNotFoundException) { } // an unknown name: the device's
         UiBuilder.ScriptFactory = name => userAssembly.GetType(name) is { } type && typeof(FaroScript).IsAssignableFrom(type)
             ? ((FaroScript)InstanceOf(type)).Build()
             : throw new InvalidOperationException($"'{name}' is not a FaroScript class in {userAssembly.GetName().Name}.");
@@ -132,6 +136,7 @@ public static class FaroApp
             return;
         }
         Release(screenScoped.Values);
+        foreach (var o in singletons.Values) Save(o); // also when the app is killed later (the editor's Stop)
         screenScoped = [];
         Parameter = parameter;
         Show(screenId, graph);
@@ -334,9 +339,14 @@ public static class FaroApp
                 Source = Source(prop, prop.GetMethod?.IsStatic == true),
                 Mode = (string?)bind.Attribute("mode") == "TwoWay" ? BindingMode.TwoWay : BindingMode.OneWay,
                 StringFormat = (string?)bind.Attribute("format"), // "¥{0:N0}"; N and F are the ones Java formats the same way
+                Converter = typeof(IBrush).IsAssignableFrom(avaloniaProp.PropertyType) ? UiBuilder.ColorBinding
+                    : avaloniaProp == CalendarDatePicker.SelectedDateProperty ? UiBuilder.DateBinding : null,
             });
         }
     }
+
+    /// <summary>The instance bindings use for a class (by its lifetime): code reaches another class's singleton this way.</summary>
+    public static T Get<T>() where T : class => (T)InstanceOf(typeof(T));
 
     static object InstanceOf(Type type)
     {
@@ -348,9 +358,8 @@ public static class FaroApp
             _ => screenScoped,
         };
         if (store?.TryGetValue(type, out var existing) == true) return existing;
-        var path = PersistPath(type);
         object? saved = null;
-        if (attr?.Persistent == true && File.Exists(path))
+        if (attr?.Persistent == true && userAssembly is not null && PersistPath(type) is var path && File.Exists(path)) // not on a canvas before any build
             try { saved = JsonSerializer.Deserialize(File.ReadAllText(path), type); }
             catch (Exception e) when (e is JsonException or NotSupportedException or IOException) { } // a damaged save: start fresh
         var created = saved ?? Activator.CreateInstance(type)!;

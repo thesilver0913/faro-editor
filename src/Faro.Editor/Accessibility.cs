@@ -12,7 +12,7 @@ namespace Faro.Editor;
 public static class AccessibilityCheck
 {
     const double MinTarget = 44; // Apple's 44pt; Material asks for 48dp
-    static readonly string[] Tappable = ["Control.Button", "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.TextInput"];
+    static readonly string[] Tappable = ["Control.Button", "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.TextInput", "Control.NumberInput", "Control.DateInput"];
 
     public static List<BindingIssue> Check(FaroProject project)
     {
@@ -51,7 +51,7 @@ public static class AccessibilityCheck
                         if (UiBuilder.Sizing(node, axis) == "Fixed" && double.TryParse(Token((string?)node.Attribute(axis) ?? ""), System.Globalization.CultureInfo.InvariantCulture, out var size) && size < MinTarget)
                             issues.Add(new(id, "", L.F("The {0} is {1}px: at least 44px is easier to tap.", L.T(axis), size), [], graphId));
                 // A text field needs a hint or a label just before it
-                if (type == "Control.TextInput" && !node.Elements("Prop").Any(p => (string?)p.Attribute("name") == "Placeholder" && ((string?)p.Attribute("value"))?.Length > 0)
+                if (type is "Control.TextInput" or "Control.NumberInput" or "Control.DateInput" &&!node.Elements("Prop").Any(p => (string?)p.Attribute("name") == "Placeholder" && ((string?)p.Attribute("value"))?.Length > 0)
                     && (string?)(node.ElementsBeforeSelf("Node").LastOrDefault()?.Attribute("type")) != "Control.Text")
                     issues.Add(new(id, "", L.T("This text field has no placeholder and no label before it."), [], graphId));
             }

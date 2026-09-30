@@ -216,7 +216,12 @@ public static class BindingCheck
         var isEvent = bind.Attribute("event") is not null;
         var name = (string?)bind.Attribute("event") ?? (string?)bind.Attribute("prop") ?? "";
         IEnumerable<string>? names = isEvent ? entry?.Events.Keys : entry?.Props.Keys;
-        if (!isEvent && (string?)node.Attribute("repeatable") == "true") names = (names ?? []).Append("Items"); // a list: one copy per item (FaroApp)
+        if ((string?)node.Attribute("repeatable") == "true")
+        {
+            if (isEvent) // a list has no events of its own: its rows do (their root inside the instance)
+                return new((string)node.Attribute("id")!, "", L.F("A list has no events: bind the row's {0}/{1} instead.", (string)node.Attribute("id")!, (string?)node.Element("Node")?.Attribute("id") ?? "root"), [], Fix: "event");
+            names = (names ?? []).Append("Items"); // a list: one copy per item (FaroApp)
+        }
         return names?.Contains(name) == true ? null
             : new((string)node.Attribute("id")!, "", L.F(isEvent ? "{0} has no event '{1}'." : "{0} has no property '{1}'.", type, name), Nearest(name, names ?? Enumerable.Empty<string>()), Fix: isEvent ? "event" : "prop");
     }
@@ -460,7 +465,7 @@ public static class UiHistory
 public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
-        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image",
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.NumberInput", "Control.DateInput", "Control.Text", "Control.Image",
          "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.Progress", "Control.Divider", "Control.Icon", "Control.Spacer", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;

@@ -56,6 +56,20 @@ public final class UiBuilder {
                 field.setPromptText(prop(node, "Placeholder"));
                 yield field;
             }
+            case "Control.NumberInput" -> {
+                var spinner = new javafx.scene.control.Spinner<Double>(propNumber(node, "Minimum", -1e9), propNumber(node, "Maximum", 1e9), propNumber(node, "Value", 0), propNumber(node, "Step", 1));
+                spinner.setEditable(true);
+                spinner.getEditor().setPromptText(prop(node, "Placeholder"));
+                yield spinner;
+            }
+            case "Control.DateInput" -> {
+                var picker = new javafx.scene.control.DatePicker();
+                picker.setConverter(new javafx.util.converter.LocalDateStringConverter(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE, null)); // shown as in C#: 2026-09-30
+                try { if (prop(node, "Date") instanceof String date && !date.isEmpty()) picker.setValue(java.time.LocalDate.parse(date)); }
+                catch (java.time.format.DateTimeParseException ignored) { }
+                picker.setPromptText(prop(node, "Placeholder"));
+                yield picker;
+            }
             case "Control.Text" -> {
                 var label = new Label(text(node, "Text"));
                 label.setWrapText(true);
@@ -134,20 +148,40 @@ public final class UiBuilder {
             var css = new StringBuilder();
             if (bg != null && control instanceof Region) css.append("-fx-background-color: ").append(bg).append("; ");
             // Labels and buttons use -fx-text-fill, text inputs -fx-text-inner-color; a container passes the colors down as looked-up colors.
-            if (fg != null) css.append(control instanceof Pane
-                ? "-fx-text-background-color: " + fg + "; -fx-text-base-color: " + fg + "; -fx-text-inner-color: " + fg + "; "
-                : "-fx-text-fill: " + fg + "; -fx-text-inner-color: " + fg + "; ");
+            if (fg != null) css.append(textColor(control, fg));
             looks[i] = css.toString();
         }
         var base = control.getStyle() + fonts + looks[0];
         control.setStyle(base);
-        if (looks[1].isEmpty() && looks[2].isEmpty() && looks[3].isEmpty()) return;
+        // Bound colors (Foreground / Background binds) come last, so they win over the states' ones as in the C# runtime.
         Runnable restyle = () -> control.setStyle(base
-            + (control.isDisabled() ? looks[3] : control instanceof javafx.scene.control.ButtonBase b && b.isPressed() ? looks[2] : control.isHover() ? looks[1] : ""));
+            + (control.isDisabled() ? looks[3] : control instanceof javafx.scene.control.ButtonBase b && b.isPressed() ? looks[2] : control.isHover() ? looks[1] : "")
+            + control.getProperties().getOrDefault("faro.foreground", "") + control.getProperties().getOrDefault("faro.background", ""));
+        control.getProperties().put("faro.restyle", restyle);
+        if (looks[1].isEmpty() && looks[2].isEmpty() && looks[3].isEmpty()) return;
         control.hoverProperty().addListener((o, a, b) -> restyle.run());
         control.disabledProperty().addListener((o, a, b) -> restyle.run());
         if (control instanceof javafx.scene.control.ButtonBase button) button.pressedProperty().addListener((o, a, b) -> restyle.run());
         else control.pressedProperty().addListener((o, a, b) -> restyle.run());
+    }
+
+    /** Labels and buttons use -fx-text-fill, text inputs -fx-text-inner-color; a container passes the colors down as looked-up colors. */
+    private static String textColor(Node control, String color) {
+        return control instanceof Pane
+            ? "-fx-text-background-color: " + color + "; -fx-text-base-color: " + color + "; -fx-text-inner-color: " + color + "; "
+            : "-fx-text-fill: " + color + "; -fx-text-inner-color: " + color + "; ";
+    }
+
+    /** A Foreground / Background bind: "#C62828" or a color token "$color.expense" (empty: the design language's own). */
+    static javafx.beans.property.StringProperty boundColor(Node control, boolean foreground) {
+        var value = new javafx.beans.property.SimpleStringProperty();
+        value.addListener((o, before, after) -> {
+            var color = color(after == null ? null : token(after.trim()));
+            control.getProperties().put(foreground ? "faro.foreground" : "faro.background", color == null ? ""
+                : foreground ? textColor(control, color) : control instanceof Region ? "-fx-background-color: " + color + "; " : "");
+            if (control.getProperties().get("faro.restyle") instanceof Runnable restyle) restyle.run();
+        });
+        return value;
     }
 
     /** The appearance attributes; an instance's own ones override its master's. */

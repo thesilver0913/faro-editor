@@ -78,7 +78,7 @@ Faro は、アプリの画面を Figma のように描き、その部品をコ�
 ![パーツ](images/parts.png)
 
 - **コンテナ**:`Stack`(縦・横に並べる)、`Wrap`(折り返し)、`Grid`(行と列)、`Overlay`(重ねて四隅や中央に固定)
-- **コントロール**:`Button`、`TextInput`、`Text`、`Image`、`CheckBox`(チェックボックス)、`Switch`(スイッチ)、`Slider`(スライダー)、`Select`(選択肢のドロップダウン)、`Progress`(進捗バー)、`Divider`(区切り線)、`Icon`(同梱のアイコン集から選ぶ記号。文字色で描かれる)、`Spacer`(隣の部品を押し広げる空きスペース)、`Script`(見た目も動きもコードで作る部品)
+- **コントロール**:`Button`、`TextInput`、`NumberInput`(数字の入力欄と増減ボタン)、`DateInput`(カレンダー付きの日付の欄)、`Text`、`Image`、`CheckBox`(チェックボックス)、`Switch`(スイッチ)、`Slider`(スライダー)、`Select`(選択肢のドロップダウン)、`Progress`(進捗バー)、`Divider`(区切り線)、`Icon`(同梱のアイコン集から選ぶ記号。文字色で描かれる)、`Spacer`(隣の部品を押し広げる空きスペース)、`Script`(見た目も動きもコードで作る部品)
 
 Faro は**絶対座標を使いません**。位置は「どのコンテナに、どの順で入れるか」と、次の設定で決まります。
 
@@ -167,7 +167,7 @@ Faro は画面からコードを生成しません。画面の部品を、コー
 
 - C#:`FaroObject` を継承すると、値の変化が画面に伝わります
 - Java:`FaroObject` を継承し、変えたら `changed("プロパティ名")` を呼びます
-- クラスの生き方は属性で決めます(既定は画面ごとに作られる `ScreenScoped`。アプリで 1 つなら `[FaroLifetime(Lifetime.Singleton)]`、保存するなら `Persistent = true`)
+- クラスの生き方は属性で決めます(既定は画面ごとに作られる `ScreenScoped`。アプリで 1 つなら `[FaroLifetime(Lifetime.Singleton)]`、保存するなら `Persistent = true`。画面を移るたびと終了時に保存します)
 
 ### 紐付けを追加する
 
@@ -176,9 +176,12 @@ Node を選び、インスペクター下の「紐付け」で追加します。
 ![紐付け](images/inspector-bindings.png)
 
 - **イベント**(`Click`、`Changed`):押されたらメソッドを呼ぶ。`Navigate:Screen.Detail` で画面遷移
-- **プロパティ**(`Text`、`Checked`、`Value`、`Selected`、`Visible`、`Enabled`…):値を表示する(`OneWay`)/ 入力を書き戻す(`TwoWay`)。`Select` の選択肢は `Options` に一覧を紐付けても変えられます
+- **プロパティ**(`Text`、`Checked`、`Value`、`Selected`、`Visible`、`Enabled`…):値を表示する(`OneWay`)/ 入力を書き戻す(`TwoWay`)。`Select` の選択肢は `Options` に一覧を紐付けても変えられます。`DateInput` の `Date` は `2026-09-30` の形の文字列です。`NumberInput` の `Step` は ▲▼ で増減する幅です
+- **言語・地域**:「プロジェクトのデザイン」の「言語・地域」(`faro.json` の `"locale"`、例 `ja-JP`)で、カレンダーの月や曜日、数字の書式がその言語になります。空なら端末の設定です
+- **色**:`Foreground`(文字色)と、コンテナの `Background`(塗り)にも紐付けられます。値は `#C62828` のような色か、色トークン `$color.expense` の文字列です(例:収入なら緑、支出なら赤を返すプロパティ)。Node 自身にも色を付けておくと、キャンバスやモック行ではその色で表示され、実行時は紐付けの色が優先されます
+- コードから、紐付けが使うのと同じ別のクラスのインスタンスを取るには `FaroApp.Get<Ledger>()`(Java は `FaroApp.get(Ledger.class)`)
 - **書式**:`¥{0:N0}` のように表示形式を付けられます(`{0:N0}` 3 桁区切り、`{0:F2}` 小数 2 桁)
-- **リスト**:繰り返しのインスタンスに `Items` を紐付けると、一覧のデータの数だけ行が並びます。行の中の Node は、行のデータ(例:`Order.Name`)に紐付けます
+- **リスト**:繰り返しのインスタンスに `Items` を紐付けると、一覧のデータの数だけ行が並びます。行の中の Node は、行のデータ(例:`Order.Name`)に紐付けます。行をタップしたときの処理は、リスト自体ではなく行の根元(`orderList/root` の `Click`)に付けます(メソッドの引数にその行のデータが来ます)
 - **行の選択**:行(コンテナ)の `Click` に、引数 1 つのメソッド(`Open(Order order)`)を紐付けると、押した行のデータが渡ります
 - **画面に値を渡す**:コードから `FaroApp.Navigate("Detail", order)`。遷移先の紐付けがその値を使います
 

@@ -22,7 +22,7 @@ public static class ScriptPreview
         var bin = Path.Combine(root, "bin");
         return !Directory.Exists(bin) ? default
             : Directory.EnumerateFiles(root, "*.csproj").SelectMany(p => Directory.EnumerateFiles(bin, Path.GetFileNameWithoutExtension(p) + ".dll", SearchOption.AllDirectories))
-                .Select(dll => (dll, File.GetLastWriteTimeUtc(dll))).MaxBy(d => d.Item2);
+                .Select(dll => (dll, File.GetLastWriteTimeUtc(dll))).DefaultIfEmpty().MaxBy(d => d.Item2); // bin/ without a build yet: none
     }
 
     /// <summary>The newest built project dll (the debugger launches it), or null before the first build.</summary>
@@ -34,9 +34,9 @@ public static class ScriptPreview
     /// <summary>UiBuilder.ScriptFactory for the canvas: null (placeholder) until a build has the class.</summary>
     public static Control Build(string root, string name)
     {
-        var type = (Load(root) ?? throw new InvalidOperationException("Not built yet: Run to preview it.")).GetType(name)
-            ?? throw new InvalidOperationException("Not in the last build: Run to preview it.");
-        if (!typeof(FaroScript).IsAssignableFrom(type)) throw new InvalidOperationException($"{name} doesn't derive from FaroScript.");
+        var type = (Load(root) ?? throw new InvalidOperationException(L.T("Not built yet: Run to preview it."))).GetType(name)
+            ?? throw new InvalidOperationException(L.T("Not in the last build: Run to preview it."));
+        if (!typeof(FaroScript).IsAssignableFrom(type)) throw new InvalidOperationException(L.F("{0} doesn't derive from FaroScript.", name));
         return ((FaroScript)Activator.CreateInstance(type)!).Build();
     }
 

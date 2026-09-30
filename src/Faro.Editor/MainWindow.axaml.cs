@@ -87,7 +87,23 @@ public partial class MainWindow : Window
     Dictionary<string, double> Proportions() => Dock.Layout is null ? [] : Dockables(Dock.Layout)
         .Where(d => d.Id is not null && !double.IsNaN(d.Proportion)).GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First().Proportion);
 
-    void ResetLayout(object? sender, RoutedEventArgs e) => ApplyProportions(defaultProportions);
+    Dictionary<string, Dock.Model.Core.IDock> homes = []; // each pane's dock as laid out in MainWindow.axaml
+    Dictionary<Dock.Model.Core.IDock, Dock.Model.Core.IDockable> homeTabs = []; // and each one's first tab (shown again)
+
+    /// <summary>Panes moved or floated go back to their dock, empty floating windows close, then the default sizes.</summary>
+    void ResetLayout(object? sender, RoutedEventArgs e)
+    {
+        if (Dock.Factory is { } factory && Dock.Layout is Dock.Model.Controls.IRootDock root)
+        {
+            var floating = root.Windows?.ToList() ?? [];
+            foreach (var pane in floating.Select(w => w.Layout).OfType<Dock.Model.Core.IDockable>().Prepend(root).SelectMany(Dockables).ToList())
+                if (pane.Id is { } id && homes.TryGetValue(id, out var home) && pane.Owner != home && pane.Owner is Dock.Model.Core.IDock from)
+                    factory.MoveDockable(from, home, pane, null);
+            foreach (var window in floating) factory.CloseWindow(window);
+            foreach (var (dock, active) in homeTabs) factory.SetActiveDockable(active);
+        }
+        ApplyProportions(defaultProportions);
+    }
 
     void RestoreLayout()
     {
@@ -97,6 +113,9 @@ public partial class MainWindow : Window
         Opened += (_, _) =>
         {
             defaultProportions = Proportions(); // as laid out in MainWindow.axaml
+            homes = Dock.Layout is null ? [] : Dockables(Dock.Layout).Where(d => d is Dock.Model.Controls.ITool && d.Id is not null && d.Owner is Dock.Model.Core.IDock)
+                .ToDictionary(d => d.Id!, d => (Dock.Model.Core.IDock)d.Owner!);
+            homeTabs = homes.Values.Distinct().Where(d => d.VisibleDockables is [_, ..]).ToDictionary(d => d, d => d.VisibleDockables![0]);
             ApplyProportions(settings.PaneProportions);
         };
     }
@@ -189,7 +208,11 @@ public partial class MainWindow : Window
         // Tokens (Figma variables): sizes ("space.m = 16"), colors ("color.primary = #6750A4") and text styles (text.title.fontSize = 22 …), used as "$name".
         var tokens = new TextBox { AcceptsReturn = true, MinHeight = 120, MaxHeight = 260, Text = string.Join("\n", (Workspace.Project?.Tokens ?? []).Select(t => $"{t.Key} = {t.Value}")),
             PlaceholderText = "space.m = 16\ncolor.primary = #6750A4\ntext.title.fontSize = 22\ntext.title.fontWeight = Bold" };
-        var form = new Grid { ColumnDefinitions = new("Auto, *"), RowDefinitions = new("Auto, Auto, Auto, Auto, Auto, Auto"), ColumnSpacing = 12, RowSpacing = 8 };
+        // The app's locale: dates (the calendar's month and day names) and number formats; "" follows the device.
+        var locales = new[] { "", "ja-JP", "en-US", "en-GB", "zh-CN", "ko-KR", "fr-FR", "de-DE" };
+        var locale = new ComboBox { ItemsSource = locales.Select(l => l.Length == 0 ? L.T("Device setting") : l).ToList(), MinWidth = 200,
+            SelectedIndex = Math.Max(0, Array.IndexOf(locales, Workspace.Project?.Locale ?? "")) };
+        var form = new Grid { ColumnDefinitions = new("Auto, *"), RowDefinitions = new("Auto, Auto, Auto, Auto, Auto, Auto, Auto"), ColumnSpacing = 12, RowSpacing = 8 };
         void Add(int row, string label, Control editor)
         {
             form.Children.Add(new TextBlock { Text = L.T(label), VerticalAlignment = VerticalAlignment.Center, [Grid.RowProperty] = row });
@@ -201,6 +224,7 @@ public partial class MainWindow : Window
         Add(1, "Seed color", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { seed, swatch } });
         Add(2, "Theme", theme);
         Add(4, "Tokens", tokens);
+        Add(6, "Locale", locale);
         form.Children.Add(new TextBlock { Text = L.T("One per line: name = value. Sizes (space.m = 16), colors (color.primary = #6750A4) and text styles: text.title.fontFamily, .fontSize, .fontWeight, .lineHeight. Fields take \"$name\" ($space.m, $color.primary); a node's Text style takes $text.title. Changing a token restyles every screen."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 5, [Grid.ColumnSpanProperty] = 2 });
         form.Children.Add(new TextBlock { Text = L.T("Every design language takes its colors (light and dark) from the seed color. Material 3: Google's, with its own node options. Cupertino (iOS), Neumorphism (soft raised shapes), NeoBrutalism (thick outlines, hard shadows), Simple (quiet, neutral), Carbon (IBM, square), Clay (puffy pastel) and Retro (Windows 95) share node options: a button's variant and a container's panel (Card / Inset), in the inspector."), TextWrapping = TextWrapping.Wrap, MaxWidth = 380, Opacity = 0.7, [Grid.RowProperty] = 3, [Grid.ColumnSpanProperty] = 2 });
         if (!await Dialogs.Form(this, L.T("Project Design"), form, L.T("Apply"))) return;
@@ -209,7 +233,7 @@ public partial class MainWindow : Window
         foreach (var line in (tokens.Text ?? "").Split('\n'))
             if (line.Split('=', 2) is [var key, var value] && key.Trim().TrimStart('$') is { Length: > 0 } name && value.Trim() is { Length: > 0 } text)
                 named[name] = text;
-        UiHistory.CommitFiles("Set design", ProjectSetup.DesignChange(Workspace.Root, design, named));
+        UiHistory.CommitFiles("Set design", ProjectSetup.DesignChange(Workspace.Root, design, named, locales[Math.Max(0, locale.SelectedIndex)]));
         Workspace.Reload();
         UpdateHistory();
     }

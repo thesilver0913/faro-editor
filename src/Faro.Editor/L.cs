@@ -48,7 +48,7 @@ public static class L
         ["Remove from Recent"] = "最近の一覧から外す", ["Layers"] = "レイヤー", ["Parts"] = "パーツ", ["_Layers"] = "レイヤー(_L)", ["_Parts"] = "パーツ(_P)", ["Containers"] = "コンテナ", ["Controls"] = "コントロール", ["Components"] = "コンポーネント",
         ["Children in a column or a row (auto layout)"] = "子を縦か横に並べる(オートレイアウト)", ["Children in rows that wrap"] = "子を折り返して並べる",
         ["Children in rows and columns"] = "子を行と列に並べる", ["Children stacked on top of each other, anchored to edges"] = "子を重ね、端や中央に固定する",
-        ["A button (Click event)"] = "ボタン(Click イベント)", ["A text field (Text, Changed)"] = "テキスト入力(Text、Changed)", ["A label"] = "文字", ["An image from Assets/"] = "Assets/ の画像",
+        ["A button (Click event)"] = "ボタン(Click イベント)", ["A text field (Text, Changed)"] = "テキスト入力(Text、Changed)", ["A number field with up/down (Value, Changed)"] = "数字の入力欄と増減ボタン(Value、Changed)", ["A date field with a calendar (Date as yyyy-MM-dd)"] = "カレンダー付きの日付の欄(Date は yyyy-MM-dd)", ["A label"] = "文字", ["An image from Assets/"] = "Assets/ の画像",
         ["A part built in code (FaroScript)"] = "コードで作る部品(FaroScript)",
         ["Explorer"] = "エクスプローラー", ["Canvas"] = "キャンバス", ["Inspector"] = "インスペクター", ["Code"] = "コード", ["Console"] = "コンソール",
         ["Problems"] = "問題", ["Output"] = "出力", ["AI Chat"] = "AI チャット",
@@ -255,6 +255,9 @@ public static class L
         ["Can't load the font catalog (only the project's fonts are shown): {0}"] = "フォントの一覧を読み込めません(プロジェクト内のフォントだけ表示します): {0}",
         ["{0} has no {1} style."] = "{0} には太さ {1} がありません。", ["The font file is too large."] = "フォントのファイルが大きすぎます。",
         ["The download is not a font file."] = "ダウンロードしたものがフォントのファイルではありません。",
+        ["A list has no events: bind the row's {0}/{1} instead."] = "リスト自体にはイベントがありません。行の {0}/{1} に紐付けてください。",
+        ["Not built yet: Run to preview it."] = "まだビルドされていません。実行するとここに表示されます。", ["Not in the last build: Run to preview it."] = "前回のビルドにありません。実行するとここに表示されます。",
+        ["{0} doesn't derive from FaroScript."] = "{0} は FaroScript を継承していません。", ["Locale"] = "言語・地域", ["Device setting"] = "端末の設定",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

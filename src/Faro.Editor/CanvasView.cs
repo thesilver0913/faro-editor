@@ -238,6 +238,7 @@ public sealed class CanvasView : UserControl
     readonly Border artboard = new() { Margin = new(32), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Classes = { "faro-screen" } };
     readonly ThemeVariantScope designScope = new() { RequestedThemeVariant = ThemeVariant.Light };
     AppDesign? shownDesign;
+    static readonly Avalonia.Themes.Fluent.FluentTheme canvasFluent = new();
 
     /// <summary>The artboard shows the app's design language (faro.json "design"); "System" previews light.</summary>
     void ShowDesign(AppDesign design)
@@ -246,6 +247,7 @@ public sealed class CanvasView : UserControl
         shownDesign = design;
         designScope.Styles.Clear();
         designScope.Resources = new ResourceDictionary();
+        designScope.Styles.Add(canvasFluent); // the app's own control templates, not the editor's FluentAvalonia ones
         design.Apply(designScope.Styles, designScope.Resources);
         designScope.RequestedThemeVariant = design.Theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
         Surface(artboard, design.Language, design.Theme == "Dark");
