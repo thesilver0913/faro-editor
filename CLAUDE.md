@@ -50,7 +50,7 @@
 - **フォント**はエディターに同梱せず、インスペクターの Aa(`FontPicker`)でオンラインの一覧(Fontsource の API)から選び、`FontLibrary` が TTF をダウンロード(Google のフォントは Google Fonts CSS API、ほかは Fontsource の CDN。設定フォルダの `fonts/` にキャッシュ)してプロジェクトの `Assets/Fonts/` にライセンスの文章と一緒に置く。ランタイムは `Assets/Fonts` を読み込んで `fontFamily` の名前で使う(C# `FaroApp.LoadFonts`、Java `loadFonts`)
 - **Android** は APK の出力まで(エミュレーター連携はしない)。C# は `src/Faro.Editor/AndroidApk.cs` が `.faro/android` に Android 用プロジェクトを生成して `dotnet publish` する。ランタイムは `FaroApplication` がデスクトップ(Window)と Android(`IActivityApplicationLifetime`)の両方を扱う。Java は `JavaProject.WriteAndroid` が `.faro/android/pom.xml`(GluonFX、Linux のみ、`GRAALVM_HOME` 必須)を生成し、プロジェクトのファイルを `faro/` のリソースと `index.txt` で APK に入れる(Java ランタイムの `FaroApp.url` がフォルダかリソースかを切り替える)
 - **Faro.Runtime は各プロジェクトの `.faro/packages/` に nupkg として同梱**(Runtime を変えたらバージョンを上げる:NuGet キャッシュが同じ版を使い回すため)
-- **デバッガー**は `src/Faro.Editor/Debugger.cs`(DAP):C# は netcoredbg(ビルドした dll を `dotnet` で起動)、Java は jdtls に `bundles` で読み込ませた java-debug(`vscode.java.startDebugSession` のポートに TCP で接続し、`Main` を起動)。どちらも `Components` が入れる。画面は `DebugView`(Console の Debug タブ)とコードエディタのブレークポイント欄
+- **デバッガー**は `src/Faro.Editor/Debugger.cs`(DAP):C# は netcoredbg(ビルドした dll を `dotnet` で起動)、Java は jdtls に `bundles` で読み込ませた java-debug(`vscode.java.startDebugSession` のポートに TCP で接続し、`Main` を起動)。どちらも `Components` が入れる。画面は `DebugView`(Console の Debug タブ。ウォッチ式も)とコードエディタのブレークポイント欄(右クリックで条件・ヒット回数。ヒット回数は Faro が数える)
 - 既定レイアウトは「左端エクスプローラー／中央上キャンバス／中央下コード｜Console(Problems・Output・AI Chat・History・Debug をタブで切り替え。AI Chat は仕様のバイブコーディング画面)／右端インスペクター」(仕様§14の常時表示のうちチャットはタブ切り替えに変更)
 - 詳細は `docs/development.md`(開発者向けドキュメント。旧 README の内容)を参照。README は利用者向けの入口。仕様書の該当節には「実装での変更」注記があり、§16 に変更点と追加機能の一覧がある
 

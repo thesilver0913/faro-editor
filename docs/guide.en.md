@@ -214,6 +214,9 @@ If a name is wrong, or a rename in the code breaks a binding, the node gets a **
 
 Click left of a line number in the code (F9) to set a breakpoint (a red dot), then **Start Debugging** (F6). When it stops, the line turns yellow and the Console's Debug tab shows the call stack and the variables. Continue F8, Step Over F10, Step Into Shift+F10, Stop Shift+F6.
 
+- **Conditional breakpoints**: right-click where the red dot goes and fill in a **Condition** (e.g. `amount > 1000`, an expression in the app's language) and a **Hit count** (e.g. `3`: stop from the 3rd time the condition holds). A conditional dot has a white bar.
+- **Watch**: type an expression in the Debug tab's Watch column and press Enter. Its value shows on every stop, in the selected frame (Delete or right-click › Remove takes it off).
+
 ![Debugger](images/debugger.png)
 
 The debugger (netcoredbg for C#, java-debug for Java) is downloaded automatically the first time you use it.

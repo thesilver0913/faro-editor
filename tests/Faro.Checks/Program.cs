@@ -112,7 +112,11 @@ UiHistory.Clear();
 Debugger.Toggle("/p/A.cs", 3); Debugger.Toggle("/p/A.cs", 5); Debugger.Toggle("/p/A.cs", 3);
 var dapBody = """{"type":"event","event":"stopped","body":{"threadId":1}}""";
 var framed = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"Content-Length: {System.Text.Encoding.UTF8.GetByteCount(dapBody)}\r\n\r\n{dapBody}"));
-Check(Debugger.Breakpoints["/p/A.cs"].SequenceEqual([5]) && (string?)LspClient.ReadMessage(framed)?["event"] == "stopped" && LspClient.ReadMessage(framed) is null, "breakpoints toggle; debug adapter messages are framed like LSP");
+Check(Debugger.Breakpoints["/p/A.cs"].Keys.SequenceEqual([5]) && (string?)LspClient.ReadMessage(framed)?["event"] == "stopped" && LspClient.ReadMessage(framed) is null, "breakpoints toggle; debug adapter messages are framed like LSP");
+Debugger.SetCondition("/p/A.cs", 7, " total > 10 ", "3");
+var sentBreakpoints = Debugger.Arguments("/p/A.cs")["breakpoints"]!.AsArray();
+Check(sentBreakpoints.Count == 2 && sentBreakpoints[0]!["condition"] is null && (string?)sentBreakpoints[1]!["condition"] == "total > 10" && sentBreakpoints[1]!["hitCondition"] is null,
+    "conditional breakpoints send the condition (hit counts are counted by Faro)");
 Debugger.Breakpoints.Clear();
 
 // Source control: `git status --porcelain=v1 -b` lines.
