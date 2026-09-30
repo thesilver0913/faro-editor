@@ -125,19 +125,21 @@ public static class Registry
 /// <summary>The app's screen flow (Figma's prototype view): who navigates where, from Navigate bindings.</summary>
 public static class ScreenFlow
 {
-    /// <summary>Screen → screen links: a screen's own Navigate binds, and those of the components it holds (Bindings/&lt;Comp&gt;.xml).</summary>
-    public static List<(string From, string To)> Edges(FaroProject project) =>
+    /// <summary>
+    /// Screen → screen links with their transition: a screen's own Navigate binds, and those of the components it holds
+    /// (Bindings/&lt;Comp&gt;.xml).
+    /// </summary>
+    public static List<(string From, string To, string Transition)> Edges(FaroProject project) =>
         project.Screens.SelectMany(screen =>
             project.BindsFor(screen.Key)
                 .Concat(screen.Value.Root?.Element("Node") is { } root ? UiBuilder.InstancePaths(root).SelectMany(p => project.BindsFor(p.Component)) : [])
-                .Select(b => (string?)b.Attribute("target") ?? "")
-                .Where(t => t.StartsWith("Navigate:"))
-                .Select(t => (From: screen.Key, To: FaroApp.NavigateScreenId(t, project.Screens.Keys))))
+                .Where(b => ((string?)b.Attribute("target"))?.StartsWith("Navigate:") == true)
+                .Select(b => (From: screen.Key, To: FaroApp.NavigateScreenId((string)b.Attribute("target")!, project.Screens.Keys), Transition: (string?)b.Attribute("transition") ?? project.Transition)))
             .Where(e => project.Screens.ContainsKey(e.To))
             .Distinct().ToList();
 
     /// <summary>Columns by steps from the start screen (breadth first); screens nothing reaches go in a last column.</summary>
-    public static List<List<string>> Columns(FaroProject project, List<(string From, string To)> edges)
+    public static List<List<string>> Columns(FaroProject project, List<(string From, string To, string Transition)> edges)
     {
         var start = project.StartScreen is { } s && project.Screens.ContainsKey(s) ? s : project.Screens.Keys.FirstOrDefault();
         var columns = new List<List<string>>();

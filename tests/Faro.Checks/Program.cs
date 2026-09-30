@@ -157,7 +157,23 @@ var stepNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="n" ty
 var localeDir = Directory.CreateTempSubdirectory("faro-locale").FullName;
 File.WriteAllText(Path.Combine(localeDir, "faro.json"), """{ "name": "L" }""");
 foreach (var (file, text) in ProjectSetup.DesignChange(localeDir, new AppDesign(), new Dictionary<string, string>(), "ja-JP")) File.WriteAllText(file, text);
-Check(stepNode is Avalonia.Controls.NumericUpDown { Increment: 100 } && FaroProject.Load(localeDir).Locale == "ja-JP"
+var localeProject = FaroProject.Load(localeDir);
+foreach (var (file, text) in ProjectSetup.DesignChange(localeDir, new AppDesign(), new Dictionary<string, string>(), "ja-JP", "Fade")) File.WriteAllText(file, text);
+// Screen transitions: faro.json's default (Slide when unset), the page transitions, a bind's own, and Back in both runtimes
+Check(localeProject.Transition == "Slide" && FaroProject.Load(localeDir).Transition == "Fade"
+    && FaroApp.PlayTransition(null, new Avalonia.Controls.Border(), "None", false, 100).IsCompleted
+    && javaAppSource.Contains("public static void back()") && javaAppSource.Contains("getAttribute(\"transition\")") && javaAppSource.Contains("\"transition\", \"Slide\""),
+    "screen transitions: faro.json default, Slide / Fade / None, Back (both runtimes)");
+var animated = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="a" type="Container.Stack" animate="200" background="#FF0000" />"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(animated.Transitions is [Avalonia.Animation.BrushTransition { Duration.TotalMilliseconds: 200 }, Avalonia.Animation.BrushTransition]
+    && File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Faro.Runtime.Java/faro/runtime/UiBuilder.java"))).Contains("number(node, \"animate\")"), "animate eases a node's colors (both runtimes)");
+// A button with only a hover color keeps its design language's fill (a container gets a clear one, so a row is hoverable)
+var hoverOnly = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="b" type="Control.Button" hoverBackground="#E65100" />"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+var hoverRow = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="r" type="Container.Stack" hoverBackground="#E65100" />"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(!hoverOnly.Styles.OfType<Avalonia.Styling.Style>().Any(s => s.Setters.OfType<Avalonia.Styling.Setter>().Any(x => x.Value == Avalonia.Media.Brushes.Transparent))
+    && hoverRow.Styles.OfType<Avalonia.Styling.Style>().Any(s => s.Setters.OfType<Avalonia.Styling.Setter>().Any(x => x.Value == Avalonia.Media.Brushes.Transparent)),
+    "a hover color keeps a button's own fill");
+Check(stepNode is Avalonia.Controls.NumericUpDown { Increment: 100 } && localeProject.Locale == "ja-JP"
     && javaAppSource.Contains("case \"Step\"") && javaAppSource.Contains("\"locale\""), "number input step, app locale in faro.json (both runtimes)");
 Directory.Delete(localeDir, recursive: true);
 var changedBox = new Avalonia.Controls.TextBox();
@@ -445,7 +461,7 @@ Directory.Delete(fontDir, recursive: true);
 // Screen flow (canvas): Navigate binds, including a component's, as links; columns by steps from the start screen
 var flowProject = FaroProject.Load(sampleDir);
 var flow = ScreenFlow.Edges(flowProject);
-Check(flow.Contains(("MainScreen", "Detail")) && flow.Contains(("Detail", "MainScreen"))
+Check(flow.Contains(("MainScreen", "Detail", "Slide")) && flow.Contains(("Detail", "MainScreen", "Slide"))
     && ScreenFlow.Columns(flowProject, flow) is [["MainScreen"], ["Detail"]], "screen flow from Navigate bindings");
 // Per-node options for those languages: look.variant / look.surface become the classes both stylesheets draw
 var carded = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="c" type="Container.Stack" look.surface="Card"><Node id="b" type="Control.Button" look.variant="Outlined" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);

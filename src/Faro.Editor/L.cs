@@ -258,6 +258,7 @@ public static class L
         ["A list has no events: bind the row's {0}/{1} instead."] = "リスト自体にはイベントがありません。行の {0}/{1} に紐付けてください。",
         ["Not built yet: Run to preview it."] = "まだビルドされていません。実行するとここに表示されます。", ["Not in the last build: Run to preview it."] = "前回のビルドにありません。実行するとここに表示されます。",
         ["{0} doesn't derive from FaroScript."] = "{0} は FaroScript を継承していません。", ["Locale"] = "言語・地域", ["Device setting"] = "端末の設定",
+        ["Animate (ms)"] = "動き(ms)", ["Color changes (states, bound colors) ease over this time, and the node fades in when shown."] = "状態や紐付けによる色の変化をこの時間で滑らかにし、表示されるときにフェードインします。", ["Default ({0})"] = "既定({0})", ["Screen transition"] = "画面の切り替え", ["Set screen transition"] = "画面の切り替えを設定",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

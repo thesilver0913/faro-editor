@@ -91,7 +91,7 @@ Faro has **no absolute positions**. Where a node goes is decided by which contai
 
 ### Appearance (colors and text)
 
-The inspector's Appearance section sets a node's fill and text color (`#6750A4`, `Red`), font, size, line height and weight. The **Hover / Pressed / Disabled** rows set the fill and text color for that state only (pressed: buttons). Empty fields keep the design language's look. Set them on a component's master or variant and every instance gets them; an instance can override them.
+The inspector's Appearance section sets a node's fill and text color (`#6750A4`, `Red`), font, size, line height and weight. The **Hover / Pressed / Disabled** rows set the fill and text color for that state only (pressed: buttons). Empty fields keep the design language's look. **Animate (ms)** (say `300`) makes color changes from states or bindings ease over that time, and the node fades in when it appears. Set them on a component's master or variant and every instance gets them; an instance can override them.
 
 ### Tokens (like Figma variables)
 
@@ -184,6 +184,7 @@ Select a node and add a binding under **Bindings** at the bottom of the inspecto
 - **Lists**: bind `Items` on a repeatable instance and it shows one row per item. Nodes inside the row bind to the row's item (for example `Order.Name`). A tap on a row goes on the row's root (`Click` on `orderList/root`), not on the list itself; the method gets that row's item
 - **Selecting a row**: bind the row container's `Click` to a method with one parameter (`Open(Order order)`) and it gets the clicked row's item
 - **Passing a value to a screen**: call `FaroApp.Navigate("Detail", order)` in code. The target screen's bindings use that value
+- **How screens change**: the box right of a `Navigate` binding picks **Slide** (sideways, the default), **Fade** or **None**. The project's default is Project Design › Screen transition (`"transition"` in `faro.json`). In code: `FaroApp.Navigate("Detail", order, "Fade")`; **going back** is `FaroApp.Back()` (Java `FaroApp.back()`): the previous screen returns, with the way you came played in reverse
 
 ![Click a row to open the details](images/app-detail.png)
 
@@ -195,13 +196,13 @@ If a name is wrong, or a rename in the code breaks a binding, the node gets a **
 
 ### On the canvas
 
-- **Preview**: try the buttons and inputs for real (navigation works; your code doesn't run)
+- **Preview**: try the buttons and inputs for real (navigation works, with its transition; your code doesn't run)
 - **Data** (C#): shows the canvas with the real values the bindings get from the last build
 
 ![Data preview](images/data-preview.png)
 
 - **Compare**: from One artboard ▾, choose All sizes (Phone / Tablet / Desktop) or Light and dark
-- **Screen flow**: the same menu's Screen flow shows every screen small, with an arrow for each `Navigate` binding. Click a screen to open it
+- **Screen flow**: the same menu's Screen flow shows every screen small, with an arrow for each `Navigate` binding, labeled with its transition. Click a screen to open it
 - **Accessibility**: Problems warns about low text contrast (the design language's colors and a node's own), parts smaller than 44px to tap, and text fields with no hint or label
 
 ![Light and dark](images/compare-light-dark.png)

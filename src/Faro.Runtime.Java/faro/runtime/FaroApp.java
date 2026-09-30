@@ -63,6 +63,7 @@ public final class FaroApp {
         var meta = read("faro.json");
         appName = value(meta, "name", "FaroApp");
         start = value(meta, "startScreen", "MainScreen");
+        transition = value(meta, "transition", "Slide");
         if (!value(meta, "locale", "").isEmpty()) java.util.Locale.setDefault(java.util.Locale.forLanguageTag(value(meta, "locale", ""))); // dates and numbers; unset: the device's
         UiBuilder.tokens = tokens(meta);
         load();
@@ -81,6 +82,9 @@ public final class FaroApp {
     }
 
     private static String start;
+    private static String transition; // faro.json "transition": Slide (default), Fade or None
+    private static StackPane stack; // the scene's root: the screen, and during a transition the one it replaces
+    private static Node screen; // the screen shown (binds stop updating once it is left)
 
     /** The app window. The editor writes .faro/design.css for Material 3 (colors from the seed); Fluent keeps JavaFX's own look. */
     public static final class RuntimeApp extends Application {
@@ -88,12 +92,12 @@ public final class FaroApp {
         public void start(Stage primary) {
             stage = primary;
             loadFonts();
-            var scene = new Scene(new StackPane(), 480, 720);
+            var scene = new Scene(stack = new StackPane(), 480, 720);
             scene.getStylesheets().add("data:text/css;base64," + java.util.Base64.getEncoder().encodeToString(UiBuilder.CSS.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             if (url(".faro/design.css") instanceof URL css) scene.getStylesheets().add(css.toExternalForm());
             stage.setScene(scene);
             stage.show();
-            navigate(start);
+            navigate(start, null, "None");
             watchLive(scene);
         }
     }
@@ -139,7 +143,7 @@ public final class FaroApp {
             var design = read(".faro/design.css");
             if (!design.isEmpty()) // as data: so JavaFX doesn't serve its cached copy; fonts resolve against the project folder
                 scene.getStylesheets().add("data:text/css;charset=utf-8," + java.net.URLEncoder.encode(design.replace("url('fonts/", "url('" + new File(root, ".faro/fonts").toURI() + "/"), java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"));
-            if (current != null && screens.get(current) instanceof Element graph) show(current, graph);
+            if (current != null && screens.get(current) instanceof Element graph) show(current, graph, "None", false); // rebuilt in place
         } catch (RuntimeException e) {
             showError("Live reload: " + e.getMessage()); // a half-written file: the next save retries
         }
@@ -151,25 +155,69 @@ public final class FaroApp {
     public static Object parameter() { return parameter; }
 
     /** Opens a screen by UIGraph id. */
-    public static void navigate(String screenId) { navigate(screenId, null); }
+    public static void navigate(String screenId) { navigate(screenId, null, null); }
 
     /** Opens a screen with a value for its binds (spec §7: user code navigates with parameters). */
-    public static void navigate(String screenId, Object parameter) {
-        var graph = screens.get(screenId);
-        if (graph == null) {
+    public static void navigate(String screenId, Object parameter) { navigate(screenId, parameter, null); }
+
+    /** Opens a screen with a value and a transition ("Slide", "Fade", "None"; null: faro.json's "transition", Slide by default). */
+    public static void navigate(String screenId, Object parameter, String transition) {
+        if (!screens.containsKey(screenId)) {
             showError("Navigate: screen '" + screenId + "' does not exist.");
             return;
         }
+        if (current != null) history.push(new Object[] { current, FaroApp.parameter, entered });
+        go(screenId, parameter, transition != null ? transition : FaroApp.transition, false);
+    }
+
+    /** Returns to the previous screen (with its value), playing the transition that left it in reverse. No-op on the first screen. */
+    public static void back() {
+        var last = history.poll();
+        if (last == null || !screens.containsKey((String) last[0])) return;
+        go((String) last[0], last[1], entered, true);
+        entered = (String) last[2];
+    }
+
+    private static final java.util.ArrayDeque<Object[]> history = new java.util.ArrayDeque<>(); // {screen, parameter, transition}
+    private static String entered = ""; // the transition that brought the current screen in
+
+    private static void go(String screenId, Object parameter, String transition, boolean reversed) {
         release(screenScoped.values());
         for (var o : singletons.values()) save(o); // also when the app is killed later (the editor's Stop)
         screenScoped = new HashMap<>();
         FaroApp.parameter = parameter;
-        show(screenId, graph);
+        entered = transition;
+        show(screenId, screens.get(screenId), transition, reversed);
     }
 
     private static String current; // the screen shown (live reload rebuilds it)
 
-    private static void show(String screenId, Element graph) {
+    /** Puts the new screen over the old one and slides (the old one out, reversed: the other way) or fades it in. */
+    private static void swap(StackPane pane, String transition, boolean reversed) {
+        var old = screen;
+        screen = pane;
+        if (old == null || "None".equals(transition)) { stack.getChildren().setAll(pane); return; }
+        stack.getChildren().add(pane);
+        javafx.animation.Animation animation;
+        if ("Fade".equals(transition)) {
+            var fade = new javafx.animation.FadeTransition(javafx.util.Duration.millis(200), pane);
+            fade.setFromValue(0);
+            fade.setToValue(1);
+            animation = fade;
+        } else {
+            var width = stack.getWidth() * (reversed ? -1 : 1);
+            var in = new javafx.animation.TranslateTransition(javafx.util.Duration.millis(250), pane);
+            in.setFromX(width);
+            in.setToX(0);
+            var out = new javafx.animation.TranslateTransition(javafx.util.Duration.millis(250), old);
+            out.setToX(-width);
+            animation = new javafx.animation.ParallelTransition(in, out);
+        }
+        animation.setOnFinished(e -> stack.getChildren().remove(old));
+        animation.play();
+    }
+
+    private static void show(String screenId, Element graph, String transition, boolean reversed) {
         current = screenId;
         var byId = new HashMap<String, Node>();
         var rootNode = UiBuilder.children(graph, "Node").get(0);
@@ -177,7 +225,7 @@ public final class FaroApp {
         if (content instanceof Region region) region.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE); // the screen fills the window
         var pane = new StackPane(content);
         pane.getStyleClass().add("faro-screen");
-        stage.getScene().setRoot(pane);
+        swap(pane, transition, reversed);
         stage.setTitle(screenId);
 
         // Screen binds, then component-level binds (Bindings/<ComponentId>.xml) inside every instance of that component: {key, bind}.
@@ -223,9 +271,9 @@ public final class FaroApp {
         if (!Iterable.class.isAssignableFrom(getter.getReturnType())) throw new IllegalStateException("'" + target + "' is not a list.");
         var owner = Modifier.isStatic(getter.getModifiers()) ? null : instanceOf(getter.getDeclaringClass());
         var prefix = key.substring(0, key.length() - list.node.getAttribute("id").length());
-        var screen = stage.getScene().getRoot();
+        var shown = screen;
         Runnable render = () -> {
-            if (stage.getScene().getRoot() != screen) return; // a singleton owner outlives the screen: stop once it is left
+            if (screen != shown) return; // a singleton owner outlives the screen: stop once it is left
             var errors = new ArrayList<String>();
             list.rows().clear();
             try {
@@ -258,7 +306,8 @@ public final class FaroApp {
             if (target.startsWith("Navigate:")) {
                 var screen = navigateScreenId(target);
                 if (!screens.containsKey(screen)) throw new IllegalStateException("Screen '" + screen + "' does not exist.");
-                hook.accept(() -> navigate(screen, item)); // a row passes its item
+                var transition = bind.getAttribute("transition");
+                hook.accept(() -> navigate(screen, item, transition.isEmpty() ? null : transition)); // a row passes its item
                 return;
             }
             // No parameters, or one: the row's item (selection) or the navigation parameter, whichever its type takes.
@@ -305,10 +354,10 @@ public final class FaroApp {
 
     /** Runs <code>update</code> when the property changes, until the screen is left (a singleton outlives it: no stale listeners). */
     private static void watch(FaroObject observable, String property, Runnable update) {
-        var screen = stage.getScene().getRoot();
+        var shown = screen;
         @SuppressWarnings("unchecked") Consumer<String>[] self = new Consumer[1];
         self[0] = changed -> {
-            if (stage.getScene().getRoot() != screen) observable.removeChangeListener(self[0]);
+            if (screen != shown) observable.removeChangeListener(self[0]);
             else if (changed.equals(property)) update.run();
         };
         observable.addChangeListener(self[0]);
