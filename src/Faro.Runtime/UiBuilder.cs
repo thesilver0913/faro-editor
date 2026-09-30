@@ -91,11 +91,11 @@ public static class UiBuilder
         };
 
     /// <summary>A Select's choices: "Small, Medium, Large".</summary>
-    /// <summary>A 1px line: M3's outline variant when the app uses Material 3, else a translucent gray.</summary>
+    /// <summary>A 1px line in the design language's divider color (FaroDivider), or a translucent gray with Fluent.</summary>
     static Control Divider()
     {
         var line = new Avalonia.Controls.Shapes.Rectangle { MinWidth = 1, MinHeight = 1 };
-        line.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, line.GetResourceObservable("M3OutlineVariant", brush => brush ?? new SolidColorBrush(Color.Parse("#40808080"))));
+        line.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, line.GetResourceObservable("FaroDivider", brush => brush ?? new SolidColorBrush(Color.Parse("#40808080"))));
         return line;
     }
 

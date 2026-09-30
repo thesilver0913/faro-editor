@@ -105,7 +105,18 @@ Faro は**絶対座標を使いません**。位置は「どのコンテナに�
 
 ### デザイン言語
 
-同じダイアログで、`Fluent` か `Material 3` と、基調色(シードカラー)・ライト/ダークを選びます。Material 3 では、インスペクターの「Material 3」欄でボタンの種類(Filled / Tonal / Outlined…)なども選べます。
+同じダイアログで、デザイン言語と、基調色(シードカラー)・ライト/ダークを選びます。
+
+| デザイン言語 | 見た目 |
+|---|---|
+| Fluent | Windows 風(Avalonia の標準) |
+| Material 3 | Google の Material 3 Expressive。インスペクターの「Material 3」欄でボタンの種類(Filled / Tonal / Outlined…)なども選べる |
+| Cupertino | iOS 風 |
+| Neumorphism | 面から柔らかく浮き出る形 |
+| NeoBrutalism | 明るい色、太い輪郭、硬い影 |
+| Simple | 落ち着いた無彩色(shadcn/ui 風) |
+
+どの言語も色はシードカラーから作ります。
 
 ### 編集の基本
 

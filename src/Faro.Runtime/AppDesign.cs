@@ -13,12 +13,13 @@ namespace Faro.Runtime;
 /// Fluent (default) is Avalonia's own look. Material 3 Expressive adds color roles generated from the seed color
 /// (light and dark), its shapes, type scale and springy press morph (Material3.axaml). Nodes pick per-language
 /// options with attributes such as m3.variant="Tonal"; UiBuilder turns them into style classes ("m3-variant-tonal"),
-/// so a language that doesn't know them simply ignores them.
+/// so a language that doesn't know them simply ignores them. Cupertino, Neumorphism, NeoBrutalism and Simple share one
+/// set of templates (Looks.axaml) filled with each language's values (DesignLooks).
 /// </summary>
 public sealed record AppDesign(string Language = "Fluent", string SeedColor = AppDesign.DefaultSeed, string Theme = "System")
 {
     public const string DefaultSeed = "#6750A4";
-    public static readonly string[] Languages = ["Fluent", "Material3"];
+    public static readonly string[] Languages = ["Fluent", "Material3", .. DesignLooks.Languages];
     public static readonly string[] Themes = ["System", "Light", "Dark"];
 
     public static AppDesign Read(JsonNode? design) => new(
@@ -31,8 +32,15 @@ public sealed record AppDesign(string Language = "Fluent", string SeedColor = Ap
     /// <summary>Adds the language's styles and colors to a host: the app, or the editor's artboard (a ThemeVariantScope).</summary>
     public void Apply(Styles styles, IResourceDictionary resources)
     {
-        if (Language != "Material3") return;
+        if (Language == "Fluent") return;
         var palette = CorePalette.Of(Color.Parse(SeedColor).ToUInt32(), MaterialColorUtilities.Palettes.Style.TonalSpot);
+        if (Language != "Material3")
+        {
+            resources.ThemeDictionaries[ThemeVariant.Light] = DesignLooks.Look(Language, palette, dark: false);
+            resources.ThemeDictionaries[ThemeVariant.Dark] = DesignLooks.Look(Language, palette, dark: true);
+            styles.Add(new StyleInclude(new Uri("avares://Faro.Runtime/")) { Source = new Uri("avares://Faro.Runtime/Looks.axaml") });
+            return;
+        }
         resources.ThemeDictionaries[ThemeVariant.Light] = Scheme(palette, dark: false);
         resources.ThemeDictionaries[ThemeVariant.Dark] = Scheme(palette, dark: true);
         // Text fields read their colors and border widths from resources inside their templates (Fluent and FluentAvalonia),
@@ -71,6 +79,7 @@ public sealed record AppDesign(string Language = "Fluent", string SeedColor = Ap
                 dictionary[key + state] = accent;
         dictionary["SystemControlHighlightAccentBrush"] = accent; // the progress bar
         dictionary["AccentFillColorDefaultBrush"] = accent; // the editor's canvas (FluentAvalonia)
+        dictionary["FaroDivider"] = dictionary["M3OutlineVariant"];
         foreach (var (key, value) in TextField(p, dark, outlined: false)) dictionary[key] = value;
         foreach (var (key, value) in Select(p, dark)) dictionary[key] = value;
         return dictionary;

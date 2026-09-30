@@ -133,9 +133,9 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - プラグイン:今後対応(仕様§12 のとおりプロトタイプ範囲外)
   - 更新:チャンネル(Stable / Beta / Canary)、起動時の確認(1日1回、`-dev` 版では確認しない)、今すぐ確認
 
-## デザイン言語(Material 3 Expressive)
+## デザイン言語
 
-- File › Project Design… で、アプリの見た目を **Fluent**(Avalonia 標準)か **Material 3 Expressive** から選ぶ。`faro.json` の `design` に保存し(元に戻せる)、キャンバスと実行中のアプリの両方に反映する
+- File › Project Design… で、アプリの見た目を **Fluent**(Avalonia 標準)、**Material 3 Expressive**、**Cupertino**、**Neumorphism**、**NeoBrutalism**、**Simple** から選ぶ。`faro.json` の `design` に保存し(元に戻せる)、キャンバスと実行中のアプリの両方に反映する
 - Material 3 は**シードカラー**から色の役割(Primary、Surface、コンテナなど。ライト・ダーク両方)を作る([MaterialColorUtilities](https://github.com/albi005/MaterialColorUtilities))。テーマは System / Light / Dark(キャンバスでは System をライトで表示)
 - **Node ごとの設定**(インスペクターの「Material 3」欄。属性は `m3.〜`)
   - Button:種類(Filled / Tonal / Outlined / Text / Elevated)、サイズ(XS〜XL)、形(Round / Square)。押している間は角が小さくなり、離すとバネのように戻る(Expressive の形の変化)
@@ -144,6 +144,16 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - コンテナ:面の色(Surface、コンテナの濃さ、Primary など)、角丸、影の高さ
 - 書体は M3 Expressive の **Google Sans Flex**(OFL)を同梱する(C# は Faro.Runtime の中、Java はエディターが `.faro/fonts` にコピー)。日本語は同じく同梱の **Noto Sans JP** で表示し、強調(`m3.emphasized`)は両方とも Bold。Java(JavaFX)は CSS で書体を 1 つしか指定できないため、日本語は OS のフォント
 - 既知の制限:無効状態は全体を薄くするだけ
+
+### Cupertino・Neumorphism・NeoBrutalism・Simple
+
+- **Cupertino**:iOS の部品(グレーの背景に白い入力欄、丸いチェック、影付きの白いつまみのスイッチ・スライダー)
+- **Neumorphism**:面から浮き出る/沈む形(明るい影と暗い影)。押すとボタンが沈む。文字とチェック済みの色ははっきり出して、見分けにくさを抑えている
+- **NeoBrutalism**:明るい色、太い輪郭、ずらした硬い影。押すとボタンが影の位置へ動く。書体は Google Sans Flex
+- **Simple**:shadcn/ui 風の落ち着いた無彩色。細い枠、小さい角丸、薄い影
+- 4 つとも同じテンプレート(`Faro.Runtime/Looks.axaml`)を使い、形・色・大きさ・影はすべて `Faro…` のリソースで受け取る。値は言語ごとの表(`DesignLooks.Look`)で、色はシードカラーの色調から作る(ライト・ダーク)。入力欄とセレクトは Fluent のテンプレートのまま、色と枠をリソースで替え、角と影をスタイルで付ける。区切り線の色は `FaroDivider`(Material 3 も同じキーを持つ)
+- Java は同じ表から `JavaProject.DesignCss` が CSS を書く。JavaFX は 1 つの部品に効果を 1 つしか付けられないため、Neumorphism は暗い影だけになる
+- Node ごとの設定はまだない(Material 3 の `m3.〜` は無視される)
 
 ## Java(JavaFX)プロジェクト
 

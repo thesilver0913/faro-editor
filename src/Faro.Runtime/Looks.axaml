@@ -1,0 +1,196 @@
+<!--
+  The shared drawing of Faro's other design languages: Cupertino, Neumorphism, NeoBrutalism and Simple (see DesignLooks.cs).
+  Every shape, color, size and shadow here is a "Faro…" resource that DesignLooks fills per language and theme, so a
+  language is a table of values, not another copy of these templates. Text boxes and the select take Fluent's own
+  templates, recolored through its resource keys (also in DesignLooks) and given the language's corner and shadow here.
+-->
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ControlTheme x:Key="{x:Type Button}" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource FaroButton}" />
+      <Setter Property="Foreground" Value="{DynamicResource FaroOnButton}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource FaroBorder}" />
+      <Setter Property="BorderThickness" Value="{DynamicResource FaroButtonBorderThickness}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource FaroButtonRadius}" />
+      <Setter Property="MinHeight" Value="{DynamicResource FaroButtonHeight}" />
+      <Setter Property="MinWidth" Value="48" />
+      <Setter Property="ClipToBounds" Value="False" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="FontWeight" Value="{DynamicResource FaroButtonWeight}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                  BoxShadow="{DynamicResource FaroButtonShadow}">
+            <Border.Transitions>
+              <Transitions>
+                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.1" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" />
+              </Transitions>
+            </Border.Transitions>
+            <Panel>
+              <!-- Hover and press: the content color over the button, faintly -->
+              <Border Name="PART_State" Background="{TemplateBinding Foreground}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" />
+              <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Padding="{TemplateBinding Padding}" Foreground="{TemplateBinding Foreground}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Panel>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Border#PART_State"><Setter Property="Opacity" Value="0.08" /></Style>
+      <Style Selector="^:pressed /template/ Border#PART_State"><Setter Property="Opacity" Value="0.14" /></Style>
+      <!-- Pressed: the language's pressed shadow (neumorphism sinks in) and offset (neo-brutalism moves onto its shadow) -->
+      <Style Selector="^:pressed /template/ Border#PART_Root">
+        <Setter Property="BoxShadow" Value="{DynamicResource FaroButtonPressedShadow}" />
+        <Setter Property="RenderTransform" Value="{DynamicResource FaroPressedOffset}" />
+      </Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.4" /></Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="{x:Type CheckBox}" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource FaroOnSurface}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,*" Background="Transparent">
+            <Border Name="PART_Box" Width="{DynamicResource FaroCheckSize}" Height="{DynamicResource FaroCheckSize}" Margin="2"
+                    CornerRadius="{DynamicResource FaroCheckRadius}" BorderThickness="{DynamicResource FaroCheckBorderThickness}"
+                    BorderBrush="{DynamicResource FaroCheckBorder}" Background="{DynamicResource FaroField}" BoxShadow="{DynamicResource FaroCheckShadow}">
+              <Viewbox Margin="3">
+                <Path Name="PART_Check" Data="M 3.5,9 L 7.5,13 L 14.5,5.5" Width="18" Height="18" Stroke="{DynamicResource FaroOnAccent}"
+                      StrokeThickness="2.5" StrokeLineCap="Round" StrokeJoin="Round" IsVisible="False" />
+              </Viewbox>
+            </Border>
+            <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}" Margin="10,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Border#PART_Box"><Setter Property="BorderBrush" Value="{DynamicResource FaroAccent}" /></Style>
+      <Style Selector="^:checked /template/ Border#PART_Box">
+        <Setter Property="Background" Value="{DynamicResource FaroAccent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FaroCheckedBorder}" />
+      </Style>
+      <Style Selector="^:checked /template/ Path#PART_Check"><Setter Property="IsVisible" Value="True" /></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.4" /></Style>
+    </ControlTheme>
+
+    <!-- ToggleSwitch slides PART_MovingKnobs across PART_SwitchKnob (0 when off, its width when on), so that width is the knob's travel -->
+    <ControlTheme x:Key="{x:Type ToggleSwitch}" TargetType="ToggleSwitch">
+      <Setter Property="Foreground" Value="{DynamicResource FaroOnSurface}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="KnobTransitions">
+        <Transitions><DoubleTransition Property="Canvas.Left" Duration="0:0:0.2" Easing="CubicEaseOut" /></Transitions>
+      </Setter>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,*" Background="Transparent">
+            <Panel Width="{DynamicResource FaroSwitchWidth}" Height="{DynamicResource FaroSwitchHeight}" Margin="2">
+              <Border Name="PART_Track" CornerRadius="{DynamicResource FaroTrackRadius}" Background="{DynamicResource FaroTrack}"
+                      BorderBrush="{DynamicResource FaroBorder}" BorderThickness="{DynamicResource FaroTrackBorderThickness}" BoxShadow="{DynamicResource FaroTrackShadow}">
+                <Border.Transitions><Transitions><BrushTransition Property="Background" Duration="0:0:0.2" /></Transitions></Border.Transitions>
+              </Border>
+              <Canvas Name="PART_SwitchKnob" Width="{DynamicResource FaroKnobTravel}" Height="{DynamicResource FaroKnobSize}"
+                      HorizontalAlignment="Left" Margin="{DynamicResource FaroKnobInset}">
+                <Panel Name="PART_MovingKnobs" Width="{DynamicResource FaroKnobSize}" Height="{DynamicResource FaroKnobSize}">
+                  <Border CornerRadius="{DynamicResource FaroKnobRadius}" Background="{DynamicResource FaroKnob}" BorderBrush="{DynamicResource FaroBorder}"
+                          BorderThickness="{DynamicResource FaroKnobBorderThickness}" BoxShadow="{DynamicResource FaroKnobShadow}" />
+                </Panel>
+              </Canvas>
+            </Panel>
+            <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}" Margin="10,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:checked /template/ Border#PART_Track"><Setter Property="Background" Value="{DynamicResource FaroAccent}" /></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.4" /></Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="FaroSliderTrackPart" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="Transparent">
+            <Border Height="{DynamicResource FaroSliderTrack}" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+    <!-- Slider: the track behind (its border and inset shadow), the filled part up to the thumb over it. ponytail: horizontal only. -->
+    <ControlTheme x:Key="{x:Type Slider}" TargetType="Slider">
+      <Setter Property="MinHeight" Value="{DynamicResource FaroThumbHeight}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel>
+            <Border Height="{DynamicResource FaroSliderTrack}" CornerRadius="{DynamicResource FaroTrackRadius}" Background="{DynamicResource FaroTrack}"
+                    BorderBrush="{DynamicResource FaroBorder}" BorderThickness="{DynamicResource FaroTrackBorderThickness}" BoxShadow="{DynamicResource FaroTrackShadow}" />
+            <Track Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value, Mode=TwoWay}"
+                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}" Orientation="Horizontal">
+              <Track.DecreaseButton>
+                <RepeatButton Name="PART_DecreaseButton" Theme="{StaticResource FaroSliderTrackPart}" Background="{DynamicResource FaroAccent}"
+                              CornerRadius="{DynamicResource FaroTrackRadius}" Margin="0,0,-8,0" />
+              </Track.DecreaseButton>
+              <Track.IncreaseButton>
+                <RepeatButton Name="PART_IncreaseButton" Theme="{StaticResource FaroSliderTrackPart}" Background="Transparent" />
+              </Track.IncreaseButton>
+              <Thumb Name="thumb" Width="{DynamicResource FaroThumbWidth}" Height="{DynamicResource FaroThumbHeight}">
+                <Thumb.Template>
+                  <ControlTemplate>
+                    <Border CornerRadius="{DynamicResource FaroThumbRadius}" Background="{DynamicResource FaroKnob}" BorderBrush="{DynamicResource FaroThumbBorder}"
+                            BorderThickness="{DynamicResource FaroThumbBorderThickness}" BoxShadow="{DynamicResource FaroKnobShadow}" />
+                  </ControlTemplate>
+                </Thumb.Template>
+              </Thumb>
+            </Track>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.4" /></Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="{x:Type ProgressBar}" TargetType="ProgressBar">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Height="{DynamicResource FaroProgressHeight}" CornerRadius="{DynamicResource FaroTrackRadius}" Background="{DynamicResource FaroTrack}"
+                  BorderBrush="{DynamicResource FaroBorder}" BorderThickness="{DynamicResource FaroTrackBorderThickness}" BoxShadow="{DynamicResource FaroTrackShadow}"
+                  ClipToBounds="True">
+            <Border Name="PART_Indicator" CornerRadius="{DynamicResource FaroTrackRadius}" Background="{DynamicResource FaroAccent}" HorizontalAlignment="Left" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <!-- The app window and the editor's artboard are the surface (FaroFont only where the language brings a typeface) -->
+  <Style Selector="Window, Border.faro-screen">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource FaroOnSurface}" />
+    <Setter Property="TextElement.FontFamily" Value="{DynamicResource FaroFont}" />
+  </Style>
+  <Style Selector="Window"><Setter Property="Background" Value="{DynamicResource FaroSurface}" /></Style>
+  <Style Selector="Border.faro-screen"><Setter Property="Background" Value="{DynamicResource FaroSurface}" /></Style>
+
+  <!-- Text fields and the select: Fluent's templates, recolored by resources, with the language's height, corner and shadow -->
+  <Style Selector="TextBox">
+    <Setter Property="MinHeight" Value="{DynamicResource FaroFieldHeight}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource FaroFieldRadius}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="CaretBrush" Value="{DynamicResource FaroAccent}" />
+    <Setter Property="ClipToBounds" Value="False" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MinHeight" Value="{DynamicResource FaroFieldHeight}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource FaroFieldRadius}" />
+    <Setter Property="ClipToBounds" Value="False" />
+  </Style>
+  <Style Selector="TextBox /template/ Border#PART_BorderElement, ComboBox /template/ Border#Background">
+    <Setter Property="BoxShadow" Value="{DynamicResource FaroFieldShadow}" />
+  </Style>
+  <Style Selector="ComboBoxItem"><Setter Property="MinHeight" Value="{DynamicResource FaroFieldHeight}" /><Setter Property="VerticalContentAlignment" Value="Center" /></Style>
+</Styles>
