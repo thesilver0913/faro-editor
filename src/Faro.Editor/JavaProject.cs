@@ -384,14 +384,22 @@ public static partial class JavaProject
         string C(string key) => v[key] is Avalonia.Media.ISolidColorBrush b ? Rgba(b.Color) : "transparent";
         double N(string key) => v[key] switch { double d => d, Avalonia.CornerRadius r => r.TopLeft, Avalonia.Thickness t => t.Left, _ => 0 };
         string F(double d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        // The first shadow of a BoxShadows as a JavaFX effect: dropshadow, innershadow when inset, "none" without one
-        string Effect(string key) => v[key] is Avalonia.Media.BoxShadows { Count: > 0 } shadows && shadows[0] is var s && s != default
-            ? $"{(s.IsInset ? "innershadow" : "dropshadow")}({(s.Blur == 0 ? "one-pass-box" : "gaussian")}, {Rgba(s.Color)}, {F(Math.Max(s.Blur, 0))}, {(s.Blur == 0 ? 1 : 0)}, {F(s.OffsetX)}, {F(s.OffsetY)})"
-            : "null";
-        // A box with a border drawn as two backgrounds (JavaFX's border would sit outside the radius)
-        string Box(string fill, string border, double width, double radius) => width > 0
-            ? $"-fx-background-color: {border}, {fill}; -fx-background-insets: 0, {F(width)}; -fx-background-radius: {F(radius)}, {F(Math.Max(radius - width, 0))};"
-            : $"-fx-background-color: {fill}; -fx-background-insets: 0; -fx-background-radius: {F(radius)};";
+        Avalonia.Thickness T(string key) => (Avalonia.Thickness)v[key]!;
+        // A BoxShadows as JavaFX: its first shadow as the effect (dropshadow, or innershadow when inset). Hairline bevels
+        // (inset, unblurred, 1px: Retro) become per-side border colors inside the box's own border, since JavaFX takes one effect.
+        string Shade(string key, double border = 0)
+        {
+            if (v[key] is not Avalonia.Media.BoxShadows { Count: > 0 } shadows || shadows[0] == default) return "-fx-effect: null;";
+            var all = Enumerable.Range(0, shadows.Count).Select(i => shadows[i]).ToList();
+            if (all.All(s => s.IsInset && s.Blur == 0) && all.FirstOrDefault(s => s.OffsetX > 0) is var light && all.FirstOrDefault(s => s.OffsetX < 0) is var dark)
+                return $"-fx-effect: null; -fx-border-color: {Rgba(light.Color)} {Rgba(dark.Color)} {Rgba(dark.Color)} {Rgba(light.Color)}; -fx-border-width: 1; -fx-border-insets: {F(border)};";
+            var s = all[0];
+            return $"-fx-effect: {(s.IsInset ? "innershadow" : "dropshadow")}({(s.Blur == 0 ? "one-pass-box" : "gaussian")}, {Rgba(s.Color)}, {F(Math.Max(s.Blur, 0))}, {(s.Blur == 0 ? 1 : 0)}, {F(s.OffsetX)}, {F(s.OffsetY)});";
+        }
+        // A box with a border drawn as two backgrounds (JavaFX's border would sit outside the radius); sides may differ (Carbon's bottom rule)
+        string Box(string fill, string border, Avalonia.Thickness width, double radius) => width == default
+            ? $"-fx-background-color: {fill}; -fx-background-insets: 0; -fx-background-radius: {F(radius)};"
+            : $"-fx-background-color: {border}, {fill}; -fx-background-insets: 0, {F(width.Top)} {F(width.Right)} {F(width.Bottom)} {F(width.Left)}; -fx-background-radius: {F(radius)}, {F(Math.Max(radius - Math.Max(width.Top, width.Left), 0))};";
         var (switchWidth, switchHeight, knob) = (N("FaroSwitchWidth"), N("FaroSwitchHeight"), N("FaroKnobSize"));
         var inset = (switchHeight - knob) / 2;
         var pressed = v["FaroPressedOffset"] is Avalonia.Media.Transformation.TransformOperations { Value.M31: var dx, Value.M32: var dy } ? (dx, dy) : (0, 0);
@@ -408,20 +416,29 @@ public static partial class JavaProject
             .label, .check-box { -fx-text-fill: {{C("FaroOnSurface")}}; }
 
             .button {
-                {{Box(C("FaroButton"), C("FaroBorder"), N("FaroButtonBorderThickness"), N("FaroButtonRadius"))}}
+                {{Box(C("FaroButton"), C("FaroBorder"), T("FaroButtonBorderThickness"), N("FaroButtonRadius"))}}
                 -fx-text-fill: {{C("FaroOnButton")}}; -fx-min-height: {{F(N("FaroButtonHeight"))}}; -fx-padding: 0 16;
-                -fx-font-weight: {{(v["FaroButtonWeight"] is Avalonia.Media.FontWeight.Bold ? "bold" : "600")}}; -fx-effect: {{Effect("FaroButtonShadow")}}; -fx-cursor: hand;
+                -fx-font-weight: {{(int)(Avalonia.Media.FontWeight)v["FaroButtonWeight"]!}}; {{Shade("FaroButtonShadow", N("FaroButtonBorderThickness"))}} -fx-cursor: hand;
             }
             .button:hover { -fx-opacity: 0.92; }
-            .button:pressed { -fx-effect: {{Effect("FaroButtonPressedShadow")}}; -fx-translate-x: {{F(pressed.Item1)}}; -fx-translate-y: {{F(pressed.Item2)}}; }
+            .button:pressed { {{Shade("FaroButtonPressedShadow", N("FaroButtonBorderThickness"))}} -fx-translate-x: {{F(pressed.Item1)}}; -fx-translate-y: {{F(pressed.Item2)}}; }
+            .button.look-variant-tonal { -fx-background-color: {{C("FaroTonal")}}; -fx-text-fill: {{C("FaroOnTonal")}}; }
+            .button.look-variant-outlined, .button.look-variant-text { -fx-text-fill: {{C("FaroAccentText")}}; -fx-effect: null; }
+            .button.look-variant-text { -fx-border-color: null; }
+            .button.look-variant-outlined { -fx-background-color: transparent; -fx-border-color: {{C("FaroOutline")}}; -fx-border-width: {{F(N("FaroOutlineThickness"))}};
+                -fx-border-radius: {{F(N("FaroButtonRadius"))}}; -fx-background-radius: {{F(N("FaroButtonRadius"))}}; }
+            .button.look-variant-text { -fx-background-color: transparent; -fx-padding: 0 12; }
+            .button.look-variant-outlined:pressed, .button.look-variant-text:pressed { -fx-effect: null; -fx-translate-x: 0; -fx-translate-y: 0; }
+            .look-surface-card { {{Box(C("FaroCard"), C("FaroBorder"), T("FaroCardBorderThickness"), N("FaroCardRadius"))}} {{Shade("FaroCardShadow", N("FaroCardBorderThickness"))}} }
+            .look-surface-inset { -fx-background-color: {{C("FaroInset")}}; -fx-background-radius: {{F(N("FaroCardRadius"))}}; {{Shade("FaroInsetShadow")}} }
             .button:disabled, .check-box:disabled, .slider:disabled, .combo-box:disabled, .text-field:disabled { -fx-opacity: 0.4; }
 
             .text-field, .combo-box {
-                {{Box(C("FaroField"), C("FaroBorder"), N("FaroFieldBorderThickness"), N("FaroFieldRadius"))}}
-                -fx-min-height: {{F(N("FaroFieldHeight"))}}; -fx-effect: {{Effect("FaroFieldShadow")}};
+                {{Box(C("FaroField"), C("FaroBorder"), T("FaroFieldBorderThickness"), N("FaroFieldRadius"))}}
+                -fx-min-height: {{F(N("FaroFieldHeight"))}}; {{Shade("FaroFieldShadow")}}
             }
             .text-field { -fx-padding: 0 12; -fx-text-fill: {{C("FaroOnSurface")}}; -fx-prompt-text-fill: {{C("FaroMuted")}}; -fx-highlight-fill: {{C("FaroAccent")}}; }
-            .text-field:focused, .combo-box:focused { {{Box(C("FaroField"), C("FaroFocus"), Math.Max(N("FaroFieldBorderThickness"), 1), N("FaroFieldRadius"))}} }
+            .text-field:focused, .combo-box:focused { {{Box(C("FaroField"), C("FaroFocus"), new Avalonia.Thickness(Math.Max(N("FaroFieldBorderThickness"), 1)), N("FaroFieldRadius"))}} }
             .combo-box > .list-cell { -fx-text-fill: {{C("FaroOnSurface")}}; -fx-padding: 0 8; }
             .combo-box > .arrow-button { -fx-background-color: transparent; }
             .combo-box > .arrow-button > .arrow { -fx-background-color: {{C("FaroMuted")}}; }
@@ -433,40 +450,40 @@ public static partial class JavaProject
 
             .check-box { -fx-label-padding: 0 0 0 10; -fx-cursor: hand; }
             .check-box > .box {
-                {{Box(C("FaroField"), C("FaroCheckBorder"), N("FaroCheckBorderThickness"), N("FaroCheckRadius"))}}
-                -fx-padding: {{F((N("FaroCheckSize") - 12) / 2)}}; -fx-effect: {{Effect("FaroCheckShadow")}};
+                {{Box(C("FaroField"), C("FaroCheckBorder"), T("FaroCheckBorderThickness"), N("FaroCheckRadius"))}}
+                -fx-padding: {{F((N("FaroCheckSize") - 12) / 2)}}; {{Shade("FaroCheckShadow")}}
             }
             .check-box > .box > .mark { -fx-background-color: transparent; }
-            .check-box:selected > .box { {{Box(C("FaroAccent"), C("FaroCheckedBorder"), N("FaroCheckBorderThickness"), N("FaroCheckRadius"))}} }
+            .check-box:selected > .box { {{Box(C("FaroAccent"), C("FaroCheckedBorder"), T("FaroCheckBorderThickness"), N("FaroCheckRadius"))}} }
             .check-box:selected > .box > .mark { -fx-background-color: {{C("FaroOnAccent")}}; }
             .check-box.faro-switch > .box {
-                {{Box(C("FaroTrack"), C("FaroBorder"), N("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
-                -fx-padding: {{F(inset)}} {{F(switchWidth - knob - inset)}} {{F(inset)}} {{F(inset)}}; -fx-effect: {{Effect("FaroTrackShadow")}};
+                {{Box(C("FaroTrack"), C("FaroBorder"), T("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
+                -fx-padding: {{F(inset)}} {{F(switchWidth - knob - inset)}} {{F(inset)}} {{F(inset)}}; {{Shade("FaroTrackShadow")}}
             }
             .check-box.faro-switch:selected > .box {
-                {{Box(C("FaroAccent"), C("FaroBorder"), N("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
+                {{Box(C("FaroAccent"), C("FaroBorder"), T("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
                 -fx-padding: {{F(inset)}} {{F(inset)}} {{F(inset)}} {{F(switchWidth - knob - inset)}};
             }
             .check-box.faro-switch > .box > .mark, .check-box.faro-switch:selected > .box > .mark {
-                -fx-shape: null; {{Box(C("FaroKnob"), C("FaroBorder"), N("FaroKnobBorderThickness"), N("FaroKnobRadius"))}}
-                -fx-padding: {{F(knob / 2)}}; -fx-effect: {{Effect("FaroKnobShadow")}};
+                -fx-shape: null; {{Box(C("FaroKnob"), C("FaroBorder"), T("FaroKnobBorderThickness"), N("FaroKnobRadius"))}}
+                -fx-padding: {{F(knob / 2)}}; {{Shade("FaroKnobShadow")}}
             }
 
             .slider { faro-track-on: {{C("FaroAccent")}}; faro-track-off: {{C("FaroTrack")}}; -fx-cursor: hand; }
             .slider > .track {
                 -fx-background-radius: {{F(N("FaroTrackRadius"))}}; -fx-background-insets: 0; -fx-padding: {{F(N("FaroSliderTrack") / 2)}};
                 -fx-border-color: {{(N("FaroTrackBorderThickness") > 0 ? C("FaroBorder") : "transparent")}}; -fx-border-width: {{F(N("FaroTrackBorderThickness"))}};
-                -fx-border-radius: {{F(N("FaroTrackRadius"))}}; -fx-effect: {{Effect("FaroTrackShadow")}};
+                -fx-border-radius: {{F(N("FaroTrackRadius"))}}; {{Shade("FaroTrackShadow")}}
             }
             .slider > .thumb {
-                -fx-shape: null; {{Box(C("FaroKnob"), C("FaroThumbBorder"), N("FaroThumbBorderThickness"), N("FaroThumbRadius"))}}
-                -fx-padding: {{F(N("FaroThumbHeight") / 2)}} {{F(N("FaroThumbWidth") / 2)}}; -fx-effect: {{Effect("FaroKnobShadow")}};
+                -fx-shape: null; {{Box(C("FaroThumb"), C("FaroThumbBorder"), T("FaroThumbBorderThickness"), N("FaroThumbRadius"))}}
+                -fx-padding: {{F(N("FaroThumbHeight") / 2)}} {{F(N("FaroThumbWidth") / 2)}}; {{Shade("FaroKnobShadow")}}
             }
 
             .progress-bar { -fx-padding: 0; }
             .progress-bar > .track {
-                {{Box(C("FaroTrack"), C("FaroBorder"), N("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
-                -fx-padding: {{F(N("FaroProgressHeight") / 2)}}; -fx-effect: {{Effect("FaroTrackShadow")}};
+                {{Box(C("FaroTrack"), C("FaroBorder"), T("FaroTrackBorderThickness"), N("FaroTrackRadius"))}}
+                -fx-padding: {{F(N("FaroProgressHeight") / 2)}}; {{Shade("FaroTrackShadow")}}
             }
             .progress-bar > .bar {
                 -fx-background-color: {{C("FaroAccent")}}; -fx-background-radius: {{F(N("FaroTrackRadius"))}};

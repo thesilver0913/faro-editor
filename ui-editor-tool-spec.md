@@ -259,7 +259,7 @@ Figmaのプロトタイピング機能(画面間を矢印でつなぐ形式)を�
 ## 12. 将来の拡張ポイント(プロトタイプ範囲外)
 
 - **デザイン言語の選択によるUIフレームワーク自動切り替え**:プロジェクト作成時に「デザイン言語」を選ぶと対応するUIフレームワークが自動選択される案。実現には複数フレームワーク分のコード生成・ランタイムブリッジが必要になるため、プロトタイプでは見送り
-  - **実装での変更**:フレームワークの自動切り替えではなく、同じ Avalonia の上で**見た目のデザイン言語**を切り替える形で先に取り込んだ(`faro.json` の `design`、Fluent / Material 3 Expressive / Cupertino / Neumorphism / NeoBrutalism / Simple。§16 参照)
+  - **実装での変更**:フレームワークの自動切り替えではなく、同じ Avalonia の上で**見た目のデザイン言語**を切り替える形で先に取り込んだ(`faro.json` の `design`、Fluent / Material 3 Expressive / Cupertino / Neumorphism / NeoBrutalism / Simple / Carbon / Clay / Retro。§16 参照)
 - **ブロック的なビジュアルスクリプティング**:条件分岐などをUI上でScratch的なブロックの組み合わせで表現する機能。最小構成案は以下:
   - **条件(If/Else)**:レジストリの`bool`を返すプロパティ・関数を条件式として選択
   - **比較**:値同士を `==`, `>`, `<` などで比較
@@ -325,7 +325,7 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **Runtime の同梱と更新**:Faro.Runtime を各プロジェクトの `.faro/packages/` に nupkg で置き、Faro に新しい版があれば開くときに更新を案内する
 - **バイブコーディングの LLM** はプロバイダを差し替え可能(Claude／OpenAI 互換)
 - **インストーラーと更新**:Windows は Inno Setup、Linux は .deb と tar.gz、macOS は .dmg(簡易署名のみ・公証なし)を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
-- **デザイン言語**:`faro.json` の `design`(`language` Fluent / Material3、`seedColor`、`theme` System / Light / Dark)。Material 3 Expressive はシードカラーから色の役割を作り、形・文字スタイル・押したときの形の変化を付ける。Node ごとの設定は `m3.variant` などの属性で、インスペクターの「Material 3」欄で編集する。Cupertino・Neumorphism・NeoBrutalism・Simple は共通のテンプレートに言語ごとの値(形・色・影)を入れて描く(Java は同じ値から CSS を作る)
+- **デザイン言語**:`faro.json` の `design`(`language` Fluent / Material3、`seedColor`、`theme` System / Light / Dark)。Material 3 Expressive はシードカラーから色の役割を作り、形・文字スタイル・押したときの形の変化を付ける。Node ごとの設定は `m3.variant` などの属性で、インスペクターの「Material 3」欄で編集する。Cupertino・Neumorphism・NeoBrutalism・Simple・Carbon・Clay・Retro は共通のテンプレートに言語ごとの値(形・色・影)を入れて描き(Java は同じ値から CSS を作る)、Node ごとの設定も共通の `look.variant`・`look.surface`
 - **Java(JavaFX)プロジェクト**:新規作成時に C# か Java を選ぶ。Java 版ランタイムバインダー(`src/Faro.Runtime.Java`)をソースのまま `.faro/runtime-java` に同梱し、Maven(`mvn javafx:run`)でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか、getName()/isName() を持つ Bean プロパティ `name`)。Material 3 は JavaFX 用 CSS(`.faro/design.css`)をエディターが生成する
 - **レイヤー・パーツ・プレビュー**:Node の木(選択連動・ドラッグで並べ替え)、パーツのパレット(クリックかドラッグで追加)、選択 Node のサイズ変更ハンドル、キャンバス内プレビュー(入力・クリック・Navigate)
 - **Android APK**(C# プロジェクト):File › Android APK をビルド。`.faro/android` に生成した Android 用プロジェクトで `Source/` と UI・紐付け・アセットをまとめ、デバッグ鍵で署名した APK を `dist/` に出す。Java プロジェクトは今後

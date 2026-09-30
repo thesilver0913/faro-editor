@@ -49,6 +49,27 @@
         <Setter Property="BoxShadow" Value="{DynamicResource FaroButtonPressedShadow}" />
         <Setter Property="RenderTransform" Value="{DynamicResource FaroPressedOffset}" />
       </Style>
+      <!-- look.variant: Tonal (a quieter fill), Outlined (a border, no fill), Text (the label alone) -->
+      <Style Selector="^.look-variant-tonal">
+        <Setter Property="Background" Value="{DynamicResource FaroTonal}" />
+        <Setter Property="Foreground" Value="{DynamicResource FaroOnTonal}" />
+      </Style>
+      <Style Selector="^.look-variant-outlined">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource FaroAccentText}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FaroOutline}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource FaroOutlineThickness}" />
+      </Style>
+      <Style Selector="^.look-variant-text">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource FaroAccentText}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="12,0" />
+      </Style>
+      <Style Selector="^.look-variant-outlined /template/ Border#PART_Root, ^.look-variant-text /template/ Border#PART_Root">
+        <Setter Property="BoxShadow" Value="none" />
+        <Setter Property="RenderTransform" Value="none" />
+      </Style>
       <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.4" /></Style>
     </ControlTheme>
 
@@ -143,7 +164,7 @@
               <Thumb Name="thumb" Width="{DynamicResource FaroThumbWidth}" Height="{DynamicResource FaroThumbHeight}">
                 <Thumb.Template>
                   <ControlTemplate>
-                    <Border CornerRadius="{DynamicResource FaroThumbRadius}" Background="{DynamicResource FaroKnob}" BorderBrush="{DynamicResource FaroThumbBorder}"
+                    <Border CornerRadius="{DynamicResource FaroThumbRadius}" Background="{DynamicResource FaroThumb}" BorderBrush="{DynamicResource FaroThumbBorder}"
                             BorderThickness="{DynamicResource FaroThumbBorderThickness}" BoxShadow="{DynamicResource FaroKnobShadow}" />
                   </ControlTemplate>
                 </Thumb.Template>
@@ -175,6 +196,20 @@
   </Style>
   <Style Selector="Window"><Setter Property="Background" Value="{DynamicResource FaroSurface}" /></Style>
   <Style Selector="Border.faro-screen"><Setter Property="Background" Value="{DynamicResource FaroSurface}" /></Style>
+
+  <!-- look.surface on a container: Card (raised from the surface) or Inset (sunk into it) -->
+  <Style Selector="Border.look-surface-card">
+    <Setter Property="Background" Value="{DynamicResource FaroCard}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource FaroCardRadius}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FaroBorder}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource FaroCardBorderThickness}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource FaroCardShadow}" />
+  </Style>
+  <Style Selector="Border.look-surface-inset">
+    <Setter Property="Background" Value="{DynamicResource FaroInset}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource FaroCardRadius}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource FaroInsetShadow}" />
+  </Style>
 
   <!-- Text fields and the select: Fluent's templates, recolored by resources, with the language's height, corner and shadow -->
   <Style Selector="TextBox">

@@ -165,6 +165,15 @@ public sealed class InspectorView : UserControl
                 body.Children.Add(Row(L.T(char.ToUpperInvariant(attribute[3]) + attribute[4..]),
                     Choice(node, attribute, values, unset: type == "Instance" ? (string?)node.Element("Node")?.Attribute(attribute) ?? values[0] : values[0])));
         }
+        // The table-driven languages (Cupertino … Retro) share their options: look.variant on buttons, look.surface on containers.
+        if (Workspace.Project?.Design.Language is { } language && DesignLooks.Languages.Contains(language)
+            && (LookOptions.GetValueOrDefault(styled) ?? (styled.StartsWith("Container.") ? LookOptions["Container"] : null)) is { } lookOptions)
+        {
+            body.Children.Add(Section(language));
+            foreach (var (attribute, values) in lookOptions)
+                body.Children.Add(Row(L.T(attribute == "look.surface" ? "Panel" : "Variant"),
+                    Choice(node, attribute, values, unset: type == "Instance" ? (string?)node.Element("Node")?.Attribute(attribute) ?? values[0] : values[0])));
+        }
         if (type == "Instance")
         {
             // Variants (Figma): the instance shows the master it picks; switching replaces its snapshot in the same step.
@@ -283,6 +292,12 @@ public sealed class InspectorView : UserControl
         size.IsVisible = UiBuilder.Sizing(node, axis) == "Fixed";
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
+
+    static readonly Dictionary<string, (string Attribute, string[] Values)[]> LookOptions = new()
+    {
+        ["Control.Button"] = [("look.variant", ["Filled", "Tonal", "Outlined", "Text"])],
+        ["Container"] = [("look.surface", ["None", "Card", "Inset"])],
+    };
 
     static readonly Dictionary<string, (string Attribute, string[] Values)[]> M3Options = new()
     {

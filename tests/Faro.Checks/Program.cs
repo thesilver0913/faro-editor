@@ -351,6 +351,12 @@ var missingLook = DesignLooks.Languages.SelectMany(l => new[] { false, true }.Se
 Check(lookKeys.Count > 30 && missingLook.Count == 0 && AppDesign.Read(System.Text.Json.Nodes.JsonNode.Parse("""{"language":"Neumorphism"}""")).Language == "Neumorphism", "design languages fill every look resource" + (missingLook.Count > 0 ? ": " + string.Join(", ", missingLook.Take(5)) : ""));
 Check(DesignLooks.Languages.All(l => JavaProject.DesignCss(new AppDesign(l, AppDesign.DefaultSeed, "Dark")) is { } css && css.Contains(".check-box.faro-switch > .box") && !css.Contains("NaN") && !css.Contains("{{"))
     && JavaProject.DesignCss(new AppDesign("NeoBrutalism"))!.Contains("-fx-translate-x: 4"), "JavaFX stylesheets for the other design languages");
+// Per-node options for those languages: look.variant / look.surface become the classes both stylesheets draw
+var carded = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="c" type="Container.Stack" look.surface="Card"><Node id="b" type="Control.Button" look.variant="Outlined" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+Check(carded.Classes.Contains("look-surface-card") && carded is Avalonia.Controls.Border { Child: Avalonia.Controls.Panel { Children: [Avalonia.Controls.Button outlined] } } && outlined.Classes.Contains("look-variant-outlined")
+    && JavaProject.DesignCss(new AppDesign("Retro")) is { } retroCss && retroCss.Contains(".button.look-variant-outlined") && retroCss.Contains(".look-surface-inset")
+    && retroCss.Contains("-fx-border-color: #ffffff #808080 #808080 #ffffff") && JavaProject.DesignCss(new AppDesign("Carbon"))!.Contains("-fx-background-insets: 0, 0 0 1 0"),
+    "per-node look options, Retro bevels and Carbon's field rule");
 Check(Throws<ArgumentException>(() => ProjectSetup.Create(projects, "EmptyApp", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "../bad", "Empty")) && Throws<ArgumentException>(() => ProjectSetup.Create(projects, "1st", "Empty"))
     && Throws<ArgumentException>(() => ProjectSetup.Create("relative/dir", "Ok", "Empty")) && Path.IsPathRooted(ProjectSetup.DefaultLocation), "project name and location validated");
 var existing = Path.Combine(projects, "existing-folder");

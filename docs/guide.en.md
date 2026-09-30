@@ -115,8 +115,11 @@ In the same dialog, choose a design language, a seed color, and light or dark.
 | Neumorphism | Soft shapes raised from the surface |
 | NeoBrutalism | Bright colors, thick outlines, hard shadows |
 | Simple | Quiet and neutral (in the style of shadcn/ui) |
+| Carbon | IBM's design: square shapes, fields with a bottom rule |
+| Clay | Puffy, clay-like shapes in pastel colors |
+| Retro | Windows 95 bevels |
 
-Every language takes its colors from the seed color.
+Every language takes its colors from the seed color. In the languages other than Material 3, the inspector's section named after the language picks a button's **Variant** (Filled / Tonal / Outlined / Text) and a container's **Panel** (Card: raised from the surface / Inset: sunk into it). The settings carry over when you switch between these languages.
 
 ### Editing basics
 
