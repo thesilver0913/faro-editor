@@ -62,6 +62,7 @@ public final class UiBuilder {
                 yield label;
             }
             case "Control.Image" -> image(root, prop(node, "Source"));
+            case "Control.Spacer" -> new Region(); // empty: Fill by default, so it takes the free space and pushes its neighbors apart
             default -> {
                 var label = new Label("[unknown type: " + type + "]");
                 label.setStyle("-fx-text-fill: red;");
@@ -159,12 +160,12 @@ public final class UiBuilder {
         };
     }
 
-    /** Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug. */
+    /** Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug (a Spacer: Fill). */
     public static String sizing(Element node, String axis) {
         var own = node.getAttribute(axis + "Sizing");
         if (!own.isEmpty()) return own;
         var both = node.getAttribute("sizing");
-        return both.isEmpty() ? "Hug" : both;
+        return !both.isEmpty() ? both : "Control.Spacer".equals(node.getAttribute("type")) ? "Fill" : "Hug";
     }
 
     private static void size(Element node, String axis, java.util.function.DoubleConsumer min, java.util.function.DoubleConsumer pref, java.util.function.DoubleConsumer max) {

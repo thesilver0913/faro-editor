@@ -330,15 +330,34 @@ public sealed class CanvasView : UserControl
         };
 
         Button? add = null;
-        add = Icons.Button(FASymbol.Add, "Add a node (or drag one from Parts)", () =>
+        // The tool panel (Adobe's, down the canvas's left edge): editing the selection. Related tools share a button that opens them.
+        static Control Symbol(FASymbol symbol) => new FASymbolIcon { Symbol = symbol, FontSize = 16 };
+        // Figma's align buttons for the selected node (CanvasEdit.Align: alignSelf, anchors, or Spacers along a stack).
+        var align = Icons.ToolGroup("Align", [.. new[] {
+            (true, "Start", "Align left"), (true, "Center", "Align horizontal centers"), (true, "End", "Align right (along a row: a Spacer pushes it to the end)"),
+            (false, "Start", "Align top"), (false, "Center", "Align vertical centers"), (false, "End", "Align bottom (along a column: a Spacer pushes it to the end)") }
+            .Select(a => new Icons.Tool(() => Icons.Align(a.Item1, a.Item2), a.Item3, () => Edit(a.Item3.Split(" (")[0], (_, screen) =>
+                Selection.Count == 1 && CanvasEdit.Align(screen, Selection.First(), a.Item1, a.Item2) ? [screen] : [])))]);
+        var tools = new StackPanel
         {
-            var menu = new MenuFlyout();
-            foreach (var item in AddItems()) menu.Items.Add(item);
-            menu.ShowAt(add!);
-        });
-        var delete = Icons.Button(FASymbol.Delete, "Delete the selected nodes (Del)", DeleteSelection);
-        var up = Icons.Button(FASymbol.ChevronUp, "Move up (Alt+Up)", () => MoveSelection(-1));
-        var down = Icons.Button(FASymbol.ChevronDown, "Move down (Alt+Down)", () => MoveSelection(+1));
+            Spacing = 4, Margin = new(6, 8),
+            Children =
+            {
+                Icons.ToolButton(Symbol(FASymbol.Add), "Add a node (or drag one from Parts)", () =>
+                {
+                    var menu = new MenuFlyout { Placement = PlacementMode.RightEdgeAlignedTop };
+                    foreach (var item in AddItems()) menu.Items.Add(item);
+                    menu.ShowAt(add!);
+                }),
+                Icons.ToolButton(Symbol(FASymbol.Delete), "Delete the selected nodes (Del)", DeleteSelection),
+                new Separator { Margin = new(4, 2) },
+                Icons.ToolButton(Symbol(FASymbol.ChevronUp), "Move up (Alt+Up)", () => MoveSelection(-1)),
+                Icons.ToolButton(Symbol(FASymbol.ChevronDown), "Move down (Alt+Down)", () => MoveSelection(+1)),
+                align,
+            },
+        };
+        add = (Button)tools.Children[0];
+        DockPanel.SetDock(tools, Avalonia.Controls.Dock.Left);
         // Design mode: clicks select nodes instead of operating the controls. Shift adds/removes.
         artboard.AddHandler(PointerPressedEvent, (_, e) =>
         {
@@ -365,6 +384,7 @@ public sealed class CanvasView : UserControl
             else if (id is not null) Select(Selection.Contains(id) ? Selection.Except([id]).ToList() : [.. Selection, id]);
             Focus(); // keyboard (Delete, Alt+arrows, Ctrl+Z) now goes to the canvas, not a text box elsewhere
             e.Handled = true;
+            if (e.ClickCount == 2 && id is not null && !e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift)) { EditTextInPlace(id); return; }
             if (id is not null && id != (string?)CurrentGraph()?.Root!.Element("Node")!.Attribute("id") && !e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift))
             {
                 dragId = id;
@@ -492,11 +512,50 @@ public sealed class CanvasView : UserControl
         }
         DataState();
         Workspace.Changed += DataState;
-        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, compare, zoomBar, add, delete, up, down, sync, previewToggle, dataToggle, run, status } });
+        var bar = Icons.Toolbar(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Margin = new(8), Children = { screens, size, compare, zoomBar, sync, previewToggle, dataToggle, run, status } });
         DockPanel.SetDock(bar, Avalonia.Controls.Dock.Top);
         designScope.Child = zoomHost;
         viewport.Content = designScope;
-        Content = new DockPanel { Children = { bar, viewport } };
+        Content = new DockPanel { Children = { bar, tools, viewport } };
+    }
+
+    /// <summary>
+    /// Double-click a text, button or text input on the canvas (Figma's text editing): its text (a text input: its placeholder;
+    /// an instance: its Text override) in a box over it. Enter or clicking away keeps it, Esc cancels.
+    /// </summary>
+    void EditTextInPlace(string id)
+    {
+        if (CurrentGraph() is not { } graph || CanvasEdit.Find(graph, id) is not { } node || byId.GetValueOrDefault(id) is not { } control) return;
+        var type = (string?)node.Attribute("type");
+        var prop = type == "Control.TextInput" ? "Placeholder" : "Text";
+        if (type is not ("Control.Text" or "Control.Button" or "Control.TextInput") && !(type == "Instance" && CanvasEdit.GetProp(node, "Text") is not null)) return;
+        var before = CanvasEdit.GetProp(node, prop) ?? "";
+        var box = new TextBox { Text = before, MinWidth = Math.Max(120, control.Bounds.Width * zoom), AcceptsReturn = false };
+        var flyout = new Flyout
+        {
+            Content = box,
+            Placement = PlacementMode.AnchorAndGravity,
+            PlacementAnchor = Avalonia.Controls.Primitives.PopupPositioning.PopupAnchor.TopLeft,
+            PlacementGravity = Avalonia.Controls.Primitives.PopupPositioning.PopupGravity.BottomRight,
+        };
+        var cancelled = false;
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key is Key.Enter or Key.Escape) { cancelled = e.Key == Key.Escape; flyout.Hide(); e.Handled = true; }
+        };
+        flyout.Opened += (_, _) => { box.Focus(); box.SelectAll(); };
+        flyout.Closed += (_, _) =>
+        {
+            if (cancelled || box.Text == before) return;
+            var text = box.Text ?? "";
+            Edit($"Set {prop}", (_, screen) =>
+            {
+                if (CanvasEdit.Find(screen, id) is not { } n) return [];
+                CanvasEdit.SetProp(n, prop, text);
+                return [screen];
+            });
+        };
+        flyout.ShowAt(control);
     }
 
     void ShowRunState()

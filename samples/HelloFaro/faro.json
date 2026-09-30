@@ -1,7 +1,7 @@
 {
   "name": "HelloFaro",
   "language": "CSharp",
-  "runtime": "1.0.1-beta.1",
+  "runtime": "1.0.1-beta.2",
   "startScreen": "MainScreen",
   "design": {
     "language": "Material3",
