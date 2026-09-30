@@ -85,6 +85,7 @@ public final class FaroApp {
         @Override
         public void start(Stage primary) {
             stage = primary;
+            loadFonts();
             var scene = new Scene(new StackPane(), 480, 720);
             scene.getStylesheets().add("data:text/css;base64," + java.util.Base64.getEncoder().encodeToString(UiBuilder.CSS.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             if (url(".faro/design.css") instanceof URL css) scene.getStylesheets().add(css.toExternalForm());
@@ -130,6 +131,7 @@ public final class FaroApp {
             binds.clear();
             UiBuilder.tokens = tokens(read("faro.json"));
             load();
+            loadFonts();
             scene.getStylesheets().removeIf(css -> !css.startsWith("data:"));
             scene.getStylesheets().removeIf(css -> css.startsWith("data:text/css;charset=utf-8,")); // the last design.css
             var design = read(".faro/design.css");
@@ -533,11 +535,22 @@ public final class FaroApp {
 
     private static List<String> index; // bundled project files (Android), null for a project folder
 
-    private static List<String> xml(String dir) {
+    private static List<String> xml(String dir) { return files(dir, ".xml"); }
+
+    private static List<String> files(String dir, String... extensions) {
+        java.util.function.Predicate<String> match = n -> java.util.Arrays.stream(extensions).anyMatch(e -> n.toLowerCase().endsWith(e));
         if (index != null)
-            return index.stream().filter(p -> p.startsWith(dir + "/") && p.endsWith(".xml")).map(p -> p.substring(dir.length() + 1)).sorted().toList();
-        var names = new File(root, dir).list((d, n) -> n.endsWith(".xml"));
+            return index.stream().filter(p -> p.startsWith(dir + "/") && match.test(p)).map(p -> p.substring(dir.length() + 1)).sorted().toList();
+        var names = new File(root, dir).list((d, n) -> match.test(n));
         return names == null ? List.of() : java.util.Arrays.stream(names).sorted().toList();
+    }
+
+    private static final java.util.Set<String> fonts = new java.util.HashSet<>();
+
+    /** Makes the project's fonts (Assets/Fonts/*.ttf, .otf) usable by family name in fontFamily; again on a live reload for new ones. */
+    private static void loadFonts() {
+        for (var name : files("Assets/Fonts", ".ttf", ".otf"))
+            if (fonts.add(name) && url("Assets/Fonts/" + name) instanceof URL font) javafx.scene.text.Font.loadFont(font.toExternalForm(), 12);
     }
 
     private static String read(String path) {

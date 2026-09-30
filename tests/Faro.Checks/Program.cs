@@ -387,6 +387,26 @@ var iconNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="i" ty
 Check(IconSet.Paths.Count > 50 && javaIcons.Count == IconSet.Paths.Count && IconSet.Paths.All(p => javaIcons.GetValueOrDefault(p.Key) == p.Value)
     && IconSet.Paths.Values.All(d => System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlHhVvCcSsQqTtAaZz0-9.,\- ]+$")) && iconNode is FaroIcon { Icon: "home" } && Bindable.For(iconNode)?.Props.ContainsKey("Icon") == true,
     "icon part: the same symbols in both runtimes, built and bindable");
+// Online fonts: the catalog, Google's stylesheet and a font's names read offline; a project gets the files and the license
+var fontCatalog = FontLibrary.ParseCatalog("""
+    [{"id":"noto-sans-jp","family":"Noto Sans JP","subsets":["japanese","latin"],"weights":[900,100,400],"styles":["normal"],"defSubset":"japanese","category":"sans-serif","license":"OFL-1.1","type":"google"},
+    {"id":"inter","family":"Inter","weights":[400,700],"styles":["italic","normal"],"defSubset":"latin","category":"sans-serif","license":"OFL-1.1","type":"google"}]
+    """);
+var googleCss = FontLibrary.ParseGoogleCss("""
+    @font-face { font-family: 'Inter'; font-style: italic; font-weight: 700; src: url(https://fonts.gstatic.com/s/inter/v1/b.ttf) format('truetype'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/inter/v1/a.ttf) format('truetype'); }
+    """);
+var interFile = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../assets/fonts/Inter-Regular.ttf"));
+var fontDir = Directory.CreateTempSubdirectory("faro-fonts").FullName;
+FontLibrary.AddToProject(fontDir, fontCatalog[1], [interFile]);
+var fontLicense = File.ReadAllText(Path.Combine(fontDir, "Assets", "Fonts", "Inter-LICENSE.txt"));
+Check(fontCatalog is [{ Large: true, Weights: [100, 400, 900], Italic: false, Google: true }, { Large: false, Italic: true }]
+    && FontLibrary.GoogleCssUrl("Noto Sans JP", [(700, true), (700, false), (400, false)]) == "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:ital,wght@0,400;0,700;1,700"
+    && googleCss is [(700, true, "https://fonts.gstatic.com/s/inter/v1/b.ttf"), (400, false, "https://fonts.gstatic.com/s/inter/v1/a.ttf")]
+    && FontLibrary.Names(File.ReadAllBytes(interFile)) is ("Inter", var interCopyright) && interCopyright.Length > 0 && fontLicense.Contains(interCopyright) && fontLicense.Contains("SIL OPEN FONT LICENSE")
+    && FontLibrary.ProjectFamilies(fontDir) is ["Inter"] && !FontLibrary.IsFont("<!doctype html><html>"u8.ToArray()) && FontLibrary.Names(new byte[64]) is null,
+    "online fonts: catalog, Google CSS, font names, license next to the project's fonts");
+Directory.Delete(fontDir, recursive: true);
 // Screen flow (canvas): Navigate binds, including a component's, as links; columns by steps from the start screen
 var flowProject = FaroProject.Load(sampleDir);
 var flow = ScreenFlow.Edges(flowProject);

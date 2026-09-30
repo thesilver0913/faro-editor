@@ -84,6 +84,17 @@ public static class FaroApp
 
     internal static FaroProject Project => project;
 
+    /// <summary>
+    /// Makes the project's fonts (Assets/Fonts/*.ttf, .otf) usable by family name in fontFamily, like installed ones.
+    /// Again after a live reload or a download: files already added are skipped.
+    /// </summary>
+    public static void LoadFonts(string projectRoot)
+    {
+        var dir = Path.GetFullPath(Path.Combine(projectRoot, "Assets", "Fonts"));
+        if (Directory.Exists(dir) && FontManager.Current.SystemFonts is Avalonia.Media.Fonts.FontCollectionBase fonts)
+            fonts.TryAddFontSource(new Uri(dir + Path.DirectorySeparatorChar));
+    }
+
     internal static void Attach(IApplicationLifetime? lifetime)
     {
         host = new ContentControl();
@@ -152,6 +163,7 @@ public static class FaroApp
             {
                 var design = project.Design;
                 project = FaroProject.Load(dir);
+                LoadFonts(dir);
                 if (project.Design != design && Application.Current is { } app) FaroApplication.ApplyDesign(app, project.Design);
                 if (current is not null && project.Screens.TryGetValue(current, out var graph)) Show(current, graph);
             }
@@ -393,6 +405,7 @@ public sealed class FaroApplication : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme());
+        FaroApp.LoadFonts(FaroApp.Project.Root);
         ApplyDesign(this, FaroApp.Project.Design);
     }
 

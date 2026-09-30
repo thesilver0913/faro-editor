@@ -243,6 +243,18 @@ public static class L
         ["Rename screen"] = "画面の名前変更", ["Rename component"] = "コンポーネントの名前変更", ["Delete screen"] = "画面を削除", ["Delete component"] = "コンポーネントを削除",
         ["{0} was changed outside Faro, so \"{1}\" can't be undone or redone."] = "{0} が Faro の外で変更されたため、「{1}」は元に戻せません(やり直せません)。",
         ["Saved {0}."] = "{0} を保存しました。", ["Saved. Bindings followed: "] = "保存しました。紐付けを追従: ",
+        // Fonts (FontPicker, FontLibrary)
+        ["Choose a font (project or online)"] = "フォントを選ぶ(プロジェクト/オンライン)", ["Fonts"] = "フォント", ["in project"] = "プロジェクト内",
+        ["Search fonts"] = "フォントを検索", ["All categories"] = "すべての分類", ["sans-serif"] = "ゴシック体(サンセリフ)", ["serif"] = "明朝体(セリフ)",
+        ["display"] = "ディスプレイ", ["handwriting"] = "手書き", ["monospace"] = "等幅", ["Italic too"] = "イタリックも入れる", ["Use this font"] = "このフォントを使う",
+        ["Already in the project (Assets/Fonts)."] = "プロジェクトに入っています(Assets/Fonts)。",
+        ["Chinese, Japanese and Korean fonts are about 5 MB per weight: tick only the weights you use."] = "日本語・中国語・韓国語のフォントは太さ 1 つで約 5 MB あります。使う太さだけ選んでください。",
+        ["Loading the preview…"] = "見本を読み込んでいます…", ["No preview: {0}"] = "見本を表示できません: {0}", ["Tick at least one weight."] = "太さを 1 つ以上選んでください。",
+        ["Downloading {0}…"] = "{0} をダウンロードしています…", ["Couldn't download the font: {0}"] = "フォントをダウンロードできませんでした: {0}",
+        ["Loading the font catalog…"] = "フォントの一覧を読み込んでいます…",
+        ["Can't load the font catalog (only the project's fonts are shown): {0}"] = "フォントの一覧を読み込めません(プロジェクト内のフォントだけ表示します): {0}",
+        ["{0} has no {1} style."] = "{0} には太さ {1} がありません。", ["The font file is too large."] = "フォントのファイルが大きすぎます。",
+        ["The download is not a font file."] = "ダウンロードしたものがフォントのファイルではありません。",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }
