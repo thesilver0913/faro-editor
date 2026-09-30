@@ -14,8 +14,15 @@ namespace Faro.Editor;
 /// </summary>
 public static class Debugger
 {
-    /// <summary>Breakpoints: file path → 1-based lines (kept for the session, sent whenever a debug run starts or they change).</summary>
-    public static readonly Dictionary<string, SortedSet<int>> Breakpoints = [];
+    /// <summary>
+    /// Breakpoints: file path → 1-based line → its condition (an expression in the app's language; stop only when true)
+    /// and hit count (stop from that hit on; counted here, as netcoredbg ignores DAP's hitCondition). Kept for the session, sent whenever a debug run starts or they change.
+    /// </summary>
+    public static readonly Dictionary<string, SortedDictionary<int, (string Condition, string HitCount)>> Breakpoints = [];
+
+    /// <summary>Watch expressions (Console › Debug), evaluated in the selected frame on every stop.</summary>
+    public static readonly List<string> Watches = [];
+    public static Dictionary<string, string> WatchValues { get; private set; } = [];
 
     /// <summary>Anything shown changed (UI thread): breakpoints, running/stopped, the stack, the variables.</summary>
     public static event Action? Changed;
@@ -27,12 +34,50 @@ public static class Debugger
 
     static Dap? session;
     static int thread;
+    static int? frame;
+    static readonly Dictionary<(string, int), int> hits = [];
 
     public static void Toggle(string path, int line)
     {
         var lines = Breakpoints.TryGetValue(path, out var set) ? set : Breakpoints[path] = [];
-        if (!lines.Remove(line)) lines.Add(line);
+        if (!lines.Remove(line)) lines[line] = ("", "");
         if (session is not null) SetBreakpoints(path);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Sets a breakpoint's condition and hit count (adding the breakpoint when there's none on the line).</summary>
+    public static void SetCondition(string path, int line, string condition, string hitCount)
+    {
+        (Breakpoints.TryGetValue(path, out var set) ? set : Breakpoints[path] = [])[line] = (condition.Trim(), hitCount.Trim());
+        if (session is not null) SetBreakpoints(path);
+        Changed?.Invoke();
+    }
+
+    public static async void AddWatch(string expression)
+    {
+        if (string.IsNullOrWhiteSpace(expression) || Watches.Contains(expression.Trim())) return;
+        Watches.Add(expression.Trim());
+        await Evaluate();
+    }
+
+    public static void RemoveWatch(string expression)
+    {
+        Watches.Remove(expression);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Evaluates the watches in the selected frame (an error shows as the value, like VS Code).</summary>
+    static async Task Evaluate()
+    {
+        var values = new Dictionary<string, string>();
+        if (session is not null && frame is { } id)
+            foreach (var w in Watches.ToList())
+            {
+                try { values[w] = (string?)(await session.Request("evaluate", new JsonObject { ["expression"] = w, ["frameId"] = id, ["context"] = "watch" }))?["result"] ?? ""; }
+                catch (InvalidOperationException e) { values[w] = e.Message; }
+                catch (TaskCanceledException) { }
+            }
+        WatchValues = values;
         Changed?.Invoke();
     }
 
@@ -98,6 +143,7 @@ public static class Debugger
     static async Task Launch(Dap dap, string adapterId, JsonObject launch)
     {
         session = dap;
+        hits.Clear();
         session.Event += (name, body) => Dispatcher.UIThread.Post(() => OnEvent(name, body));
         session.Exited += () => Dispatcher.UIThread.Post(End);
         Changed?.Invoke();
@@ -121,10 +167,18 @@ public static class Debugger
                 thread = (int?)body?["threadId"] ?? thread;
                 var stack = await Try(() => session!.Request("stackTrace", new JsonObject { ["threadId"] = thread, ["levels"] = 30 }));
                 Frames = [.. (stack?["stackFrames"]?.AsArray() ?? []).Select(f => ((string)f!["name"]!, (string?)f["source"]?["path"], (int?)f["line"] ?? 0, (int)f["id"]!))];
+                if ((string?)body?["reason"] == "breakpoint" && Frames.FirstOrDefault(f => f.Path is not null) is { Path: { } at } top
+                    && Breakpoints.TryGetValue(at, out var set) && set.TryGetValue(top.Line, out var bp) && int.TryParse(bp.HitCount, out var n)
+                    && (hits[(at, top.Line)] = hits.GetValueOrDefault((at, top.Line)) + 1) < n)
+                {
+                    Frames = [];
+                    await Try(() => session!.Request("continue", new JsonObject { ["threadId"] = thread }));
+                    break;
+                }
                 await Select(Frames.FindIndex(f => f.Path is not null)); // the first frame with source (not in the framework)
                 break;
             case "continued":
-                (Stopped, Frames, Variables) = (null, [], []);
+                Clear();
                 Changed?.Invoke();
                 break;
             case "output" when (body?["output"]) is JsonValue text:
@@ -140,9 +194,9 @@ public static class Debugger
     public static async Task Select(int index)
     {
         if (session is null || index < 0 || index >= Frames.Count) { Changed?.Invoke(); return; }
-        var frame = Frames[index];
-        Stopped = frame.Path is { } path ? (path, frame.Line) : null;
-        var scopes = await Try(() => session.Request("scopes", new JsonObject { ["frameId"] = frame.Id }));
+        var f = Frames[index];
+        (Stopped, frame) = (f.Path is { } path ? (path, f.Line) : null, f.Id);
+        var scopes = await Try(() => session.Request("scopes", new JsonObject { ["frameId"] = f.Id }));
         Variables = [];
         foreach (var scope in scopes?["scopes"]?.AsArray() ?? [])
         {
@@ -154,7 +208,7 @@ public static class Debugger
             }
         }
         if (Stopped is { } at) CodeView.Open(at.Path, at.Line);
-        Changed?.Invoke();
+        await Evaluate();
     }
 
     static async Task<JsonArray> Children(int reference) =>
@@ -167,7 +221,7 @@ public static class Debugger
     static async void Step(string command)
     {
         if (session is null || Stopped is null) return;
-        (Stopped, Frames, Variables) = (null, [], []);
+        Clear();
         Changed?.Invoke();
         await Try(() => session.Request(command, new JsonObject { ["threadId"] = thread }));
     }
@@ -184,16 +238,25 @@ public static class Debugger
         if (session is null) return;
         session.Dispose();
         session = null;
-        (Stopped, Frames, Variables) = (null, [], []);
+        Clear();
         Workspace.Add(L.T("[Debugging stopped]"));
         Changed?.Invoke();
     }
 
-    static async void SetBreakpoints(string path) => await Try(() => session!.Request("setBreakpoints", new JsonObject
+    static void Clear() => (Stopped, Frames, Variables, frame, WatchValues) = (null, [], [], null, []);
+
+    static async void SetBreakpoints(string path) => await Try(() => session!.Request("setBreakpoints", Arguments(path)));
+
+    public static JsonObject Arguments(string path) => new()
     {
         ["source"] = new JsonObject { ["path"] = path },
-        ["breakpoints"] = new JsonArray([.. Breakpoints[path].Select(l => (JsonNode)new JsonObject { ["line"] = l })]),
-    }));
+        ["breakpoints"] = new JsonArray([.. Breakpoints[path].Select(b =>
+        {
+            var bp = new JsonObject { ["line"] = b.Key };
+            if (b.Value.Condition != "") bp["condition"] = b.Value.Condition;
+            return (JsonNode)bp;
+        })]),
+    };
 
     static async Task<JsonNode?> Try(Func<Task<JsonNode?>> request)
     {

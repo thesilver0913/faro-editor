@@ -125,6 +125,8 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **Select**:すべての Node／選択解除(Ctrl+Shift+A)／ID で Node を選択／壊れた紐付けの Node を選択。キャンバスではクリックで Node を選択(Shift+クリックで追加・解除)。デザイン中はボタン等は反応しない
   - Console の **History(履歴)タブ**:UI グラフ履歴の一覧(削除・移動・サイズ変更は対象の Node ID 付き)。行をクリックするとその時点まで戻る・進む(戻した手は薄く表示され、新しい編集で消える)
 - **Debug(C#・Java)**:コードの行番号の左をクリック(または F9)でブレークポイント(赤い点)。デバッグ開始(F6)でプロジェクトをビルドして起動する。C# は [netcoredbg](https://github.com/Samsung/netcoredbg)(Samsung、MIT)、Java は jdtls に読み込ませた [java-debug](https://github.com/microsoft/java-debug)(Microsoft、EPL)を使う(Java は `pom.xml` から jdtls が求めたクラスパスで `Main` を起動)。止まると、その行を黄色で示し、Console の「デバッグ」タブに呼び出し履歴(クリックでその位置と変数)と変数(1 段目のメンバーまで)を出す。続行(F8)・ステップオーバー(F10)・ステップイン(Shift+F10)・停止(Shift+F6)。アプリの出力は「出力」タブへ
+  - 条件付きブレークポイント:余白の右クリックで条件とヒット回数(`Debugger.SetCondition`)。条件は DAP の `condition` で送る。ヒット回数は netcoredbg が `hitCondition` を無視するため、Faro が数える(`stopped` のたびに数え、回数に届くまで `continue` を送る。条件を満たした回だけが数えられる)
+  - ウォッチ:「デバッグ」タブのウォッチ欄。止まるたび・呼び出し履歴を選ぶたびに DAP の `evaluate`(`context: watch`、選んだフレーム)で評価し、エラーはその文言を値として出す
   - netcoredbg は初めてデバッグするときに `tools/netcoredbg` へダウンロードする(環境設定 › 部品からも)。Windows x64・Linux x64/arm64・Intel Mac 向け(Apple シリコンの Mac では C# のデバッグは非対応)
   - java-debug は jdtls を起動するときに `tools/java-debug` へ入れる(Maven Central)。入っていなかったときは入れたあと Faro を再起動する
   - 既知の制限:ブレークポイントは行番号で持つ(行を足しても動かない、Faro を閉じると消える)。Run(ホットリロード)とデバッグは同時に使えない

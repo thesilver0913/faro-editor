@@ -157,13 +157,13 @@ public static class L
         ["Undo: Code — {0}"] = "元に戻す対象: コード — {0}", ["no file"] = "ファイルなし", ["Undo: Canvas"] = "元に戻す対象: キャンバス",
         // Debugger
         ["_Debug"] = "デバッグ(_D)", ["_Start Debugging"] = "デバッグ開始(_S)", ["S_top Debugging"] = "デバッグ停止(_T)", ["_Continue"] = "続行(_C)", ["Step _Over"] = "ステップオーバー(_O)",
-        ["Step _Into"] = "ステップイン(_I)", ["Toggle _Breakpoint"] = "ブレークポイントの切り替え(_B)", ["Debug"] = "デバッグ",
+        ["Step _Into"] = "ステップイン(_I)", ["Toggle _Breakpoint"] = "ブレークポイントの切り替え(_B)", ["Debug"] = "デバッグ", ["Watch"] = "ウォッチ", ["Remove"] = "外す", ["Add an expression (Enter)"] = "式を追加(Enter)", ["Condition"] = "条件", ["Hit count"] = "ヒット回数", ["Breakpoint at line {0}"] = "{0} 行目のブレークポイント", ["e.g. amount > 1000"] = "例: amount > 1000", ["e.g. 3 (stop on the 3rd hit)"] = "例: 3(3 回目で止まる)",
         ["Start Debugging (F6)"] = "デバッグ開始(F6)", ["Continue (F8)"] = "続行(F8)", ["Step Over (F10)"] = "ステップオーバー(F10)", ["Step Into (Shift+F10)"] = "ステップイン(Shift+F10)", ["Stop Debugging (Shift+F6)"] = "デバッグ停止(Shift+F6)",
         ["Call stack"] = "呼び出し履歴", ["Variables"] = "変数", ["The Java debugger (java-debug) isn't installed: Preferences › Tools, then restart Faro."] = "Java のデバッガー(java-debug)が入っていません。環境設定 › 部品 で入れてから Faro を再起動してください。",
         ["No main class found (is the language server still importing the project?)."] = "メインクラスが見つかりません(言語サーバーがまだプロジェクトを読み込み中かもしれません)。", ["Couldn't start the Java debugger: "] = "Java のデバッガーを起動できませんでした: ",
         ["Debugging Java code (a jdtls plugin, installed with it)"] = "Java のコードのデバッグ(jdtls のプラグイン。jdtls と一緒に入ります)",
         ["Restricted Mode: File › Trust Project… to debug."] = "制限モード: デバッグするには ファイル › プロジェクトを信頼… を選んでください。", ["Paused at {0}:{1}"] = "{0}:{1} で一時停止中", ["Running…"] = "実行中…",
-        ["Click left of a line number in the code to set a breakpoint, then Debug."] = "コードの行番号の左をクリックしてブレークポイントを置き、デバッグを押します。",
+        ["Click left of a line number in the code to set a breakpoint (right-click: condition, hit count), then Debug."] = "コードの行番号の左をクリックしてブレークポイントを置き(右クリックで条件・ヒット回数)、デバッグを押します。",
         ["Building for debugging…"] = "デバッグ用にビルドしています…", ["The build failed (see above)."] = "ビルドに失敗しました(上の出力を参照)。", ["[Debugging stopped]"] = "[デバッグ終了]",
         ["The C# debugger (installed on first use too)"] = "C# のデバッガー(初めて使うときにも自動で入ります)",
         // Tokens and variants

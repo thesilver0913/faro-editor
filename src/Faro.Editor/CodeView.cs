@@ -413,16 +413,40 @@ public sealed class CodeView : UserControl
         {
             dc.FillRectangle(Brushes.Transparent, new Avalonia.Rect(Bounds.Size)); // clickable everywhere
             if (TextView is not { VisualLinesValid: true } view || current() is not { } path || !Debugger.Breakpoints.TryGetValue(path, out var lines)) return;
-            foreach (var line in view.VisualLines.Where(l => lines.Contains(l.FirstDocumentLine.LineNumber)))
-                dc.DrawEllipse(Brushes.IndianRed, null, new Avalonia.Point(8, line.VisualTop - view.VerticalOffset + line.Height / 2), 5, 5);
+            foreach (var line in view.VisualLines)
+            {
+                if (!lines.TryGetValue(line.FirstDocumentLine.LineNumber, out var bp)) continue;
+                var y = line.VisualTop - view.VerticalOffset + line.Height / 2;
+                dc.DrawEllipse(Brushes.IndianRed, null, new Avalonia.Point(8, y), 5, 5);
+                if (bp != ("", "")) // conditional: a white bar, like VS Code's "="
+                    dc.FillRectangle(Brushes.White, new Avalonia.Rect(5, y - 1, 6, 2));
+            }
         }
 
+        /// <summary>Click: toggle. Right-click: the breakpoint's condition and hit count.</summary>
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {
             base.OnPointerPressed(e);
             if (TextView is not { } view || current() is not { } path) return;
-            if (view.GetVisualLineFromVisualTop(e.GetPosition(view).Y + view.VerticalOffset) is { } line) Debugger.Toggle(path, line.FirstDocumentLine.LineNumber);
             e.Handled = true;
+            if (view.GetVisualLineFromVisualTop(e.GetPosition(view).Y + view.VerticalOffset) is not { } visual) return;
+            var line = visual.FirstDocumentLine.LineNumber;
+            if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed) { Debugger.Toggle(path, line); return; }
+            (string Condition, string HitCount) old = Debugger.Breakpoints.TryGetValue(path, out var set) && set.TryGetValue(line, out var bp) ? bp : ("", "");
+            var condition = new TextBox { Text = old.Condition, Watermark = L.T("e.g. amount > 1000"), Width = 260 };
+            var hits = new TextBox { Text = old.HitCount, Watermark = L.T("e.g. 3 (stop on the 3rd hit)"), Width = 260 };
+            var flyout = new Flyout { Content = new StackPanel { Spacing = 6, Children =
+            {
+                new TextBlock { Text = L.F("Breakpoint at line {0}", line), FontWeight = FontWeight.SemiBold },
+                new TextBlock { Text = L.T("Condition") }, condition, new TextBlock { Text = L.T("Hit count") }, hits,
+            } } };
+            flyout.Closed += (_, _) =>
+            {
+                if (condition.Text != old.Condition || hits.Text != old.HitCount) Debugger.SetCondition(path, line, condition.Text ?? "", hits.Text ?? "");
+            };
+            foreach (var box in new[] { condition, hits }) box.KeyDown += (_, k) => { if (k.Key == Key.Enter) flyout.Hide(); };
+            flyout.Opened += (_, _) => condition.Focus();
+            flyout.ShowAt(this, showAtPointer: true);
         }
     }
 
