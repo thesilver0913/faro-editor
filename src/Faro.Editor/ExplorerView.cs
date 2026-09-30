@@ -341,8 +341,19 @@ public sealed class ExplorerView : UserControl
 
     async void NewUi(bool screen)
     {
-        if (Workspace.Project is not { } project || await Ask(screen ? "New Screen" : "New Component", "ID:", screen ? "" : "Comp.") is not { } id) return;
-        if (await CommitUi(screen ? "New screen" : "New component", () => screen ? ProjectFiles.NewScreen(project, id) : ProjectFiles.NewComponent(project, id)) && screen)
+        if (Workspace.Project is not { } project) return;
+        if (!screen)
+        {
+            if (await Ask("New Component", "ID:", "Comp.") is { } component) await CommitUi("New component", () => ProjectFiles.NewComponent(project, component));
+            return;
+        }
+        // A screen: its ID and a starting layout (Login, List, Settings…)
+        var name = new TextBox { MinWidth = 240 };
+        var template = new ComboBox { ItemsSource = ScreenTemplates.Names.Select(n => L.T(n)).ToList(), SelectedIndex = 0, MinWidth = 240 };
+        var form = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = L.T("ID:") }, name, new TextBlock { Text = L.T("Template") }, template } };
+        name.AttachedToVisualTree += (_, _) => name.Focus();
+        if (!await Dialogs.Form(Owner, L.T("New Screen"), form, L.T("Create")) || name.Text?.Trim() is not { Length: > 0 } id) return;
+        if (await CommitUi("New screen", () => ProjectFiles.NewScreen(project, id, ScreenTemplates.Names[Math.Max(0, template.SelectedIndex)])))
             CanvasView.ShowScreen(id);
     }
 

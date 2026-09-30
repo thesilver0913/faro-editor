@@ -9,7 +9,10 @@ import java.util.Map;
 final class IconSet {
     private IconSet() { }
 
-    /** The Icon part: the symbol in the text color (-fx-text-base-color, which "foreground" sets on it), 24px unless sized. */
+    /**
+     * The Icon part: the symbol in the text color (-fx-text-base-color, which "foreground" sets on it), 24px unless sized.
+     * A name not in the set comes from the project's Assets/Icons/&lt;name&gt;.svg (Material Symbols the editor downloaded).
+     */
     static final class View extends javafx.scene.layout.StackPane {
         final javafx.beans.property.StringProperty icon = new javafx.beans.property.SimpleStringProperty();
 
@@ -21,11 +24,35 @@ final class IconSet {
             getChildren().add(box);
             setMinSize(24, 24);
             setPrefSize(24, 24);
-            icon.addListener((o, a, b) -> path.setContent(PATHS.getOrDefault(b, "")));
+            icon.addListener((o, a, b) -> {
+                var svg = PATHS.containsKey(b) || b == null ? null : svg(b);
+                path.setContent(svg != null ? svg[0] : PATHS.getOrDefault(b, ""));
+                // the SVG's viewBox (Material Symbols: 0 -960 960 960) onto the 24px box: moved, then scaled
+                path.getTransforms().setAll(svg == null ? java.util.List.of() : java.util.List.of(
+                    new javafx.scene.transform.Scale(24 / Double.parseDouble(svg[3]), 24 / Double.parseDouble(svg[4]), 0, 0),
+                    new javafx.scene.transform.Translate(-Double.parseDouble(svg[1]), -Double.parseDouble(svg[2]))));
+            });
             icon.set(name);
             Runnable fit = () -> { var scale = Math.min(getWidth(), getHeight()) / 24; if (scale > 0) { box.setScaleX(scale); box.setScaleY(scale); } };
             widthProperty().addListener(o -> fit.run());
             heightProperty().addListener(o -> fit.run());
+        }
+    }
+
+    /** Assets/Icons/&lt;name&gt;.svg as {path data, x, y, width, height} (the viewBox); null when missing or pathless. */
+    static String[] svg(String name) {
+        var url = UiBuilder.files == null ? null : UiBuilder.files.apply("Assets/Icons/" + name + ".svg");
+        if (url == null) return null;
+        try (var in = url.openStream()) {
+            var text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            var d = new StringBuilder();
+            var paths = java.util.regex.Pattern.compile("\\sd=\"([^\"]+)\"").matcher(text);
+            while (paths.find()) d.append(paths.group(1)).append(' ');
+            var box = java.util.regex.Pattern.compile("viewBox=\"([^\"]+)\"").matcher(text);
+            var v = box.find() ? box.group(1).trim().split("[\\s,]+") : new String[0];
+            return d.isEmpty() ? null : v.length == 4 ? new String[] { d.toString(), v[0], v[1], v[2], v[3] } : new String[] { d.toString(), "0", "0", "24", "24" };
+        } catch (java.io.IOException e) {
+            return null;
         }
     }
 

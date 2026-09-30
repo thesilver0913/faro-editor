@@ -475,6 +475,25 @@ Check(fontCatalog is [{ Large: true, Weights: [100, 400, 900], Italic: false, Go
     && FontLibrary.ProjectFamilies(fontDir) is ["Inter"] && !FontLibrary.IsFont("<!doctype html><html>"u8.ToArray()) && FontLibrary.Names(new byte[64]) is null,
     "online fonts: catalog, Google CSS, font names, license next to the project's fonts");
 Directory.Delete(fontDir, recursive: true);
+// Online icons (Material Symbols): the name list, an SVG's path and viewBox, and the runtimes' Assets/Icons fallback
+var symbolSvg = """<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"><path d="M240-200h120v-240h240v240h120v-360L480-740 240-560v360Z"/></svg>""";
+Check(IconLibrary.ParseCatalog("10k e951\nhome e88a\nBad Name x\n\nhome e88a\n") is ["10k", "home"]
+    && IconSet.Svg(symbolSvg) is ("M240-200h120v-240h240v240h120v-360L480-740 240-560v360Z", 0, -960, 960, 960) && IconSet.Svg("<svg viewBox=\"0 0 24 24\"></svg>") is null
+    && new FaroIcon { Root = root }.Root == root && File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Faro.Runtime.Java/faro/runtime/IconSet.java"))).Contains("\"Assets/Icons/\""),
+    "online icons: name list, SVG path and viewBox, Assets/Icons in both runtimes");
+// Screen templates: every one builds with known parts and unique ids; a password field hides its text
+foreach (var template in ScreenTemplates.Names)
+{
+    var templateRoot = ScreenTemplates.Root(template);
+    var ids = templateRoot.DescendantsAndSelf("Node").Select(n => (string)n.Attribute("id")!).ToList();
+    var built = new Dictionary<string, Avalonia.Controls.Control>();
+    UiBuilder.Build(templateRoot, built, root);
+    Check(ids.Count == ids.Distinct().Count() && built.Count == ids.Count && !built.Values.OfType<Avalonia.Controls.TextBlock>().Any(t => t.Text?.StartsWith("[unknown") == true)
+        && templateRoot.DescendantsAndSelf("Node").All(n => CanvasEdit.AddableTypes.Contains((string)n.Attribute("type")!) || (string)n.Attribute("type")! == "Container.Stack"),
+        $"screen template {template}");
+}
+Check(UiBuilder.Build(ScreenTemplates.Root("Login"), new Dictionary<string, Avalonia.Controls.Control>(), root) is Avalonia.Controls.Border { Child: Avalonia.Controls.Panel login }
+    && login.Children.OfType<Avalonia.Controls.TextBox>().Count(t => t.PasswordChar == '●') == 1, "the login template's password field hides its text");
 // Screen flow (canvas): Navigate binds, including a component's, as links; columns by steps from the start screen
 var flowProject = FaroProject.Load(sampleDir);
 var flow = ScreenFlow.Edges(flowProject);

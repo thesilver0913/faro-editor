@@ -25,7 +25,7 @@ public static class UiBuilder
             "Instance" => Instance(node, byId, projectRoot, prefix),
             "Control.Script" => Script((string?)node.Attribute("class") ?? ""),
             "Control.Button" => new Button { Content = Prop(node, "Text") },
-            "Control.TextInput" => new TextBox { PlaceholderText = Prop(node, "Placeholder"), Text = Prop(node, "Text") },
+            "Control.TextInput" => new TextBox { PlaceholderText = Prop(node, "Placeholder"), Text = Prop(node, "Text"), PasswordChar = Prop(node, "Password") == "true" ? '●' : default },
             "Control.NumberInput" => new NumericUpDown { PlaceholderText = Prop(node, "Placeholder"), Value = (decimal?)PropNum(node, "Value"), Minimum = (decimal)(PropNum(node, "Minimum") ?? -1e9), Maximum = (decimal)(PropNum(node, "Maximum") ?? 1e9), Increment = (decimal)(PropNum(node, "Step") ?? 1), FormatString = "0.##", VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center },
             "Control.DateInput" => new CalendarDatePicker { PlaceholderText = Prop(node, "Placeholder"), SelectedDate = DateTime.TryParse(Prop(node, "Date"), System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null, SelectedDateFormat = CalendarDatePickerFormat.Custom, CustomDateFormatString = "yyyy-MM-dd" },
             "Control.Text" => new TextBlock { Text = Prop(node, "Text"), TextWrapping = TextWrapping.Wrap },
@@ -37,7 +37,7 @@ public static class UiBuilder
             "Control.Select" => new ComboBox { ItemsSource = Options(Prop(node, "Options")), SelectedItem = Prop(node, "Selected") },
             "Control.Progress" => new ProgressBar { Minimum = 0, Maximum = 100, Value = PropNum(node, "Value") ?? 0 },
             "Control.Divider" => Divider(),
-            "Control.Icon" => new FaroIcon { Icon = Prop(node, "Icon") ?? "star" },
+            "Control.Icon" => new FaroIcon { Icon = Prop(node, "Icon") ?? "star", Root = projectRoot },
             _ => new TextBlock { Text = $"[unknown type: {type}]", Foreground = Brushes.Red },
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)

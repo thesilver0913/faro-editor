@@ -71,6 +71,8 @@ Bring any panel to the front from the Window menu. If the layout gets messy: Win
 
 ## 4. Building a screen
 
+Right-click UI in the explorer › **New Screen…**, then pick its ID and a **template** (Blank, Login, List, Detail, Settings, Form, Empty state). A template is a layout to start from, with no bindings or code.
+
 ### Adding nodes
 
 Drag a part from the **Parts** tab onto the canvas, or click it to add it inside the selected node.
@@ -78,7 +80,7 @@ Drag a part from the **Parts** tab onto the canvas, or click it to add it inside
 ![Parts](images/parts.png)
 
 - **Containers**: `Stack` (in a row or a column), `Wrap` (wrapping), `Grid` (rows and columns), `Overlay` (layered, pinned to a corner or the center)
-- **Controls**: `Button`, `TextInput`, `NumberInput` (a number field with up/down), `DateInput` (a date field with a calendar), `Text`, `Image`, `CheckBox`, `Switch`, `Slider`, `Select` (a drop-down of choices), `Progress` (a progress bar), `Divider` (a thin line), `Icon` (a symbol from the bundled icon set, drawn in the text color), `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
+- **Controls**: `Button`, `TextInput` (`Password` true hides the text), `NumberInput` (a number field with up/down), `DateInput` (a date field with a calendar), `Text`, `Image`, `CheckBox`, `Switch`, `Slider`, `Select` (a drop-down of choices), `Progress` (a progress bar), `Divider` (a thin line), `Icon` (a symbol from the bundled icon set, drawn in the text color; the inspector's "…" searches about 4,300 Google Material Symbols and adds the one you pick to `Assets/Icons/` with its license), `Spacer` (empty space that pushes its neighbors apart), `Script` (a part whose look and behavior are built in code)
 
 Faro has **no absolute positions**. Where a node goes is decided by which container it's in, its order, and the settings below.
 
