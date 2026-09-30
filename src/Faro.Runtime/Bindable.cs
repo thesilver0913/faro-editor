@@ -33,7 +33,7 @@ public static class Bindable
         new("Control.Button", typeof(Button), new() { ["Click"] = Button.ClickEvent }, Common(("Text", ContentControl.ContentProperty))),
         new("Control.Script", typeof(ContentControl), [], Common()), // after Button, which is a ContentControl too
         new("Control.NumberInput", typeof(NumericUpDown), new() { ["Changed"] = NumericUpDown.ValueChangedEvent },
-            Common(("Value", NumericUpDown.ValueProperty), ("Minimum", NumericUpDown.MinimumProperty), ("Maximum", NumericUpDown.MaximumProperty), ("Placeholder", NumericUpDown.PlaceholderTextProperty))),
+            Common(("Value", NumericUpDown.ValueProperty), ("Minimum", NumericUpDown.MinimumProperty), ("Maximum", NumericUpDown.MaximumProperty), ("Step", NumericUpDown.IncrementProperty), ("Placeholder", NumericUpDown.PlaceholderTextProperty))),
         new("Control.DateInput", typeof(CalendarDatePicker), [], Common(("Date", CalendarDatePicker.SelectedDateProperty), ("Placeholder", CalendarDatePicker.PlaceholderTextProperty))),
         new("Control.TextInput", typeof(TextBox), new() { ["Changed"] = TextBox.TextChangedEvent },
             Common(("Text", TextBox.TextProperty), ("Placeholder", TextBox.PlaceholderTextProperty))),
@@ -57,7 +57,7 @@ public static class Bindable
     public static Type ValueType(AvaloniaProperty property) =>
         property == ContentControl.ContentProperty || property == SelectingItemsControl.SelectedItemProperty || property == CalendarDatePicker.SelectedDateProperty
             || property == Avalonia.Controls.Documents.TextElement.ForegroundProperty || property == Border.BackgroundProperty ? typeof(string)
-        : property == NumericUpDown.ValueProperty || property == NumericUpDown.MinimumProperty || property == NumericUpDown.MaximumProperty ? typeof(double)
+        : property == NumericUpDown.ValueProperty || property == NumericUpDown.MinimumProperty || property == NumericUpDown.MaximumProperty || property == NumericUpDown.IncrementProperty ? typeof(double)
         : property == ToggleButton.IsCheckedProperty ? typeof(bool)
         : property == ItemsControl.ItemsSourceProperty ? typeof(List<string>)
         : property.PropertyType;

@@ -63,6 +63,7 @@ public final class FaroApp {
         var meta = read("faro.json");
         appName = value(meta, "name", "FaroApp");
         start = value(meta, "startScreen", "MainScreen");
+        if (!value(meta, "locale", "").isEmpty()) java.util.Locale.setDefault(java.util.Locale.forLanguageTag(value(meta, "locale", ""))); // dates and numbers; unset: the device's
         UiBuilder.tokens = tokens(meta);
         load();
         UiBuilder.scriptFactory = name -> {
@@ -344,6 +345,7 @@ public final class FaroApp {
                 : control instanceof javafx.scene.control.Spinner<?> s && s.getValueFactory() instanceof javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory f ? f.minProperty() : null;
             case "Maximum" -> control instanceof javafx.scene.control.Slider s ? s.maxProperty()
                 : control instanceof javafx.scene.control.Spinner<?> s && s.getValueFactory() instanceof javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory f ? f.maxProperty() : null;
+            case "Step" -> control instanceof javafx.scene.control.Spinner<?> s && s.getValueFactory() instanceof javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory f ? f.amountToStepByProperty() : null;
             case "Selected" -> {
                 if (!(control instanceof javafx.scene.control.ComboBox<?> select)) yield null;
                 @SuppressWarnings("unchecked") var value = (javafx.beans.property.ObjectProperty<String>) (Object) select.valueProperty();

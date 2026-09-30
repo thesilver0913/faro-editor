@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -76,6 +77,9 @@ public static class FaroApp
     {
         userAssembly = assembly;
         project = FaroProject.Load(projectRoot);
+        if (project.Locale is { Length: > 0 } locale)
+            try { CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = new CultureInfo(locale); }
+            catch (CultureNotFoundException) { } // an unknown name: the device's
         UiBuilder.ScriptFactory = name => userAssembly.GetType(name) is { } type && typeof(FaroScript).IsAssignableFrom(type)
             ? ((FaroScript)InstanceOf(type)).Build()
             : throw new InvalidOperationException($"'{name}' is not a FaroScript class in {userAssembly.GetName().Name}.");

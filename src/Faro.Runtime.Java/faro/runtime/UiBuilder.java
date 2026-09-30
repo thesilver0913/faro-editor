@@ -57,7 +57,7 @@ public final class UiBuilder {
                 yield field;
             }
             case "Control.NumberInput" -> {
-                var spinner = new javafx.scene.control.Spinner<Double>(propNumber(node, "Minimum", -1e9), propNumber(node, "Maximum", 1e9), propNumber(node, "Value", 0));
+                var spinner = new javafx.scene.control.Spinner<Double>(propNumber(node, "Minimum", -1e9), propNumber(node, "Maximum", 1e9), propNumber(node, "Value", 0), propNumber(node, "Step", 1));
                 spinner.setEditable(true);
                 spinner.getEditor().setPromptText(prop(node, "Placeholder"));
                 yield spinner;

@@ -34,9 +34,9 @@ public static class ScriptPreview
     /// <summary>UiBuilder.ScriptFactory for the canvas: null (placeholder) until a build has the class.</summary>
     public static Control Build(string root, string name)
     {
-        var type = (Load(root) ?? throw new InvalidOperationException("Not built yet: Run to preview it.")).GetType(name)
-            ?? throw new InvalidOperationException("Not in the last build: Run to preview it.");
-        if (!typeof(FaroScript).IsAssignableFrom(type)) throw new InvalidOperationException($"{name} doesn't derive from FaroScript.");
+        var type = (Load(root) ?? throw new InvalidOperationException(L.T("Not built yet: Run to preview it."))).GetType(name)
+            ?? throw new InvalidOperationException(L.T("Not in the last build: Run to preview it."));
+        if (!typeof(FaroScript).IsAssignableFrom(type)) throw new InvalidOperationException(L.F("{0} doesn't derive from FaroScript.", name));
         return ((FaroScript)Activator.CreateInstance(type)!).Build();
     }
 

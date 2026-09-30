@@ -176,8 +176,9 @@ Select a node and add a binding under **Bindings** at the bottom of the inspecto
 ![Bindings](images/inspector-bindings.png)
 
 - **Events** (`Click`, `Changed`): call a method when it happens. `Navigate:Screen.Detail` moves to another screen
-- **Properties** (`Text`, `Checked`, `Value`, `Selected`, `Visible`, `Enabled`…): show a value (`OneWay`) or also write input back (`TwoWay`). A `Select`'s choices can also come from a list bound to `Options`. A `DateInput`'s `Date` is text like `2026-09-30`
-- **Colors**: bind `Foreground` (text color) and, on containers, `Background` (fill). The value is text: a color like `#C62828` or a color token `$color.expense` (for example a property returning green for income and red for an expense)
+- **Properties** (`Text`, `Checked`, `Value`, `Selected`, `Visible`, `Enabled`…): show a value (`OneWay`) or also write input back (`TwoWay`). A `Select`'s choices can also come from a list bound to `Options`. A `DateInput`'s `Date` is text like `2026-09-30`. A `NumberInput`'s `Step` is how much up/down changes it
+- **Locale**: Locale in Project Design (`"locale"` in `faro.json`, e.g. `ja-JP`) sets the calendar's month and day names and number formats. Empty: the device's
+- **Colors**: bind `Foreground` (text color) and, on containers, `Background` (fill). The value is text: a color like `#C62828` or a color token `$color.expense` (for example a property returning green for income and red for an expense). Give the node a color of its own too: the canvas and mock rows show it, and at run time the bound color wins
 - From code, get another class's instance (the same one bindings use) with `FaroApp.Get<Ledger>()` (Java: `FaroApp.get(Ledger.class)`)
 - **Format**: add a display format like `¥{0:N0}` (`{0:N0}` thousands separators, `{0:F2}` two decimals)
 - **Lists**: bind `Items` on a repeatable instance and it shows one row per item. Nodes inside the row bind to the row's item (for example `Order.Name`). A tap on a row goes on the row's root (`Click` on `orderList/root`), not on the list itself; the method gets that row's item

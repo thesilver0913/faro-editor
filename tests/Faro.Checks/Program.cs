@@ -148,6 +148,14 @@ Check(UiBuilder.ColorBinding.Convert("$color.expense", typeof(Avalonia.Media.IBr
     && Bindable.For("Control.Text")!.Props.ContainsKey("Foreground") && Bindable.For("Container.Stack")!.Props.ContainsKey("Background")
     && new[] { "\"Foreground\"", "\"Background\"", "\"Date\"", "Spinner", "public static <T> T get(" }.All(javaAppSource.Contains), "bound colors, dates and numbers, in both runtimes");
 UiBuilder.Tokens = new Dictionary<string, string>();
+// A number input steps by "Step"; faro.json "locale" is written by the design dialog and read back
+var stepNode = UiBuilder.Build(System.Xml.Linq.XElement.Parse("""<Node id="n" type="Control.NumberInput"><Prop name="Step" value="100" /></Node>"""), new Dictionary<string, Avalonia.Controls.Control>(), root);
+var localeDir = Directory.CreateTempSubdirectory("faro-locale").FullName;
+File.WriteAllText(Path.Combine(localeDir, "faro.json"), """{ "name": "L" }""");
+foreach (var (file, text) in ProjectSetup.DesignChange(localeDir, new AppDesign(), new Dictionary<string, string>(), "ja-JP")) File.WriteAllText(file, text);
+Check(stepNode is Avalonia.Controls.NumericUpDown { Increment: 100 } && FaroProject.Load(localeDir).Locale == "ja-JP"
+    && javaAppSource.Contains("case \"Step\"") && javaAppSource.Contains("\"locale\""), "number input step, app locale in faro.json (both runtimes)");
+Directory.Delete(localeDir, recursive: true);
 var changedBox = new Avalonia.Controls.TextBox();
 var changedFired = false;
 changedBox.AddHandler(Bindable.For(changedBox)!.Events["Changed"], (EventHandler<Avalonia.Interactivity.RoutedEventArgs>)((_, _) => changedFired = true));
