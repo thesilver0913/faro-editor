@@ -8,7 +8,8 @@ namespace Faro.Runtime;
 
 /// <summary>
 /// The Icon part (Control.Icon): an IconSet symbol drawn in the text color (so "foreground" and the design language
-/// color it), 24px unless the node is sized (Fixed scales it). An unknown name draws nothing.
+/// color it), 24px unless the node is sized (Fixed scales it). A name not in the set comes from the project's
+/// Assets/Icons/&lt;name&gt;.svg (Material Symbols the editor downloaded); an unknown one draws nothing.
 /// </summary>
 public sealed class FaroIcon : Viewbox
 {
@@ -16,6 +17,9 @@ public sealed class FaroIcon : Viewbox
     public string? Icon { get => GetValue(IconProperty); set => SetValue(IconProperty, value); }
 
     readonly Avalonia.Controls.Shapes.Path path = new();
+
+    /// <summary>The project folder (for Assets/Icons).</summary>
+    public string? Root { get; set; }
 
     public FaroIcon()
     {
@@ -36,7 +40,14 @@ public sealed class FaroIcon : Viewbox
         if (change.Property == IconProperty && VisualRoot is not null) Draw();
     }
 
-    void Draw() => path.Data = IconSet.Paths.TryGetValue(Icon ?? "", out var data) ? Geometry.Parse(data) : null;
+    void Draw()
+    {
+        if (IconSet.Paths.TryGetValue(Icon ?? "", out var data)) { path.Data = Geometry.Parse(data); return; }
+        var file = Root is null || string.IsNullOrEmpty(Icon) ? null : System.IO.Path.Combine(Root, "Assets", "Icons", Icon + ".svg");
+        path.Data = File.Exists(file) && IconSet.Svg(File.ReadAllText(file)) is var (d, x, y, w, h)
+            ? new PathGeometry { Figures = PathFigures.Parse(d), Transform = new MatrixTransform(Matrix.CreateTranslation(-x, -y) * Matrix.CreateScale(24 / w, 24 / h)) }
+            : null;
+    }
 }
 
 /// <summary>
@@ -45,6 +56,15 @@ public sealed class FaroIcon : Viewbox
 /// </summary>
 public static class IconSet
 {
+    /// <summary>An SVG's path data and viewBox (Material Symbols: one path in "0 -960 960 960"); null when it has no path.</summary>
+    public static (string Path, double X, double Y, double W, double H)? Svg(string svg)
+    {
+        var d = string.Join(" ", System.Text.RegularExpressions.Regex.Matches(svg, @"\sd=""([^""]+)""").Select(m => m.Groups[1].Value));
+        var box = System.Text.RegularExpressions.Regex.Match(svg, @"viewBox=""([^""]+)""").Groups[1].Value
+            .Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        return d.Length == 0 ? null : box is [var x, var y, var w, var h] && w > 0 && h > 0 ? (d, x, y, w, h) : (d, 0, 0, 24, 24);
+    }
+
     public static readonly IReadOnlyDictionary<string, string> Paths = new Dictionary<string, string>
     {
         ["home"] = "m12 5.69 5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z",

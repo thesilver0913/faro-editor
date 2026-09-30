@@ -795,11 +795,11 @@ public static partial class ProjectFiles
             throw new ArgumentException($"'{id}' is already used.");
     }
 
-    public static Dictionary<string, string?> NewScreen(FaroProject project, string id)
+    /// <summary>A new screen, empty or from a template (<see cref="ScreenTemplates"/>).</summary>
+    public static Dictionary<string, string?> NewScreen(FaroProject project, string id, string template = "Blank")
     {
         ValidateNewId(project, id);
-        return new() { [Path.Combine(project.Root, "UI", id + ".xml")] = Text(new XDocument(new XElement("UIGraph", new XAttribute("id", id), new XAttribute("version", "1"),
-            new XElement("Node", new XAttribute("id", "root"), new XAttribute("type", "Container.Stack"), new XAttribute("direction", "Vertical"), new XAttribute("gap", "8"), new XAttribute("padding", "16"))))) };
+        return new() { [Path.Combine(project.Root, "UI", id + ".xml")] = Text(new XDocument(new XElement("UIGraph", new XAttribute("id", id), new XAttribute("version", "1"), ScreenTemplates.Root(template)))) };
     }
 
     public static Dictionary<string, string?> NewComponent(FaroProject project, string id)

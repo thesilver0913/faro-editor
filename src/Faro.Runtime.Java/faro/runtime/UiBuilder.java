@@ -52,7 +52,8 @@ public final class UiBuilder {
             case "Control.Script" -> script(node.getAttribute("class"));
             case "Control.Button" -> new Button(text(node, "Text"));
             case "Control.TextInput" -> {
-                var field = new TextField(text(node, "Text"));
+                var field = "true".equals(prop(node, "Password")) ? new javafx.scene.control.PasswordField() : new TextField(); // Password: dots
+                field.setText(text(node, "Text"));
                 field.setPromptText(prop(node, "Placeholder"));
                 yield field;
             }

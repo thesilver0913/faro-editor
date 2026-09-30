@@ -18,7 +18,7 @@ public sealed class InspectorView : UserControl
     static readonly Dictionary<string, string[]> PropsByType = new()
     {
         ["Control.Button"] = ["Text", "BackgroundTexture"],
-        ["Control.TextInput"] = ["Placeholder", "Text"],
+        ["Control.TextInput"] = ["Placeholder", "Text", "Password"],
         ["Control.NumberInput"] = ["Placeholder", "Value", "Minimum", "Maximum", "Step"],
         ["Control.DateInput"] = ["Placeholder", "Date"],
         ["Control.Text"] = ["Text"],
@@ -309,20 +309,25 @@ public sealed class InspectorView : UserControl
         return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mode, size } };
     }
 
-    /// <summary>The Icon part's symbol: the bundled set (IconSet), each shown with its picture.</summary>
-    static ComboBox IconField(string value, Action<string> set)
+    /// <summary>The Icon part's symbol: the bundled set (IconSet) and the project's (Assets/Icons), each with its picture; … adds one from online.</summary>
+    Control IconField(string value, Action<string> set)
     {
         var box = new ComboBox
         {
-            ItemsSource = IconSet.Paths.Keys.ToList(), SelectedItem = value, MinWidth = 160, MaxDropDownHeight = 360,
+            ItemsSource = IconLibrary.ProjectIcons(Workspace.Root).Concat(IconSet.Paths.Keys).Distinct().ToList(), SelectedItem = value, MinWidth = 160, MaxDropDownHeight = 360,
             ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((name, _) => new StackPanel
             {
                 Orientation = Orientation.Horizontal, Spacing = 8,
-                Children = { new FaroIcon { Icon = name, Width = 18, Height = 18 }, new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center } },
+                Children = { new FaroIcon { Icon = name, Width = 18, Height = 18, Root = Workspace.Root }, new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center } },
             }),
         };
         box.SelectionChanged += (_, _) => { if (box.SelectedItem is string name && name != value) set(name); };
-        return box;
+        var more = new Button { Content = "…", Padding = new(8, 2), [ToolTip.TipProperty] = L.T("More icons (Material Symbols, online)") };
+        more.Click += async (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(this) is Window owner && await IconLibrary.Pick(owner, Workspace.Root) is { } name) set(name);
+        };
+        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { box, more } };
     }
 
     static readonly Dictionary<string, (string Attribute, string[] Values)[]> LookOptions = new()
