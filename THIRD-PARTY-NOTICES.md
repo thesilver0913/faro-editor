@@ -27,6 +27,7 @@ MIT License全文は本リポジトリの `LICENSE` と同一の条文で、著�
 
 | 名前 | 著作権表示 | ライセンス | 用途 |
 |---|---|---|---|
+| SIL Open Font License 1.1 と Apache License 2.0 の文章(`assets/licenses/`) | SIL International / The Apache Software Foundation | それぞれのライセンスの文章 | オンラインから追加したフォントのライセンスとして、プロジェクトの `Assets/Fonts/` に書き出す(フォント自体はエディターに同梱しない) |
 | Material Icons(Outlined。@material-design-icons/svg 0.14.15 から 69 個のパスを抜き出したもの) | Copyright Google LLC | Apache License 2.0(https://www.apache.org/licenses/LICENSE-2.0) | アイコン部品(`Control.Icon`)。`Faro.Runtime/IconSet.cs` と Java 版の `IconSet.java` に同梱 |
 
 ## 実行時にダウンロードするツール(配布物には含まれません)

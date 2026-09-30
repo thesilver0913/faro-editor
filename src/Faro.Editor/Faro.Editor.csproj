@@ -26,6 +26,8 @@
     <AvaloniaResource Include="../../assets/fonts/NotoSansJP-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" />
     <!-- Java projects' Material 3 font (Faro.Runtime carries it for C#): copied into .faro/fonts. -->
     <None Include="../../assets/fonts/GoogleSansFlex-*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- License texts written next to fonts downloaded into a project (FontLibrary.AddToProject). -->
+    <None Include="../../assets/licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Shipped with the editor for new projects: the runtime package and the sample template. -->
     <None Include="../Faro.Runtime/bin/$(Configuration)/Faro.Runtime.$(Version).nupkg" Link="runtime/Faro.Runtime.$(Version).nupkg" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/HelloFaro/UI/**" LinkBase="templates/Sample/UI" CopyToOutputDirectory="PreserveNewest" />

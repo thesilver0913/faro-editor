@@ -270,7 +270,14 @@ public sealed class InspectorView : UserControl
             EditNode(id, "Set textStyle", n => CanvasEdit.SetAttribute(n, "textStyle", style.SelectedIndex == 0 ? null : (string)style.SelectedItem!));
         };
         body.Children.Add(Row(L.T("Text token"), style));
-        body.Children.Add(Row(L.T("Font"), CheckedField(node, "fontFamily", 160, TokenError)));
+        var fonts = new Button { Content = "Aa", Padding = new(8, 2) };
+        ToolTip.SetTip(fonts, L.T("Choose a font (project or online)"));
+        fonts.Click += async (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(this) is Window owner && await FontPicker.Show(owner, Workspace.Root) is { } family)
+                EditNode(id, "Set fontFamily", n => CanvasEdit.SetAttribute(n, "fontFamily", family));
+        };
+        body.Children.Add(Row(L.T("Font"), Pair(CheckedField(node, "fontFamily", 120, TokenError), fonts)));
         body.Children.Add(Row(L.T("Size / Line"), Pair(AttributeField(node, "fontSize"), AttributeField(node, "lineHeight"))));
         body.Children.Add(Row(L.T("Weight"), CheckedField(node, "fontWeight", 110, v => TokenError(v)
             ?? (UiBuilder.Weight(v.StartsWith('$') ? tokens[v[1..]] : v) is null ? L.T("Normal, Medium, SemiBold, Bold… or 100–900.") : null))));

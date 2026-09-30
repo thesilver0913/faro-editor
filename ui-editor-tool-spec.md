@@ -327,6 +327,7 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **バイブコーディングの LLM** はプロバイダを差し替え可能(Claude／OpenAI 互換)
 - **インストーラーと更新**:Windows は Inno Setup、Linux は .deb と tar.gz、macOS は .dmg(簡易署名のみ・公証なし)を GitHub Releases で配布。環境設定で更新チャンネル(Stable / Beta / Canary)を選び、Windows ではアプリ内から更新できる
 - **デザイン言語**:`faro.json` の `design`(`language` Fluent / Material3、`seedColor`、`theme` System / Light / Dark)。Material 3 Expressive はシードカラーから色の役割を作り、形・文字スタイル・押したときの形の変化を付ける。Node ごとの設定は `m3.variant` などの属性で、インスペクターの「Material 3」欄で編集する。Cupertino・Neumorphism・NeoBrutalism・Simple・Carbon・Clay・Retro は共通のテンプレートに言語ごとの値(形・色・影)を入れて描き(Java は同じ値から CSS を作る)、Node ごとの設定も共通の `look.variant`・`look.surface`
+- **オンラインのフォント**:インスペクターのフォント欄から、公開フォント(Fontsource の一覧、Google Fonts など)を検索・見本表示して選ぶと、選んだ太さの TTF をダウンロードしてプロジェクトの `Assets/Fonts/` にライセンスと一緒に置く。エディターには同梱しない。ランタイム(C#・Java)は `Assets/Fonts` のフォントを `fontFamily` の名前で使う
 - **Java(JavaFX)プロジェクト**:新規作成時に C# か Java を選ぶ。Java 版ランタイムバインダー(`src/Faro.Runtime.Java`)をソースのまま `.faro/runtime-java` に同梱し、Maven(`mvn javafx:run`)でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか、getName()/isName() を持つ Bean プロパティ `name`)。Material 3 は JavaFX 用 CSS(`.faro/design.css`)をエディターが生成する
 - **レイヤー・パーツ・プレビュー**:Node の木(選択連動・ドラッグで並べ替え)、パーツのパレット(クリックかドラッグで追加)、選択 Node のサイズ変更ハンドル、キャンバス内プレビュー(入力・クリック・Navigate)
 - **Android APK**(C# プロジェクト):File › Android APK をビルド。`.faro/android` に生成した Android 用プロジェクトで `Source/` と UI・紐付け・アセットをまとめ、デバッグ鍵で署名した APK を `dist/` に出す。Java プロジェクトは今後

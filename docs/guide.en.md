@@ -103,6 +103,15 @@ Under Tokens in File › Project Design…, write one `name = value` per line:
 
 Change a token once and every screen follows.
 
+### Fonts (added from online)
+
+**Aa** next to the inspector's Font field opens the font picker. Search the open fonts of Google Fonts and others (about 1,900), filter by category, and the preview shows the one you pick. Tick the weights you use and press "Use this font": the files go into the project's `Assets/Fonts/` with their license text, and the node's `fontFamily` is set.
+
+- The editor ships no fonts; they are downloaded when you use them (and kept, so the next time needs no connection)
+- Saved fonts are part of the app, so running it needs no internet (C#, Java and Android)
+- Japanese, Chinese and Korean fonts are about 5 MB per weight: tick only the ones you use
+- The list comes from `api.fontsource.org`, downloads from `fonts.googleapis.com` / `fonts.gstatic.com` (other fonts from `cdn.jsdelivr.net`). Offline, only the project's fonts are listed
+
 ### Design language
 
 In the same dialog, choose a design language, a seed color, and light or dark.

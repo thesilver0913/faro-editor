@@ -174,6 +174,7 @@ public static class Workspace
         {
             report?.Invoke("Loading UI graphs and bindings…", 15);
             Project = FaroProject.Load(Root);
+            FaroApp.LoadFonts(Root); // the canvas draws with the project's fonts
             report?.Invoke("Analyzing Source/ with Roslyn…", 35);
             Registry = Editor.Registry.Scan(Path.Combine(Root, "Source"));
             report?.Invoke("Checking bindings…", 60);
