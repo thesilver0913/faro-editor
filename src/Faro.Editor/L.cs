@@ -48,7 +48,7 @@ public static class L
         ["Remove from Recent"] = "最近の一覧から外す", ["Layers"] = "レイヤー", ["Parts"] = "パーツ", ["_Layers"] = "レイヤー(_L)", ["_Parts"] = "パーツ(_P)", ["Containers"] = "コンテナ", ["Controls"] = "コントロール", ["Components"] = "コンポーネント",
         ["Children in a column or a row (auto layout)"] = "子を縦か横に並べる(オートレイアウト)", ["Children in rows that wrap"] = "子を折り返して並べる",
         ["Children in rows and columns"] = "子を行と列に並べる", ["Children stacked on top of each other, anchored to edges"] = "子を重ね、端や中央に固定する",
-        ["A button (Click event)"] = "ボタン(Click イベント)", ["A text field (Text, Changed)"] = "テキスト入力(Text、Changed)", ["A label"] = "文字", ["An image from Assets/"] = "Assets/ の画像",
+        ["A button (Click event)"] = "ボタン(Click イベント)", ["A text field (Text, Changed)"] = "テキスト入力(Text、Changed)", ["A number field with up/down (Value, Changed)"] = "数字の入力欄と増減ボタン(Value、Changed)", ["A date field with a calendar (Date as yyyy-MM-dd)"] = "カレンダー付きの日付の欄(Date は yyyy-MM-dd)", ["A label"] = "文字", ["An image from Assets/"] = "Assets/ の画像",
         ["A part built in code (FaroScript)"] = "コードで作る部品(FaroScript)",
         ["Explorer"] = "エクスプローラー", ["Canvas"] = "キャンバス", ["Inspector"] = "インスペクター", ["Code"] = "コード", ["Console"] = "コンソール",
         ["Problems"] = "問題", ["Output"] = "出力", ["AI Chat"] = "AI チャット",

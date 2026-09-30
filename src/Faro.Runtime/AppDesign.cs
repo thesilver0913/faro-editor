@@ -108,7 +108,22 @@ public sealed record AppDesign(string Language = "Fluent", string SeedColor = Ap
             dictionary["ComboBoxItemBackgroundSelected" + state] = Tone(p.Secondary, 90, 30);
             dictionary["ComboBoxItemForegroundSelected" + state] = Tone(p.Secondary, 10, 90);
         }
+        DateField(dictionary, "ComboBox");
         return dictionary;
+    }
+
+    /// <summary>The date input (Fluent's CalendarDatePicker) as the same field as a select: its fill, border and text.</summary>
+    internal static void DateField(ResourceDictionary d, string like)
+    {
+        foreach (var state in new[] { "", "PointerOver", "Pressed", "Focused" })
+        {
+            d["CalendarDatePickerBackground" + state] = d[like + "Background"];
+            d["CalendarDatePickerBorderBrush" + state] = d[like + "BorderBrush"];
+        }
+        d["CalendarDatePickerBorderThemeThickness"] = d[like + "BorderThemeThickness"];
+        d["CalendarDatePickerMinHeight"] = d[like + "MinHeight"];
+        d["CalendarDatePickerForeground"] = d["CalendarDatePickerTextForeground"] = d[like + "Foreground"];
+        d["CalendarDatePickerCalendarGlyphForeground"] = d[like + "DropDownGlyphForeground"];
     }
 
     /// <summary>The TextControl* resources Fluent's text box template uses, as an M3 filled or outlined text field.</summary>

@@ -26,6 +26,8 @@ public static class UiBuilder
             "Control.Script" => Script((string?)node.Attribute("class") ?? ""),
             "Control.Button" => new Button { Content = Prop(node, "Text") },
             "Control.TextInput" => new TextBox { PlaceholderText = Prop(node, "Placeholder"), Text = Prop(node, "Text") },
+            "Control.NumberInput" => new NumericUpDown { PlaceholderText = Prop(node, "Placeholder"), Value = (decimal?)PropNum(node, "Value"), Minimum = (decimal)(PropNum(node, "Minimum") ?? -1e9), Maximum = (decimal)(PropNum(node, "Maximum") ?? 1e9), FormatString = "0.##", VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center },
+            "Control.DateInput" => new CalendarDatePicker { PlaceholderText = Prop(node, "Placeholder"), SelectedDate = DateTime.TryParse(Prop(node, "Date"), System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null, SelectedDateFormat = CalendarDatePickerFormat.Custom, CustomDateFormatString = "yyyy-MM-dd" },
             "Control.Text" => new TextBlock { Text = Prop(node, "Text"), TextWrapping = TextWrapping.Wrap },
             "Control.Image" => new Image { Source = Bitmap(projectRoot, Prop(node, "Source")) },
             "Control.Spacer" => new Panel(), // empty: Fill by default, so it takes the free space and pushes its neighbors apart
@@ -334,6 +336,22 @@ public static class UiBuilder
     }
 
     static IBrush? Brush(string? value) => value is not null && Color.TryParse(value, out var color) ? new SolidColorBrush(color) : null;
+
+    /// <summary>A bound Foreground / Background: "#C62828" or a color token "$color.expense" (null: the design language's own).</summary>
+    public static readonly Avalonia.Data.Converters.IValueConverter ColorBinding =
+        new Avalonia.Data.Converters.FuncValueConverter<object?, IBrush?>(v => Brush(v?.ToString() is { } s ? Token(s.Trim()) : null));
+
+    /// <summary>A bound Date: the neutral "yyyy-MM-dd" text (or a DateTime member) both ways.</summary>
+    public static readonly Avalonia.Data.Converters.IValueConverter DateBinding = new DateConverter();
+
+    sealed class DateConverter : Avalonia.Data.Converters.IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
+            value is DateTime date ? date : DateTime.TryParse(value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
+            targetType == typeof(string) ? (value as DateTime?)?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "" : value;
+    }
 
     /// <summary>"Bold", "SemiBold"… or a number (100–900).</summary>
     public static FontWeight? Weight(string? value) =>

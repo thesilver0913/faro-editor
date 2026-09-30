@@ -217,6 +217,7 @@ public static class DesignLooks
             d["ComboBoxItemForegroundSelected" + state] = d["FaroOnSurface"];
         }
         d["ComboBoxItemBackgroundPointerOver"] = d["ComboBoxItemBackgroundPressed"] = d["FaroTrack"];
+        AppDesign.DateField(d, "ComboBox");
         foreach (var key in new[] { "SystemAccentColor", "SystemAccentColorDark1", "SystemAccentColorLight1" }) d[key] = (Color)v["FaroAccent"];
         d["FaroDivider"] = d["FaroBorder"] is SolidColorBrush { Color.A: > 0 } ? d["FaroBorder"] : new SolidColorBrush(Tone(p.NeutralVariant, 80, 30));
         return d;

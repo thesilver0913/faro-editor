@@ -19,6 +19,8 @@ public sealed class InspectorView : UserControl
     {
         ["Control.Button"] = ["Text", "BackgroundTexture"],
         ["Control.TextInput"] = ["Placeholder", "Text"],
+        ["Control.NumberInput"] = ["Placeholder", "Value", "Minimum", "Maximum"],
+        ["Control.DateInput"] = ["Placeholder", "Date"],
         ["Control.Text"] = ["Text"],
         ["Control.Image"] = ["Source"],
         ["Control.CheckBox"] = ["Text", "Checked"],

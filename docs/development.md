@@ -210,19 +210,21 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **開始画面は `faro.json` の `startScreen`**(コードに書かないので言語に依存しない)。`Program.cs` は `FaroApp.Run(args, typeof(Program).Assembly)` だけ。存在しない画面を指していれば Problems に出る
 - **`target` の書式**:`<クラスの識別子>.<メンバー名>`。**最後の `.` より後がメンバー名**、それより前(C# では `名前空間.クラス名`)は言語ごとのレジストリ抽出・ランタイムが決める識別子として扱う。将来の言語でクラスを持たない関数はモジュール名をクラスの位置に書く想定
 - **イベント・プロパティ名はフレームワーク非依存**:`<Bind>` の `event`/`prop` には Node 種類ごとの共通名だけを使い、Avalonia の名前への対応は `Faro.Runtime/Bindable.cs` の表だけが持つ(別フレームワーク対応時はこの表を差し替える)。共通名以外(例:旧形式の `OnClick`)は Problems に出て候補(`Click`)を示す
-- **部品と共通名**:Button(`Click`・`Text`)、TextInput(`Changed`・`Text`・`Placeholder`)、Text(`Text`)、Image、CheckBox / Switch(`Changed`・`Text`・`Checked`)、Slider(`Changed`・`Value`・`Minimum`・`Maximum`)、Select(`Changed`・`Selected`・`Options`)、Progress(`Value`、0〜100)、Divider、Icon(`Icon`)、Spacer、Script、コンテナ(`Click`)。全部品に `Visible`・`Enabled`。Java では Switch をチェックボックスを CSS でスイッチの形にしたもので作り(`UiBuilder.CSS` を data: スタイルシートで読み込む)、Progress は 0〜1 に換算、TwoWay の書き戻しはメンバーの型(int など)に変換する。Material 3 では、これらの部品も M3 の部品の形で出す:C# は `Material3.axaml` の ControlTheme(チェックボックス・スイッチ・Expressive のスライダー・線形の進捗)と `AppDesign.Scheme` の ComboBox の色(塗りの入力欄と同じ形のドロップダウン)、区切り線は Outline Variant。Java は `JavaProject.DesignCss` の CSS で同じ形にし、JavaFX のスライダーには塗られた部分がないので、ランタイムが値の位置までトラックを塗る(色は CSS の `faro-track-on` / `faro-track-off`)
+- **部品と共通名**:Button(`Click`・`Text`)、TextInput(`Changed`・`Text`・`Placeholder`)、Text(`Text`)、Image、CheckBox / Switch(`Changed`・`Text`・`Checked`)、Slider(`Changed`・`Value`・`Minimum`・`Maximum`)、Select(`Changed`・`Selected`・`Options`)、Progress(`Value`、0〜100)、Divider、Icon(`Icon`)、Spacer、Script、NumberInput(`Changed`・`Value`・`Minimum`・`Maximum`・`Placeholder`。C# は NumericUpDown、Java は Spinner)、DateInput(`Date`・`Placeholder`。値は `yyyy-MM-dd` の文字列(C# は DateTime のメンバーでもよい)。C# は CalendarDatePicker、Java は DatePicker)、コンテナ(`Click`・`Background`)。全部品に `Visible`・`Enabled`・`Foreground`(文字色。コンテナなら中の文字にも効く)。`Foreground`/`Background` の値は `#RRGGBB` か色トークン `$color.x` の文字列(空ならデザイン言語の色)で、状態ごとの色より優先する(C# は `UiBuilder.ColorBinding`、Java は `UiBuilder.boundColor` がインライン CSS の最後に足す)。コードから別のクラスのインスタンス(紐付けが使うのと同じもの)を取るのは `FaroApp.Get<T>()`(Java は `FaroApp.get(T.class)`)。Java では Switch をチェックボックスを CSS でスイッチの形にしたもので作り(`UiBuilder.CSS` を data: スタイルシートで読み込む)、Progress は 0〜1 に換算、TwoWay の書き戻しはメンバーの型(int など)に変換する。Material 3 では、これらの部品も M3 の部品の形で出す:C# は `Material3.axaml` の ControlTheme(チェックボックス・スイッチ・Expressive のスライダー・線形の進捗)と `AppDesign.Scheme` の ComboBox の色(塗りの入力欄と同じ形のドロップダウン)、区切り線は Outline Variant。Java は `JavaProject.DesignCss` の CSS で同じ形にし、JavaFX のスライダーには塗られた部分がないので、ランタイムが値の位置までトラックを塗る(色は CSS の `faro-track-on` / `faro-track-off`)
 - **フォント**(Adobe Fonts のようにオンラインから):一覧は Fontsource の API(`api.fontsource.org/v1/fonts`、キー不要)。Google のフォントは Google Fonts CSS API v2 から太さごとの TTF(ブラウザーの User-Agent を送らないと、分割 WOFF2 ではなく丸ごとの TrueType が返る)、それ以外は Fontsource の CDN の既定サブセットの TTF。`FontLibrary`(`src/Faro.Editor/FontLibrary.cs`)が一覧を設定フォルダの `fonts/` に 7 日キャッシュし、ファイルもフォントごとにキャッシュ(50MB 上限・TTF/OTF の先頭で確認・一時ファイルから置き換え)、プロジェクトの `Assets/Fonts/` にコピーして `<Family>-LICENSE.txt`(フォントの name テーブルの著作権表示と、同梱の `assets/licenses/` の OFL / Apache 2.0 の全文)を書く。選ぶ画面は `FontPicker`(インスペクターのフォント欄の Aa)。ランタイムは `Assets/Fonts` の TTF/OTF をファミリー名で使えるようにする(C# は `FaroApp.LoadFonts` が Avalonia の SystemFonts に追加、Java は `Font.loadFont`。ライブ更新でも読み直す)。エディターもプロジェクトを読むときに同じく読み込んでキャンバスに使う
 - **アイコン部品**(`Control.Icon`):Google の Material Icons(Outlined、Apache 2.0)から選んだ 76 個の 24×24 のパスを同梱(塗りつぶしの favorite・star・bookmark・help・error・warning・thumb_up には線の版 `favorite_border` などもある)(C# は `IconSet.cs` の `FaroIcon`、Java は `IconSet.java` の `IconSet.View`。同じ表であることをチェックが確かめる)。24px の枠ごと描くので記号の余白が保たれ、大きさを Fixed にすると拡大する。色は文字色(`foreground` やデザイン言語)に従う。インスペクターは絵付きの一覧から選ぶ
 - **アクセシビリティ**(`AccessibilityCheck`、問題パネルの警告):デザイン言語の色の組(ボタンの文字と塗り 4.5:1、本文と面 4.5:1、入力欄のヒント 3:1。テーマが System ならライトとダークの両方)、Node に付けた `foreground` と自分か祖先の `background`(トークンも解く)、Fixed で 44px 未満の押せる部品、プレースホルダーも直前の説明文もない入力欄。赤いバッジ(壊れた紐付け)とは分け、赤くしない。チェックは全デザイン言語が自分の色の組で基準を満たすことも確かめる
 
   | Node 種類 | イベント | プロパティ |
   |---|---|---|
-  | Control.Button | Click | Text, Visible, Enabled |
-  | Control.TextInput | Changed | Text, Placeholder, Visible, Enabled |
-  | Control.Text | – | Text, Visible, Enabled |
+  | Control.Button | Click | Text, Visible, Enabled, Foreground |
+  | Control.TextInput | Changed | Text, Placeholder, Visible, Enabled, Foreground |
+  | Control.NumberInput | Changed | Value, Minimum, Maximum, Placeholder, Visible, Enabled, Foreground |
+  | Control.DateInput | – | Date, Placeholder, Visible, Enabled, Foreground |
+  | Control.Text | – | Text, Visible, Enabled, Foreground |
   | Control.Image | – | Visible, Enabled |
   | Control.Script | – | Visible, Enabled |
-  | Container.* | – | Visible, Enabled |
+  | Container.* | Click | Visible, Enabled, Foreground, Background |
   | Instance | マスターのルート Node の種類に従う | 同左 |
 
 - サイジングは軸ごと: `widthSizing` / `heightSizing`(`Fill`/`Hug`/`Fixed`)。`sizing` は両軸共通の省略形、未指定は `Hug`。`Fixed` は `width` / `height` 属性で値を指定

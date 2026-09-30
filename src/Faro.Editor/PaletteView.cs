@@ -23,6 +23,8 @@ public sealed class PaletteView : UserControl
         ["Container.Overlay"] = "Children stacked on top of each other, anchored to edges",
         ["Control.Button"] = "A button (Click event)",
         ["Control.TextInput"] = "A text field (Text, Changed)",
+        ["Control.NumberInput"] = "A number field with up/down (Value, Changed)",
+        ["Control.DateInput"] = "A date field with a calendar (Date as yyyy-MM-dd)",
         ["Control.Text"] = "A label",
         ["Control.Image"] = "An image from Assets/",
         ["Control.CheckBox"] = "A check box (Checked, Changed)",

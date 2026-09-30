@@ -16,7 +16,8 @@ public static class Bindable
     public sealed record Entry(string Type, Type Control, Dictionary<string, RoutedEvent> Events, Dictionary<string, AvaloniaProperty> Props);
 
     static Dictionary<string, AvaloniaProperty> Common(params (string, AvaloniaProperty)[] props) =>
-        props.Append(("Visible", Visual.IsVisibleProperty)).Append(("Enabled", InputElement.IsEnabledProperty)).ToDictionary();
+        props.Append(("Visible", Visual.IsVisibleProperty)).Append(("Enabled", InputElement.IsEnabledProperty))
+            .Append(("Foreground", Avalonia.Controls.Documents.TextElement.ForegroundProperty)).ToDictionary(); // text color, also of a container's text
 
     // Order matters for For(control): CheckBox / ToggleSwitch (ToggleButtons) before Button, Button before the generic Control base types.
     static readonly Entry[] entries =
@@ -31,12 +32,15 @@ public static class Bindable
         new("Control.Divider", typeof(Avalonia.Controls.Shapes.Rectangle), [], Common()),
         new("Control.Button", typeof(Button), new() { ["Click"] = Button.ClickEvent }, Common(("Text", ContentControl.ContentProperty))),
         new("Control.Script", typeof(ContentControl), [], Common()), // after Button, which is a ContentControl too
+        new("Control.NumberInput", typeof(NumericUpDown), new() { ["Changed"] = NumericUpDown.ValueChangedEvent },
+            Common(("Value", NumericUpDown.ValueProperty), ("Minimum", NumericUpDown.MinimumProperty), ("Maximum", NumericUpDown.MaximumProperty), ("Placeholder", NumericUpDown.PlaceholderTextProperty))),
+        new("Control.DateInput", typeof(CalendarDatePicker), [], Common(("Date", CalendarDatePicker.SelectedDateProperty), ("Placeholder", CalendarDatePicker.PlaceholderTextProperty))),
         new("Control.TextInput", typeof(TextBox), new() { ["Changed"] = TextBox.TextChangedEvent },
             Common(("Text", TextBox.TextProperty), ("Placeholder", TextBox.PlaceholderTextProperty))),
         new("Control.Text", typeof(TextBlock), [], Common(("Text", TextBlock.TextProperty))),
         new("Control.Image", typeof(Image), [], Common()),
         new("Control.Icon", typeof(FaroIcon), [], Common(("Icon", FaroIcon.IconProperty))),
-        new("Container.", typeof(Border), new() { ["Click"] = InputElement.TappedEvent }, Common()), // Stack / Wrap / Grid; Click: a tap (e.g. a list row)
+        new("Container.", typeof(Border), new() { ["Click"] = InputElement.TappedEvent }, Common(("Background", Border.BackgroundProperty))), // Stack / Wrap / Grid; Click: a tap (e.g. a list row)
     ];
 
     /// <summary>By node type ("Container.Stack" matches the "Container." entry).</summary>
@@ -51,7 +55,9 @@ public static class Bindable
 
     /// <summary>The value type user code should expose for a property (Button's Content is object, but Text is text).</summary>
     public static Type ValueType(AvaloniaProperty property) =>
-        property == ContentControl.ContentProperty || property == SelectingItemsControl.SelectedItemProperty ? typeof(string)
+        property == ContentControl.ContentProperty || property == SelectingItemsControl.SelectedItemProperty || property == CalendarDatePicker.SelectedDateProperty
+            || property == Avalonia.Controls.Documents.TextElement.ForegroundProperty || property == Border.BackgroundProperty ? typeof(string)
+        : property == NumericUpDown.ValueProperty || property == NumericUpDown.MinimumProperty || property == NumericUpDown.MaximumProperty ? typeof(double)
         : property == ToggleButton.IsCheckedProperty ? typeof(bool)
         : property == ItemsControl.ItemsSourceProperty ? typeof(List<string>)
         : property.PropertyType;

@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -322,6 +323,8 @@ public final class FaroApp {
             return r -> input.textProperty().addListener((o, a, b) -> r.run());
         if (name.equals("Changed") && control instanceof javafx.scene.control.CheckBox box)
             return r -> box.selectedProperty().addListener((o, a, b) -> r.run());
+        if (name.equals("Changed") && control instanceof javafx.scene.control.Spinner<?> spinner)
+            return r -> spinner.valueProperty().addListener((o, a, b) -> r.run());
         if (name.equals("Changed") && control instanceof javafx.scene.control.Slider slider)
             return r -> slider.valueProperty().addListener((o, a, b) -> r.run());
         if (name.equals("Changed") && control instanceof javafx.scene.control.ComboBox<?> select)
@@ -334,10 +337,13 @@ public final class FaroApp {
         Property<?> property = switch (name) {
             case "Text" -> control instanceof Labeled l ? l.textProperty() : control instanceof TextInputControl t ? t.textProperty() : null;
             case "Checked" -> control instanceof javafx.scene.control.CheckBox box ? box.selectedProperty() : null;
-            case "Value" -> control instanceof javafx.scene.control.Slider s ? s.valueProperty()
+            case "Value" -> control instanceof javafx.scene.control.Spinner<?> s ? spinnerValue(s)
+                : control instanceof javafx.scene.control.Slider s ? s.valueProperty()
                 : control instanceof javafx.scene.control.ProgressBar bar ? percent(bar) : null;
-            case "Minimum" -> control instanceof javafx.scene.control.Slider s ? s.minProperty() : null;
-            case "Maximum" -> control instanceof javafx.scene.control.Slider s ? s.maxProperty() : null;
+            case "Minimum" -> control instanceof javafx.scene.control.Slider s ? s.minProperty()
+                : control instanceof javafx.scene.control.Spinner<?> s && s.getValueFactory() instanceof javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory f ? f.minProperty() : null;
+            case "Maximum" -> control instanceof javafx.scene.control.Slider s ? s.maxProperty()
+                : control instanceof javafx.scene.control.Spinner<?> s && s.getValueFactory() instanceof javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory f ? f.maxProperty() : null;
             case "Selected" -> {
                 if (!(control instanceof javafx.scene.control.ComboBox<?> select)) yield null;
                 @SuppressWarnings("unchecked") var value = (javafx.beans.property.ObjectProperty<String>) (Object) select.valueProperty();
@@ -356,7 +362,22 @@ public final class FaroApp {
                 });
                 yield list;
             }
-            case "Placeholder" -> control instanceof TextInputControl t ? t.promptTextProperty() : null;
+            case "Placeholder" -> control instanceof TextInputControl t ? t.promptTextProperty()
+                : control instanceof javafx.scene.control.Spinner<?> s ? s.getEditor().promptTextProperty()
+                : control instanceof javafx.scene.control.DatePicker d ? d.promptTextProperty() : null;
+            case "Foreground" -> UiBuilder.boundColor(control, true);
+            case "Background" -> control instanceof javafx.scene.layout.Pane ? UiBuilder.boundColor(control, false) : null;
+            case "Date" -> {
+                if (!(control instanceof javafx.scene.control.DatePicker picker)) yield null;
+                // The neutral "yyyy-MM-dd" text both ways (a bad text leaves the picker empty)
+                var text = new javafx.beans.property.SimpleStringProperty(picker.getValue() == null ? "" : picker.getValue().toString());
+                text.addListener((o, a, b) -> {
+                    try { var date = b == null || b.isEmpty() ? null : java.time.LocalDate.parse(b.trim()); if (!Objects.equals(date, picker.getValue())) picker.setValue(date); }
+                    catch (java.time.format.DateTimeParseException e) { picker.setValue(null); }
+                });
+                picker.valueProperty().addListener((o, a, b) -> text.set(b == null ? "" : b.toString()));
+                yield text;
+            }
             case "Icon" -> control instanceof IconSet.View icon ? icon.icon : null;
             case "Visible" -> control.visibleProperty();
             case "Enabled" -> {
@@ -396,6 +417,18 @@ public final class FaroApp {
         return type == String.class && value != null ? String.valueOf(value) : value;
     }
 
+    /** A number input's Value as a double property, both ways (typed text counts once it parses). */
+    private static Property<?> spinnerValue(javafx.scene.control.Spinner<?> spinner) {
+        @SuppressWarnings("unchecked") var factory = (javafx.scene.control.SpinnerValueFactory<Double>) spinner.getValueFactory();
+        var value = new javafx.beans.property.SimpleDoubleProperty(factory.getValue() == null ? 0 : factory.getValue());
+        value.addListener((o, a, b) -> { if (!Objects.equals(factory.getValue(), b.doubleValue())) factory.setValue(b.doubleValue()); });
+        factory.valueProperty().addListener((o, a, b) -> { if (b != null) value.set(b); });
+        spinner.getEditor().textProperty().addListener((o, a, b) -> {
+            try { value.set(Double.parseDouble(b.trim())); } catch (NumberFormatException ignored) { }
+        });
+        return value;
+    }
+
     /** A progress bar's Value (0–100) as JavaFX's progress (0–1). */
     private static Property<?> percent(javafx.scene.control.ProgressBar bar) {
         var value = new javafx.beans.property.SimpleDoubleProperty(bar.getProgress() * 100);
@@ -423,6 +456,9 @@ public final class FaroApp {
     private static Method setter(Class<?> type, String name, Class<?> valueType) throws NoSuchMethodException {
         return type.getMethod("set" + Character.toUpperCase(name.charAt(0)) + name.substring(1), valueType);
     }
+
+    /** The instance bindings use for a class (by its lifetime): code reaches another class's singleton this way. */
+    public static <T> T get(Class<T> type) { return type.cast(instanceOf(type)); }
 
     private static Object instanceOf(Class<?> type) {
         var lifetime = type.getAnnotation(FaroLifetime.class);
