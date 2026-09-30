@@ -4,6 +4,7 @@
     Button     m3.variant Filled|Tonal|Outlined|Text|Elevated, m3.size XS|S|M|L|XL, m3.shape Round|Square
     TextInput  m3.variant Filled|Outlined
     Text       m3.type DisplayLarge … LabelSmall, m3.emphasized true, m3.color Primary|OnSurfaceVariant|…
+    CheckBox, Switch, Slider, Select, Progress, Divider: the M3 components (no options yet)
     Container  m3.surface Surface|Lowest|Low|Container|High|Highest|Primary|Secondary|Tertiary, m3.corner None|XS|S|M|L|XL|Full, m3.elevation 0-5
   Expressive: large rounded shapes, and buttons morph to a squarer corner while pressed on a spring.
   Type: Google Sans Flex (M3 Expressive's typeface, OFL) and Noto Sans JP for Japanese, both bundled in Faro.Runtime.
@@ -96,6 +97,135 @@
       <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.38" /></Style>
       <Style Selector="^:disabled /template/ Border#PART_Root"><Setter Property="BoxShadow" Value="none" /></Style>
     </ControlTheme>
+
+    <!-- Checkbox: an 18px box with 2px corners in a 40px state layer; checked fills primary with an onPrimary check -->
+    <ControlTheme x:Key="{x:Type CheckBox}" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="40,*" Background="Transparent">
+            <Panel Width="40" Height="40">
+              <Ellipse Name="PART_State" Fill="{DynamicResource M3OnSurface}" Opacity="0" />
+              <Border Name="PART_Box" Width="18" Height="18" CornerRadius="2" BorderThickness="2" BorderBrush="{DynamicResource M3OnSurfaceVariant}">
+                <Path Name="PART_Check" Data="M 3.5,9 L 7.5,13 L 14.5,5.5" Stroke="{DynamicResource M3OnPrimary}" StrokeThickness="2" IsVisible="False" />
+              </Border>
+            </Panel>
+            <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}" Margin="4,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Ellipse#PART_State"><Setter Property="Opacity" Value="0.08" /></Style>
+      <Style Selector="^:pressed /template/ Ellipse#PART_State"><Setter Property="Opacity" Value="0.1" /></Style>
+      <Style Selector="^:checked /template/ Ellipse#PART_State"><Setter Property="Fill" Value="{DynamicResource M3Primary}" /></Style>
+      <Style Selector="^:checked /template/ Border#PART_Box">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="BorderThickness" Value="0" />
+      </Style>
+      <Style Selector="^:checked /template/ Path#PART_Check"><Setter Property="IsVisible" Value="True" /></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.38" /></Style>
+    </ControlTheme>
+
+    <!-- Switch: a 52x32 track; the handle grows from 16px (off, outline) to 24px (on, onPrimary), 28px while pressed.
+         ToggleSwitch slides PART_MovingKnobs across PART_SwitchKnob (0 when off, its width when on): 20 wide from x=6 puts the
+         handle's center at 16 and 36, as M3 specifies. The label follows, as with the checkbox. -->
+    <ControlTheme x:Key="{x:Type ToggleSwitch}" TargetType="ToggleSwitch">
+      <Setter Property="Foreground" Value="{DynamicResource M3OnSurface}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="KnobTransitions">
+        <Transitions><DoubleTransition Property="Canvas.Left" Duration="0:0:0.25" Easing="CubicEaseOut" /></Transitions>
+      </Setter>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,*" Background="Transparent">
+            <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Foreground="{TemplateBinding Foreground}" Margin="12,0,0,0" VerticalAlignment="Center" />
+            <Panel Width="52" Height="32">
+              <Border Name="PART_Track" CornerRadius="16" BorderThickness="2" BorderBrush="{DynamicResource M3Outline}" Background="{DynamicResource M3SurfaceContainerHighest}" />
+              <Canvas Name="PART_SwitchKnob" Width="20" Height="32" HorizontalAlignment="Left" Margin="6,0,0,0">
+                <Panel Name="PART_MovingKnobs" Width="20" Height="32" Background="Transparent">
+                  <Ellipse Name="PART_State" Width="40" Height="40" Margin="-10,-4" Fill="{DynamicResource M3OnSurface}" Opacity="0" />
+                  <Ellipse Name="PART_Handle" Width="16" Height="16" Fill="{DynamicResource M3Outline}">
+                    <Ellipse.Transitions><Transitions><DoubleTransition Property="Width" Duration="0:0:0.15" /><DoubleTransition Property="Height" Duration="0:0:0.15" /></Transitions></Ellipse.Transitions>
+                  </Ellipse>
+                </Panel>
+              </Canvas>
+            </Panel>
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Ellipse#PART_State"><Setter Property="Opacity" Value="0.08" /></Style>
+      <Style Selector="^:pressed /template/ Ellipse#PART_State"><Setter Property="Opacity" Value="0.1" /></Style>
+      <Style Selector="^:pressed /template/ Ellipse#PART_Handle"><Setter Property="Width" Value="28" /><Setter Property="Height" Value="28" /></Style>
+      <Style Selector="^:checked /template/ Border#PART_Track">
+        <Setter Property="Background" Value="{DynamicResource M3Primary}" />
+        <Setter Property="BorderThickness" Value="0" />
+      </Style>
+      <Style Selector="^:checked /template/ Ellipse#PART_Handle"><Setter Property="Width" Value="24" /><Setter Property="Height" Value="24" /><Setter Property="Fill" Value="{DynamicResource M3OnPrimary}" /></Style>
+      <Style Selector="^:checked:pressed /template/ Ellipse#PART_Handle"><Setter Property="Width" Value="28" /><Setter Property="Height" Value="28" /></Style>
+      <Style Selector="^:checked /template/ Ellipse#PART_State"><Setter Property="Fill" Value="{DynamicResource M3Primary}" /></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.38" /></Style>
+    </ControlTheme>
+
+    <!-- Slider (Expressive): a 16px track split by a 4x44 bar handle with 6px gaps; active primary, inactive secondary container
+         with a stop dot at the end. The handle narrows while dragged. ponytail: horizontal only (Faro has no vertical slider). -->
+    <ControlTheme x:Key="M3SliderTrackPart" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="Transparent">
+            <Border Height="16" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Margin="{TemplateBinding Padding}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+    <ControlTheme x:Key="{x:Type Slider}" TargetType="Slider">
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel>
+            <Track Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value, Mode=TwoWay}"
+                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}" Orientation="Horizontal">
+              <Track.DecreaseButton>
+                <RepeatButton Name="PART_DecreaseButton" Theme="{StaticResource M3SliderTrackPart}" Background="{DynamicResource M3Primary}" CornerRadius="8,2,2,8" Padding="0,0,6,0" />
+              </Track.DecreaseButton>
+              <Track.IncreaseButton>
+                <RepeatButton Name="PART_IncreaseButton" Theme="{StaticResource M3SliderTrackPart}" Background="{DynamicResource M3SecondaryContainer}" CornerRadius="2,8,8,2" Padding="6,0,0,0" />
+              </Track.IncreaseButton>
+              <Thumb Name="thumb" Width="4" Height="44">
+                <Thumb.Template>
+                  <ControlTemplate>
+                    <Border Name="PART_Handle" Width="4" CornerRadius="2" Background="{DynamicResource M3Primary}">
+                      <Border.Transitions><Transitions><DoubleTransition Property="Width" Duration="0:0:0.1" /></Transitions></Border.Transitions>
+                    </Border>
+                  </ControlTemplate>
+                </Thumb.Template>
+              </Thumb>
+            </Track>
+            <Ellipse Width="4" Height="4" Margin="0,0,6,0" HorizontalAlignment="Right" Fill="{DynamicResource M3Primary}" IsHitTestVisible="False" />
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pressed /template/ Border#PART_Handle"><Setter Property="Width" Value="2" /></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.38" /></Style>
+    </ControlTheme>
+
+    <!-- Linear progress indicator: a 4px rounded bar, primary over secondary container, with a stop dot at the end -->
+    <ControlTheme x:Key="{x:Type ProgressBar}" TargetType="ProgressBar">
+      <Setter Property="MinHeight" Value="4" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Height="4">
+            <Border CornerRadius="2" Background="{DynamicResource M3SecondaryContainer}" />
+            <Ellipse Width="4" Height="4" HorizontalAlignment="Right" Fill="{DynamicResource M3Primary}" />
+            <Border Name="PART_Indicator" CornerRadius="2" Background="{DynamicResource M3Primary}" HorizontalAlignment="Left" />
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
   </Styles.Resources>
 
   <!-- The app window and the editor's artboard are the surface -->
@@ -144,6 +274,14 @@
   </Style>
   <Style Selector="TextBox"><Setter Property="CornerRadius" Value="4,4,0,0" /></Style>
   <Style Selector="TextBox.m3-variant-outlined"><Setter Property="CornerRadius" Value="4" /></Style>
+
+  <!-- Select: an exposed dropdown menu, the filled text field's look (colors in AppDesign.Scheme); the menu is a surface container -->
+  <Style Selector="ComboBox">
+    <Setter Property="FontFamily" Value="avares://Faro.Runtime/Assets/Fonts#Google Sans Flex, avares://Faro.Runtime/Assets/Fonts#Noto Sans JP" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="CornerRadius" Value="4,4,0,0" />
+  </Style>
+  <Style Selector="ComboBoxItem"><Setter Property="MinHeight" Value="48" /><Setter Property="VerticalContentAlignment" Value="Center" /><Setter Property="FontSize" Value="16" /></Style>
 
   <!-- Containers: surface roles, the shape scale and elevation levels -->
   <Style Selector="Border.m3-surface-surface"><Setter Property="Background" Value="{DynamicResource M3Surface}" /></Style>

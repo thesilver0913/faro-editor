@@ -192,6 +192,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **開始画面は `faro.json` の `startScreen`**(コードに書かないので言語に依存しない)。`Program.cs` は `FaroApp.Run(args, typeof(Program).Assembly)` だけ。存在しない画面を指していれば Problems に出る
 - **`target` の書式**:`<クラスの識別子>.<メンバー名>`。**最後の `.` より後がメンバー名**、それより前(C# では `名前空間.クラス名`)は言語ごとのレジストリ抽出・ランタイムが決める識別子として扱う。将来の言語でクラスを持たない関数はモジュール名をクラスの位置に書く想定
 - **イベント・プロパティ名はフレームワーク非依存**:`<Bind>` の `event`/`prop` には Node 種類ごとの共通名だけを使い、Avalonia の名前への対応は `Faro.Runtime/Bindable.cs` の表だけが持つ(別フレームワーク対応時はこの表を差し替える)。共通名以外(例:旧形式の `OnClick`)は Problems に出て候補(`Click`)を示す
+- **部品と共通名**:Button(`Click`・`Text`)、TextInput(`Changed`・`Text`・`Placeholder`)、Text(`Text`)、Image、CheckBox / Switch(`Changed`・`Text`・`Checked`)、Slider(`Changed`・`Value`・`Minimum`・`Maximum`)、Select(`Changed`・`Selected`・`Options`)、Progress(`Value`、0〜100)、Divider、Spacer、Script、コンテナ(`Click`)。全部品に `Visible`・`Enabled`。Java では Switch をチェックボックスを CSS でスイッチの形にしたもので作り(`UiBuilder.CSS` を data: スタイルシートで読み込む)、Progress は 0〜1 に換算、TwoWay の書き戻しはメンバーの型(int など)に変換する。Material 3 では、これらの部品も M3 の部品の形で出す:C# は `Material3.axaml` の ControlTheme(チェックボックス・スイッチ・Expressive のスライダー・線形の進捗)と `AppDesign.Scheme` の ComboBox の色(塗りの入力欄と同じ形のドロップダウン)、区切り線は Outline Variant。Java は `JavaProject.DesignCss` の CSS で同じ形にし、JavaFX のスライダーには塗られた部分がないので、ランタイムが値の位置までトラックを塗る(色は CSS の `faro-track-on` / `faro-track-off`)
 
   | Node 種類 | イベント | プロパティ |
   |---|---|---|

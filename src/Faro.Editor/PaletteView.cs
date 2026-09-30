@@ -25,6 +25,12 @@ public sealed class PaletteView : UserControl
         ["Control.TextInput"] = "A text field (Text, Changed)",
         ["Control.Text"] = "A label",
         ["Control.Image"] = "An image from Assets/",
+        ["Control.CheckBox"] = "A check box (Checked, Changed)",
+        ["Control.Switch"] = "An on/off switch (Checked, Changed)",
+        ["Control.Slider"] = "A slider (Value, Changed)",
+        ["Control.Select"] = "A drop-down of choices (Options, Selected, Changed)",
+        ["Control.Progress"] = "A progress bar, 0 to 100 (Value)",
+        ["Control.Divider"] = "A thin line between parts",
         ["Control.Spacer"] = "Empty space that pushes its neighbors apart (e.g. a button to the right end)",
         ["Control.Script"] = "A part built in code (FaroScript)",
     };

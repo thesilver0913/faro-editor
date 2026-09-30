@@ -430,7 +430,8 @@ public static class UiHistory
 public static class CanvasEdit
 {
     public static readonly string[] AddableTypes =
-        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image", "Control.Spacer", "Control.Script"];
+        ["Container.Stack", "Container.Wrap", "Container.Grid", "Container.Overlay", "Control.Button", "Control.TextInput", "Control.Text", "Control.Image",
+         "Control.CheckBox", "Control.Switch", "Control.Slider", "Control.Select", "Control.Progress", "Control.Divider", "Control.Spacer", "Control.Script"];
 
     public static bool IsContainer(XElement node) => ((string?)node.Attribute("type"))?.StartsWith("Container.") == true;
 
@@ -509,7 +510,19 @@ public static class CanvasEdit
         }
         else if (type.StartsWith("Container.")) { node.SetAttributeValue("gap", "8"); node.SetAttributeValue("padding", "8"); }
         else if (type == "Control.Script") node.SetAttributeValue("class", "");
-        else if (type is "Control.Button" or "Control.Text") node.Add(new XElement("Prop", new XAttribute("name", "Text"), new XAttribute("value", type == "Control.Button" ? "Button" : "Text")));
+        else
+            foreach (var (name, value) in type switch
+            {
+                "Control.Button" => [("Text", "Button")],
+                "Control.Text" => [("Text", "Text")],
+                "Control.CheckBox" => [("Text", "Check")],
+                "Control.Switch" => [("Text", "Switch")],
+                "Control.Slider" => [("Minimum", "0"), ("Maximum", "100"), ("Value", "50")],
+                "Control.Select" => [("Options", "Option 1, Option 2, Option 3"), ("Selected", "Option 1")],
+                "Control.Progress" => [("Value", "50")],
+                _ => Array.Empty<(string, string)>(),
+            })
+                node.Add(new XElement("Prop", new XAttribute("name", name), new XAttribute("value", value)));
 
         var selected = selectedId is null ? null : Find(screen, selectedId);
         if (selected is not null && IsContainer(selected)) selected.Add(node);

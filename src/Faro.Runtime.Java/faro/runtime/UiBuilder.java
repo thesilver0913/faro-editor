@@ -63,6 +63,21 @@ public final class UiBuilder {
             }
             case "Control.Image" -> image(root, prop(node, "Source"));
             case "Control.Spacer" -> new Region(); // empty: Fill by default, so it takes the free space and pushes its neighbors apart
+            case "Control.CheckBox", "Control.Switch" -> {
+                var box = new javafx.scene.control.CheckBox(text(node, "Text"));
+                box.setSelected("true".equals(prop(node, "Checked")));
+                if (type.equals("Control.Switch")) box.getStyleClass().add("faro-switch"); // JavaFX has no switch: a check box drawn as one (CSS)
+                yield box;
+            }
+            case "Control.Slider" -> slider(propNumber(node, "Minimum", 0), propNumber(node, "Maximum", 100), propNumber(node, "Value", 0));
+            case "Control.Select" -> {
+                var select = new javafx.scene.control.ComboBox<String>();
+                select.getItems().setAll(options(prop(node, "Options")));
+                select.setValue(prop(node, "Selected"));
+                yield select;
+            }
+            case "Control.Progress" -> new javafx.scene.control.ProgressBar(propNumber(node, "Value", 0) / 100);
+            case "Control.Divider" -> new javafx.scene.control.Separator("Horizontal".equals(((Element) node.getParentNode()).getAttribute("direction")) ? Orientation.VERTICAL : Orientation.HORIZONTAL);
             default -> {
                 var label = new Label("[unknown type: " + type + "]");
                 label.setStyle("-fx-text-fill: red;");
@@ -160,13 +175,52 @@ public final class UiBuilder {
         };
     }
 
-    /** Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug (a Spacer: Fill). */
+    /** Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug; a Spacer fills, a Divider along its line. */
     public static String sizing(Element node, String axis) {
         var own = node.getAttribute(axis + "Sizing");
         if (!own.isEmpty()) return own;
         var both = node.getAttribute("sizing");
-        return !both.isEmpty() ? both : "Control.Spacer".equals(node.getAttribute("type")) ? "Fill" : "Hug";
+        if (!both.isEmpty()) return both;
+        return switch (node.getAttribute("type")) {
+            case "Control.Spacer" -> "Fill";
+            case "Control.Divider" -> axis.equals("height") == (node.getParentNode() instanceof Element parent && "Horizontal".equals(parent.getAttribute("direction"))) ? "Fill" : "Hug";
+            default -> "Hug";
+        };
     }
+
+    /** A Select's choices: "Small, Medium, Large". */
+    public static List<String> options(String text) {
+        var list = new ArrayList<String>();
+        if (text != null) for (var o : text.split(",")) if (!o.isBlank()) list.add(o.trim());
+        return list;
+    }
+
+    private static double propNumber(Element node, String name, double fallback) {
+        try { return prop(node, name) instanceof String v ? Double.parseDouble(token(v.trim())) : fallback; }
+        catch (NumberFormatException e) { return fallback; }
+    }
+
+    /** JavaFX's slider track has no filled part (Avalonia's has): paint it up to the value, in the CSS colors faro-track-on / faro-track-off. */
+    private static javafx.scene.control.Slider slider(double min, double max, double value) {
+        var slider = new javafx.scene.control.Slider(min, max, value);
+        Runnable fill = () -> {
+            if (!(slider.lookup(".track") instanceof Region track)) return;
+            var at = slider.getMax() > slider.getMin() ? (slider.getValue() - slider.getMin()) / (slider.getMax() - slider.getMin()) * 100 : 0;
+            track.setStyle("-fx-background-color: linear-gradient(to right, faro-track-on " + at + "%, faro-track-off " + at + "%);");
+        };
+        slider.valueProperty().addListener(o -> fill.run());
+        slider.skinProperty().addListener(o -> fill.run());
+        return slider;
+    }
+
+    /** Runtime styles every app gets (as a data: stylesheet): the switch, the slider's track colors. */
+    public static final String CSS = """
+        .slider { faro-track-on: -fx-accent; faro-track-off: derive(-fx-control-inner-background, -20%); }
+        .check-box.faro-switch > .box { -fx-background-color: #9e9e9e; -fx-background-radius: 10; -fx-padding: 2 14 2 2; }
+        .check-box.faro-switch:selected > .box { -fx-background-color: -fx-accent; -fx-padding: 2 2 2 14; }
+        .check-box.faro-switch > .box > .mark, .check-box.faro-switch:selected > .box > .mark {
+            -fx-shape: "M0,6 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"; -fx-background-color: white; -fx-padding: 6; }
+        """;
 
     private static void size(Element node, String axis, java.util.function.DoubleConsumer min, java.util.function.DoubleConsumer pref, java.util.function.DoubleConsumer max) {
         switch (sizing(node, axis)) {

@@ -29,6 +29,12 @@ public static class UiBuilder
             "Control.Text" => new TextBlock { Text = Prop(node, "Text"), TextWrapping = TextWrapping.Wrap },
             "Control.Image" => new Image { Source = Bitmap(projectRoot, Prop(node, "Source")) },
             "Control.Spacer" => new Panel(), // empty: Fill by default, so it takes the free space and pushes its neighbors apart
+            "Control.CheckBox" => new CheckBox { Content = Prop(node, "Text"), IsChecked = Prop(node, "Checked") == "true" },
+            "Control.Switch" => new ToggleSwitch { Content = Prop(node, "Text"), IsChecked = Prop(node, "Checked") == "true", OnContent = null, OffContent = null },
+            "Control.Slider" => new Slider { Minimum = PropNum(node, "Minimum") ?? 0, Maximum = PropNum(node, "Maximum") ?? 100, Value = PropNum(node, "Value") ?? 0 },
+            "Control.Select" => new ComboBox { ItemsSource = Options(Prop(node, "Options")), SelectedItem = Prop(node, "Selected") },
+            "Control.Progress" => new ProgressBar { Minimum = 0, Maximum = 100, Value = PropNum(node, "Value") ?? 0 },
+            "Control.Divider" => Divider(),
             _ => new TextBlock { Text = $"[unknown type: {type}]", Foreground = Brushes.Red },
         };
         if (Prop(node, "BackgroundTexture") is { } texture && control is TemplatedControl templated)
@@ -72,9 +78,31 @@ public static class UiBuilder
         Child = new TextBlock { Text = text, Foreground = color, TextWrapping = TextWrapping.Wrap },
     };
 
-    /// <summary>Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug (a Spacer: Fill).</summary>
+    /// <summary>
+    /// Fill / Hug / Fixed per axis: widthSizing/heightSizing, with "sizing" as shorthand for both. Default Hug; a Spacer fills,
+    /// a Divider fills along its line (across a column, down a row: a line 1 thick).
+    /// </summary>
     public static string Sizing(XElement node, string axis) =>
-        (string?)node.Attribute(axis + "Sizing") ?? (string?)node.Attribute("sizing") ?? ((string?)node.Attribute("type") == "Control.Spacer" ? "Fill" : "Hug");
+        (string?)node.Attribute(axis + "Sizing") ?? (string?)node.Attribute("sizing") ?? (string?)node.Attribute("type") switch
+        {
+            "Control.Spacer" => "Fill",
+            "Control.Divider" => (axis == "height") == ((string?)node.Parent?.Attribute("direction") == "Horizontal") ? "Fill" : "Hug",
+            _ => "Hug",
+        };
+
+    /// <summary>A Select's choices: "Small, Medium, Large".</summary>
+    /// <summary>A 1px line: M3's outline variant when the app uses Material 3, else a translucent gray.</summary>
+    static Control Divider()
+    {
+        var line = new Avalonia.Controls.Shapes.Rectangle { MinWidth = 1, MinHeight = 1 };
+        line.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, line.GetResourceObservable("M3OutlineVariant", brush => brush ?? new SolidColorBrush(Color.Parse("#40808080"))));
+        return line;
+    }
+
+    public static List<string> Options(string? text) => [.. (text ?? "").Split(',').Select(o => o.Trim()).Where(o => o.Length > 0)];
+
+    static double? PropNum(XElement node, string name) =>
+        double.TryParse(Token(Prop(node, name) ?? ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
 
     /// <summary>
     /// Every instance under a node with the key prefix its inner nodes get in <c>byId</c> ("btn1/", nested

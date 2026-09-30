@@ -21,6 +21,11 @@ public sealed class InspectorView : UserControl
         ["Control.TextInput"] = ["Placeholder", "Text"],
         ["Control.Text"] = ["Text"],
         ["Control.Image"] = ["Source"],
+        ["Control.CheckBox"] = ["Text", "Checked"],
+        ["Control.Switch"] = ["Text", "Checked"],
+        ["Control.Slider"] = ["Value", "Minimum", "Maximum"],
+        ["Control.Select"] = ["Options", "Selected"],
+        ["Control.Progress"] = ["Value"],
     };
 
     readonly StackPanel body = new() { Spacing = 8, Margin = new(12) };
