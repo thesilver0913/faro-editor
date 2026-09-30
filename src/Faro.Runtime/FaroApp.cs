@@ -57,10 +57,13 @@ public static class FaroApp
     static FaroProject project = null!;
     static Assembly userAssembly = null!;
     static Window? window; // desktop; Android shows one view
-    static ContentControl host = null!; // holds the current screen
+    static Panel host = null!; // holds the current screen, and during a transition the one it replaces
+    static Control? shown; // the current screen (binds stop updating once it is left)
     static TextBox? errors; // Android: errors show over the screen
     static string start = "";
     static string? current; // the screen shown (live reload rebuilds it)
+    static string entered = ""; // the transition that brought it in (Back plays it in reverse)
+    static readonly Stack<(string Screen, object? Parameter, string Transition)> history = new(); // for Back
     static readonly Dictionary<Type, object> singletons = [];
     static Dictionary<Type, object> screenScoped = [];
 
@@ -101,11 +104,11 @@ public static class FaroApp
 
     internal static void Attach(IApplicationLifetime? lifetime)
     {
-        host = new ContentControl();
+        host = new Panel { ClipToBounds = true };
         if (lifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = window = new Window { Width = 480, Height = 720, Content = host };
-            window.Opened += (_, _) => Navigate(start); // after Opened: the error window needs a visible owner
+            window.Opened += (_, _) => Navigate(start, transition: "None"); // after Opened: the error window needs a visible owner
             WatchLive();
         }
         else if (lifetime is IActivityApplicationLifetime activity) // Android: a new view per activity, the same screen
@@ -118,7 +121,7 @@ public static class FaroApp
                 (host.Parent as Panel)?.Children.Clear();
                 errors = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, IsVisible = false, MaxHeight = 240, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom };
                 var view = new Grid { Children = { host, errors } };
-                if (host.Content is null) Navigate(start);
+                if (shown is null) Navigate(start, transition: "None");
                 return view;
             };
         }
@@ -127,30 +130,82 @@ public static class FaroApp
     /// <summary>What the last Navigate passed: the new screen's binds to members of its class use it (e.g. the tapped row's item).</summary>
     public static object? Parameter { get; private set; }
 
-    /// <summary>Opens a screen by UIGraph id, optionally with a value for its binds (spec §7: user code navigates with parameters).</summary>
-    public static void Navigate(string screenId, object? parameter = null)
+    /// <summary>
+    /// Opens a screen by UIGraph id, optionally with a value for its binds (spec §7: user code navigates with parameters),
+    /// with a transition ("Slide", "Fade", "None"; unset: faro.json's "transition", Slide by default).
+    /// </summary>
+    public static void Navigate(string screenId, object? parameter = null, string? transition = null)
     {
-        if (!project.Screens.TryGetValue(screenId, out var graph))
+        if (!project.Screens.ContainsKey(screenId))
         {
             ShowError($"Navigate: screen '{screenId}' does not exist.");
             return;
         }
+        if (current is not null) history.Push((current, Parameter, entered));
+        Go(screenId, parameter, transition ?? project.Transition, reversed: false);
+    }
+
+    /// <summary>Returns to the previous screen (with its value), playing the transition that left it in reverse. No-op on the first screen.</summary>
+    public static void Back()
+    {
+        if (!history.TryPop(out var last) || !project.Screens.ContainsKey(last.Screen)) return;
+        Go(last.Screen, last.Parameter, entered, reversed: true);
+        entered = last.Transition;
+    }
+
+    static void Go(string screenId, object? parameter, string transition, bool reversed)
+    {
         Release(screenScoped.Values);
         foreach (var o in singletons.Values) Save(o); // also when the app is killed later (the editor's Stop)
         screenScoped = [];
         Parameter = parameter;
-        Show(screenId, graph);
+        entered = transition;
+        Show(screenId, project.Screens[screenId], transition, reversed);
     }
 
-    static void Show(string screenId, XDocument graph)
+    /// <summary>
+    /// Plays a screen change: "Slide" (the default) moves the new screen in from the right and the old one out to the left
+    /// (reversed: the other way), "Fade" fades the new one in over the old, "None" does nothing. The editor's preview uses it too.
+    /// Screens are built fresh for every change, so nothing an animation leaves behind carries over.
+    /// </summary>
+    public static Task PlayTransition(Control? old, Control screen, string kind, bool reversed, double width)
+    {
+        Task Run(Control target, AvaloniaProperty property, double from, double to, int ms) => new Avalonia.Animation.Animation
+        {
+            Duration = TimeSpan.FromMilliseconds(ms), Easing = new Avalonia.Animation.Easings.CubicEaseOut(), FillMode = Avalonia.Animation.FillMode.Forward,
+            Children =
+            {
+                new Avalonia.Animation.KeyFrame { Cue = new(0), Setters = { new Avalonia.Styling.Setter(property, from) } },
+                new Avalonia.Animation.KeyFrame { Cue = new(1), Setters = { new Avalonia.Styling.Setter(property, to) } },
+            },
+        }.RunAsync(target);
+        Task Slide(Control c, double from, double to) // a transform animates through the control that holds it
+        {
+            c.RenderTransform = new Avalonia.Media.TranslateTransform();
+            return Run(c, Avalonia.Media.TranslateTransform.XProperty, from, to, 250);
+        }
+        var distance = reversed ? -width : width;
+        return kind switch
+        {
+            "None" => Task.CompletedTask,
+            "Fade" => Run(screen, Visual.OpacityProperty, 0, 1, 200),
+            _ => Task.WhenAll(old is null ? [Slide(screen, distance, 0)] : [Slide(screen, distance, 0), Slide(old, 0, -distance)]),
+        };
+    }
+
+    static void Show(string screenId, XDocument graph, string transition = "None", bool reversed = false)
     {
         current = screenId;
         if (errors is not null) errors.IsVisible = false; // Android: the last screen's errors
         var byId = new Dictionary<string, Control>();
-        host.Content = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
+        var old = shown;
+        shown = UiBuilder.Build(graph.Root!.Element("Node")!, byId, project.Root);
+        host.Children.Add(shown);
         if (window is not null) window.Title = screenId;
         var failed = Bind(graph.Root!.Element("Node")!, screenId, byId, events: true);
         if (failed.Count > 0) ShowError(string.Join("\n\n", failed));
+        if (old is not null) // the old screen goes once the new one is in
+            PlayTransition(old, shown, transition, reversed, host.Bounds.Width).ContinueWith(_ => host.Children.Remove(old), TaskScheduler.FromCurrentSynchronizationContext());
     }
 
     /// <summary>
@@ -258,11 +313,11 @@ public static class FaroApp
         var prefix = key[..^((string?)list.Node.Attribute("id") ?? "").Length];
         System.Collections.Specialized.INotifyCollectionChanged? watched = null;
         System.Collections.Specialized.NotifyCollectionChangedEventHandler changed = null!;
-        var screen = host?.Content; // the editor's preview has no host
+        var screen = shown; // the editor's preview has none
         void Render()
         {
             if (watched is not null) watched.CollectionChanged -= changed;
-            if (host?.Content != screen) return; // a singleton owner outlives the screen: stop once it is left
+            if (shown != screen) return; // a singleton owner outlives the screen: stop once it is left
             var items = prop.GetValue(owner) as System.Collections.IEnumerable;
             watched = items as System.Collections.Specialized.INotifyCollectionChanged;
             if (watched is not null) watched.CollectionChanged += changed;
@@ -285,7 +340,7 @@ public static class FaroApp
             PropertyChangedEventHandler replaced = null!;
             replaced = (_, e) =>
             {
-                if (host?.Content != screen) notify.PropertyChanged -= replaced; // a singleton owner: let go of the left screen
+                if (shown != screen) notify.PropertyChanged -= replaced; // a singleton owner: let go of the left screen
                 else if (e.PropertyName == prop.Name) Render();
             };
             notify.PropertyChanged += replaced;
@@ -310,7 +365,8 @@ public static class FaroApp
             {
                 var screen = NavigateScreenId(target, project.Screens.Keys);
                 if (!project.Screens.ContainsKey(screen)) throw new InvalidOperationException($"Screen '{screen}' does not exist.");
-                control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) => Navigate(screen, item))); // a row passes its item
+                var transition = (string?)bind.Attribute("transition");
+                control.AddHandler(routed, (EventHandler<RoutedEventArgs>)((_, _) => Navigate(screen, item, transition))); // a row passes its item
                 return;
             }
             // No parameters, or one: the row's item (selection) or the navigation parameter, whichever its type takes.

@@ -140,25 +140,47 @@ public final class UiBuilder {
             var font = value.apply("fontSize") instanceof String size && positive(size) ? Double.parseDouble(size) : 13;
             labeled.setLineSpacing(Math.max(0, Double.parseDouble(line) - font * 1.2));
         }
-        var looks = new String[4];
+        var backgrounds = new String[4];
+        var foregrounds = new String[4];
         var states = new String[] { "", "hover", "pressed", "disabled" };
         for (var i = 0; i < states.length; i++) {
-            var bg = color(value.apply(states[i].isEmpty() ? "background" : states[i] + "Background"));
-            var fg = color(value.apply(states[i].isEmpty() ? "foreground" : states[i] + "Foreground"));
-            var css = new StringBuilder();
-            if (bg != null && control instanceof Region) css.append("-fx-background-color: ").append(bg).append("; ");
-            // Labels and buttons use -fx-text-fill, text inputs -fx-text-inner-color; a container passes the colors down as looked-up colors.
-            if (fg != null) css.append(textColor(control, fg));
-            looks[i] = css.toString();
+            backgrounds[i] = control instanceof Region ? color(value.apply(states[i].isEmpty() ? "background" : states[i] + "Background")) : null;
+            foregrounds[i] = color(value.apply(states[i].isEmpty() ? "foreground" : states[i] + "Foreground"));
         }
-        var base = control.getStyle() + fonts + looks[0];
-        control.setStyle(base);
-        // Bound colors (Foreground / Background binds) come last, so they win over the states' ones as in the C# runtime.
-        Runnable restyle = () -> control.setStyle(base
-            + (control.isDisabled() ? looks[3] : control instanceof javafx.scene.control.ButtonBase b && b.isPressed() ? looks[2] : control.isHover() ? looks[1] : "")
-            + control.getProperties().getOrDefault("faro.foreground", "") + control.getProperties().getOrDefault("faro.background", ""));
+        var base = control.getStyle() + fonts;
+        var ms = number(node, "animate") instanceof Double d ? d : 0;
+        javafx.animation.Timeline[] easing = { null };
+        java.util.function.BiConsumer<String, String> paint = (bg, fg) -> control.setStyle(base
+            + (bg != null ? "-fx-background-color: " + bg + "; " : "") + (fg != null ? textColor(control, fg) : ""));
+        paint.accept(backgrounds[0], foregrounds[0]);
+        // Bound colors (Foreground / Background binds) win over the states' ones, which win over the normal ones, as in the C# runtime.
+        // "animate"="200": the change eases over that many milliseconds, from the colors on screen to the new ones (the
+        // design language's own too, read back after styling). ponytail: a gradient fill (Fluent's buttons) changes at once.
+        Runnable restyle = () -> {
+            var state = control.isDisabled() ? 3 : control instanceof javafx.scene.control.ButtonBase b && b.isPressed() ? 2 : control.isHover() ? 1 : 0;
+            var bg = control.getProperties().get("faro.background") instanceof String c && !c.isEmpty() ? c : backgrounds[state] != null ? backgrounds[state] : backgrounds[0];
+            var fg = control.getProperties().get("faro.foreground") instanceof String c && !c.isEmpty() ? c : foregrounds[state] != null ? foregrounds[state] : foregrounds[0];
+            if (easing[0] != null) easing[0].stop();
+            String[] from = { painted(control, true), painted(control, false) };
+            paint.accept(bg, fg);
+            if (ms <= 0 || control.getScene() == null) return;
+            control.applyCss();
+            String[] to = { painted(control, true), painted(control, false) };
+            var t = new javafx.beans.property.SimpleDoubleProperty();
+            t.addListener((o, a, now) -> paint.accept(mix(from[0], to[0], now.doubleValue()), mix(from[1], to[1], now.doubleValue())));
+            easing[0] = new javafx.animation.Timeline(new javafx.animation.KeyFrame(javafx.util.Duration.millis(ms), new javafx.animation.KeyValue(t, 1)));
+            easing[0].setOnFinished(e -> paint.accept(bg, fg)); // the exact end state (none: the design language's own again)
+            easing[0].play();
+        };
         control.getProperties().put("faro.restyle", restyle);
-        if (looks[1].isEmpty() && looks[2].isEmpty() && looks[3].isEmpty()) return;
+        if (ms > 0) control.visibleProperty().addListener((o, was, now) -> { // fades in when shown (hiding is immediate)
+            if (!now) return;
+            var fade = new javafx.animation.FadeTransition(javafx.util.Duration.millis(ms), control);
+            fade.setFromValue(0);
+            fade.setToValue(1);
+            fade.play();
+        });
+        if (backgrounds[1] == null && foregrounds[1] == null && backgrounds[2] == null && foregrounds[2] == null && backgrounds[3] == null && foregrounds[3] == null) return;
         control.hoverProperty().addListener((o, a, b) -> restyle.run());
         control.disabledProperty().addListener((o, a, b) -> restyle.run());
         if (control instanceof javafx.scene.control.ButtonBase button) button.pressedProperty().addListener((o, a, b) -> restyle.run());
@@ -177,8 +199,7 @@ public final class UiBuilder {
         var value = new javafx.beans.property.SimpleStringProperty();
         value.addListener((o, before, after) -> {
             var color = color(after == null ? null : token(after.trim()));
-            control.getProperties().put(foreground ? "faro.foreground" : "faro.background", color == null ? ""
-                : foreground ? textColor(control, color) : control instanceof Region ? "-fx-background-color: " + color + "; " : "");
+            control.getProperties().put(foreground ? "faro.foreground" : "faro.background", color == null || !foreground && !(control instanceof Region) ? "" : color);
             if (control.getProperties().get("faro.restyle") instanceof Runnable restyle) restyle.run();
         });
         return value;
@@ -186,10 +207,27 @@ public final class UiBuilder {
 
     /** The appearance attributes; an instance's own ones override its master's. */
     static final Set<String> LOOKS = Set.of("background", "foreground", "hoverBackground", "hoverForeground", "pressedBackground", "pressedForeground",
-        "disabledBackground", "disabledForeground", "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight");
+        "disabledBackground", "disabledForeground", "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight", "animate");
 
     private static boolean positive(String number) {
         try { return Double.parseDouble(number) > 0; } catch (NumberFormatException e) { return false; }
+    }
+
+    /** A color between two (t 0→1), as CSS; the target when either is missing. */
+    private static String mix(String from, String to, double t) {
+        if (from == null || to == null || t >= 1) return to;
+        return css(javafx.scene.paint.Color.web(from).interpolate(javafx.scene.paint.Color.web(to), t));
+    }
+
+    private static String css(javafx.scene.paint.Color c) {
+        return String.format(java.util.Locale.ROOT, "rgba(%d,%d,%d,%.3f)", Math.round(c.getRed() * 255), Math.round(c.getGreen() * 255), Math.round(c.getBlue() * 255), c.getOpacity());
+    }
+
+    /** The fill (the last, innermost one) or text color on screen, when it's a plain color. */
+    private static String painted(Node control, boolean background) {
+        javafx.scene.paint.Paint paint = !background ? (control instanceof javafx.scene.control.Labeled l ? l.getTextFill() : null)
+            : control instanceof Region r && r.getBackground() != null && !r.getBackground().getFills().isEmpty() ? r.getBackground().getFills().get(r.getBackground().getFills().size() - 1).getFill() : null;
+        return paint instanceof javafx.scene.paint.Color c ? css(c) : null;
     }
 
     /** "#RRGGBB", "#AARRGGBB" (as in Avalonia; CSS wants #RRGGBBAA) or a color name; null when it isn't one. */

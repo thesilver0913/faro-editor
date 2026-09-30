@@ -133,8 +133,8 @@ public static partial class ProjectSetup
         settings.Save();
     }
 
-    /// <summary>faro.json with the new "design" (left out when it's the Fluent default), for one UI history step.</summary>
-    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design, IReadOnlyDictionary<string, string> tokens, string locale = "")
+    /// <summary>faro.json with the new "design" (left out when it's the Fluent default), tokens, locale and screen transition, for one UI history step.</summary>
+    public static Dictionary<string, string?> DesignChange(string dir, Faro.Runtime.AppDesign design, IReadOnlyDictionary<string, string> tokens, string locale = "", string transition = "Slide")
     {
         var path = Path.Combine(dir, ProjectFile);
         var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
@@ -143,6 +143,8 @@ public static partial class ProjectSetup
             json["design"] = new JsonObject { ["language"] = design.Language, ["seedColor"] = design.SeedColor, ["theme"] = design.Theme };
         json.Remove("locale");
         if (locale.Length > 0) json["locale"] = locale;
+        json.Remove("transition");
+        if (transition != "Slide") json["transition"] = transition; // Navigate's default
         json.Remove("tokens");
         if (tokens.Count > 0) // numbers stay numbers; colors and font names are strings
             json["tokens"] = new JsonObject(tokens.Select(t => KeyValuePair.Create(t.Key, (JsonNode?)(double.TryParse(t.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var n) ? JsonValue.Create(n) : JsonValue.Create(t.Value)))));

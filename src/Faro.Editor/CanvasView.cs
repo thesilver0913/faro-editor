@@ -358,7 +358,7 @@ public sealed class CanvasView : UserControl
         // Arrows: forward ones leave a right edge for the next column's left edge (higher up); backward ones go from a left
         // edge back to a right edge (lower down), so a two-way link shows two arrows; within a column they loop out on the left.
         var ink = new SolidColorBrush(Color.Parse("#2680EB"));
-        foreach (var (from, to) in edges)
+        foreach (var (from, to, transition) in edges)
         {
             var (a, b) = (at[from], at[to]);
             var (start, end, out1, out2, dir) = b.X > a.X ? (new Point(a.X + boxW, a.Y + boxH * 0.4), new Point(b.X, b.Y + boxH * 0.4), 1.0, -1.0, -1)
@@ -374,6 +374,11 @@ public sealed class CanvasView : UserControl
             {
                 Fill = ink,
                 Data = Geometry.Parse(FormattableString.Invariant($"M {end.X},{end.Y} L {end.X + dir * 9},{end.Y - 5} L {end.X + dir * 9},{end.Y + 5} Z")),
+            });
+            canvas.Children.Add(new TextBlock // the transition, at the curve's middle
+            {
+                Text = transition, FontSize = 11, Foreground = ink,
+                [Canvas.LeftProperty] = (start.X + end.X) / 2 + (out1 == out2 ? -bend * 0.75 : 0) - 14, [Canvas.TopProperty] = (start.Y + end.Y) / 2 - 16,
             });
         }
         if (edges.Count == 0)
@@ -719,6 +724,15 @@ public sealed class CanvasView : UserControl
     }
 
     static bool preview;
+    static string? previewTransition; // a preview click's transition: the next render plays it on the new screen
+
+    /// <summary>Preview: the new screen slides in from the right (the app slides the old one out too) or fades in, as in the app.</summary>
+    async void PlayIn(Control screen, string kind, double width)
+    {
+        artboard.ClipToBounds = true; // the incoming screen stays inside the artboard
+        await FaroApp.PlayTransition(null, screen, kind, false, width);
+        artboard.ClipToBounds = false;
+    }
 
     /// <summary>In preview, Click bindings to Navigate:… switch the canvas to that screen.</summary>
     void WirePreview(string screenId)
@@ -727,7 +741,8 @@ public sealed class CanvasView : UserControl
             if (byId.GetValueOrDefault((string?)bind.Attribute("nodeId") ?? "") is Button button)
             {
                 var to = FaroApp.NavigateScreenId((string)bind.Attribute("target")!, Workspace.Project.Screens.Keys);
-                button.Click += (_, _) => { if (Workspace.Project.Screens.ContainsKey(to)) screens.SelectedItem = to; };
+                var transition = (string?)bind.Attribute("transition") ?? Workspace.Project.Transition;
+                button.Click += (_, _) => { if (Workspace.Project.Screens.ContainsKey(to)) (previewTransition, screens.SelectedItem) = (transition, to); };
             }
     }
 
@@ -750,6 +765,8 @@ public sealed class CanvasView : UserControl
         artboard.Child = new Panel { Children = { built, overlay } };
         zoomHost.Child = compareMode switch { 0 => artboard, 3 => Flow(), _ => Compare(graph.Root!.Element("Node")!) };
         if (preview) WirePreview(CurrentScreen ?? "");
+        if (previewTransition is { } kind && compareMode == 0) PlayIn(built, kind, artboard.Bounds.Width);
+        previewTransition = null;
         Dispatcher.UIThread.Post(DrawSelection, DispatcherPriority.Loaded); // after layout, so bounds are known
         foreach (var group in Workspace.Issues.Where(i => i.Screen == CurrentScreen).GroupBy(i => i.NodeId))
             if (byId.TryGetValue(group.Key, out var control))

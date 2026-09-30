@@ -24,6 +24,9 @@ public sealed class FaroProject
     /// <summary>"tokens" in faro.json: named sizes ("space.m": 16) that number attributes use as "$space.m", so one change restyles every screen.</summary>
     public Dictionary<string, string> Tokens { get; private set; } = [];
 
+    /// <summary>faro.json "transition": how Navigate changes screens unless a bind or the call says otherwise (Slide, Fade, None).</summary>
+    public string Transition { get; private set; } = "Slide";
+
     /// <summary>faro.json "locale" ("ja-JP"): dates and numbers in that language; null follows the device.</summary>
     public string? Locale { get; private set; }
 
@@ -60,6 +63,7 @@ public sealed class FaroProject
         catch (System.Text.Json.JsonException e) { throw new InvalidDataException($"faro.json: {e.Message}", e); } // hand-edited: say where
         project.StartScreen = (string?)json?["startScreen"];
         project.Locale = (string?)json?["locale"];
+        project.Transition = (string?)json?["transition"] ?? "Slide";
         project.Design = AppDesign.Read(json?["design"]);
         project.Tokens = json?["tokens"] is JsonObject tokens ? tokens.ToDictionary(t => t.Key, t => t.Value is JsonValue v && v.TryGetValue<string>(out var text) ? text : t.Value?.ToString() ?? "") : [];
         UiBuilder.Tokens = project.Tokens; // every build follows a load

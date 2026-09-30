@@ -289,7 +289,7 @@ public static class UiBuilder
     /// <summary>The appearance attributes (<see cref="Appearance"/>); an instance's own ones override its master's, like Figma's instance fills.</summary>
     public static readonly string[] Looks =
         ["background", "foreground", "hoverBackground", "hoverForeground", "pressedBackground", "pressedForeground", "disabledBackground", "disabledForeground",
-         "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight"];
+         "textStyle", "fontFamily", "fontSize", "fontWeight", "lineHeight", "animate"];
 
     /// <summary>
     /// Colors and text, like Figma fills and text styles. "background" / "foreground" take a color ("#RRGGBB", "#AARRGGBB", a name)
@@ -319,8 +319,9 @@ public static class UiBuilder
         foreach (var (state, pseudo, fluent) in new[] { ("", null, ""), ("hover", ":pointerover", "PointerOver"), ("pressed", ":pressed", "Pressed"), ("disabled", ":disabled", "Disabled") })
         {
             var bg = Brush(Value(state.Length == 0 ? "background" : state + "Background"))
-                // a state's fill needs a normal one to replace, and makes the whole node hit-testable (a list row's hover)
-                ?? (state.Length == 0 && new[] { "hover", "pressed", "disabled" }.Any(s => Brush(Value(s + "Background")) is not null) ? Brushes.Transparent : null);
+                // a container's state fill needs a normal one to replace, and makes the whole node hit-testable (a list row's hover);
+                // a button or input keeps its design language's fill (its states come through the theme resources below)
+                ?? (state.Length == 0 && control is not TemplatedControl && new[] { "hover", "pressed", "disabled" }.Any(s => Brush(Value(s + "Background")) is not null) ? Brushes.Transparent : null);
             var fg = Brush(Value(state.Length == 0 ? "foreground" : state + "Foreground"));
             if (bg is null && fg is null) continue;
             var css = new Style(x => pseudo is null ? x.Is<Control>().Class(look) : x.Is<Control>().Class(look).Class(pseudo));
@@ -333,6 +334,27 @@ public static class UiBuilder
             if (bg is not null) control.Resources[$"{part}Background{(fluent.Length == 0 ? "Focused" : fluent)}"] = bg; // a focused text input keeps its own background
             if (fg is not null) control.Resources[$"{part}Foreground{(fluent.Length == 0 ? "Focused" : fluent)}"] = fg;
         }
+        if (Num(node, "animate") is > 0 and var ms) Animate(control, background, TimeSpan.FromMilliseconds(ms));
+    }
+
+    /// <summary>
+    /// "animate"="200": the node's color changes (states, bound colors) ease over that many milliseconds, and it fades in when shown.
+    /// ponytail: no fade-out (hiding is immediate) and no size easing (sizes aren't bindable); add when a case needs them.
+    /// </summary>
+    static void Animate(Control control, AvaloniaProperty? background, TimeSpan duration)
+    {
+        control.Transitions = [new Avalonia.Animation.BrushTransition { Property = Avalonia.Controls.Documents.TextElement.ForegroundProperty, Duration = duration }];
+        if (background is not null) control.Transitions.Add(new Avalonia.Animation.BrushTransition { Property = background, Duration = duration });
+        var fadeIn = new Avalonia.Animation.Animation
+        {
+            Duration = duration,
+            Children =
+            {
+                new Avalonia.Animation.KeyFrame { Cue = new(0), Setters = { new Setter(Visual.OpacityProperty, 0.0) } },
+                new Avalonia.Animation.KeyFrame { Cue = new(1), Setters = { new Setter(Visual.OpacityProperty, 1.0) } },
+            },
+        };
+        control.PropertyChanged += (_, e) => { if (e.Property == Visual.IsVisibleProperty && e.NewValue is true) _ = fadeIn.RunAsync(control); };
     }
 
     static IBrush? Brush(string? value) => value is not null && Color.TryParse(value, out var color) ? new SolidColorBrush(color) : null;

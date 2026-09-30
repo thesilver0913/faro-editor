@@ -289,6 +289,8 @@ public sealed class InspectorView : UserControl
         foreach (var state in new[] { "hover", "pressed", "disabled" })
             body.Children.Add(Row(L.T(char.ToUpperInvariant(state[0]) + state[1..]), Pair(ColorField(state + "Background"), ColorField(state + "Foreground"))));
         body.Children.Add(Hint(L.T("Fill / text colors per state: hover, pressed (buttons), disabled. Empty: the design language's own.")));
+        body.Children.Add(Row(L.T("Animate (ms)"), AttributeField(node, "animate")));
+        body.Children.Add(Hint(L.T("Color changes (states, bound colors) ease over this time, and the node fades in when shown.")));
     }
 
     static void EditNode(string id, string label, Action<XElement> change) => CanvasView.Edit(label, (_, screen) =>
@@ -401,6 +403,14 @@ public sealed class InspectorView : UserControl
 
         var inner = ((string?)bind.Attribute("nodeId") ?? "").Split('/', 2) is [_, var path] ? path + " · " : ""; // bound inside an instance
         var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4, Children = { new TextBlock { Text = $"{inner}{name} {(isEvent ? "→" : "⇄")}", VerticalAlignment = VerticalAlignment.Center, MinWidth = 90 }, target } };
+        if (isEvent && ((string?)bind.Attribute("target"))?.StartsWith("Navigate:") == true)
+        {
+            // How the screen changes (FaroApp.Navigate's transition); unset: faro.json's "transition" (Slide).
+            string[] kinds = [L.F("Default ({0})", Workspace.Project?.Transition ?? "Slide"), "Slide", "Fade", "None"];
+            var transition = new ComboBox { ItemsSource = kinds, SelectedIndex = Math.Max(0, Array.IndexOf(kinds, (string?)bind.Attribute("transition"))), [ToolTip.TipProperty] = L.T("Screen transition") };
+            transition.SelectionChanged += (_, _) => EditBind(bind, "Set screen transition", b => b.SetAttributeValue("transition", transition.SelectedIndex > 0 ? kinds[transition.SelectedIndex] : null));
+            row.Children.Add(transition);
+        }
         if (!isEvent)
         {
             var mode = new ComboBox { ItemsSource = new[] { "OneWay", "TwoWay" }, SelectedItem = (string?)bind.Attribute("mode") ?? "OneWay" };
