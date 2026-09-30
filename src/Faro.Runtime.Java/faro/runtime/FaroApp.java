@@ -159,6 +159,7 @@ public final class FaroApp {
             return;
         }
         release(screenScoped.values());
+        for (var o : singletons.values()) save(o); // also when the app is killed later (the editor's Stop)
         screenScoped = new HashMap<>();
         FaroApp.parameter = parameter;
         show(screenId, graph);
@@ -464,19 +465,23 @@ public final class FaroApp {
 
     private static void release(Iterable<Object> instances) {
         for (var o : instances) {
-            var lifetime = o.getClass().getAnnotation(FaroLifetime.class);
-            if (lifetime != null && lifetime.persistent()) {
-                var saved = new Properties();
-                for (var m : o.getClass().getMethods())
-                    if ((m.getName().startsWith("get") || m.getName().startsWith("is") && m.getReturnType() == boolean.class) && m.getParameterCount() == 0
-                        && m.getDeclaringClass() != Object.class && (m.getReturnType().isPrimitive() || m.getReturnType() == String.class))
-                        try { saved.setProperty(m.getName().substring(m.getName().startsWith("is") ? 2 : 3), String.valueOf(m.invoke(o))); } catch (ReflectiveOperationException ignored) { }
-                var file = persistFile(o.getClass());
-                file.getParentFile().mkdirs();
-                try (var out = new FileWriter(file, java.nio.charset.StandardCharsets.UTF_8)) { saved.store(out, "Faro"); }
-                catch (IOException e) { System.err.println("Faro: couldn't save " + file + ": " + e.getMessage()); }
-            }
+            save(o);
             if (o instanceof AutoCloseable closeable) try { closeable.close(); } catch (Exception ignored) { }
+        }
+    }
+
+    private static void save(Object o) {
+        var lifetime = o.getClass().getAnnotation(FaroLifetime.class);
+        if (lifetime != null && lifetime.persistent()) {
+            var saved = new Properties();
+            for (var m : o.getClass().getMethods())
+                if ((m.getName().startsWith("get") || m.getName().startsWith("is") && m.getReturnType() == boolean.class) && m.getParameterCount() == 0
+                    && m.getDeclaringClass() != Object.class && (m.getReturnType().isPrimitive() || m.getReturnType() == String.class))
+                    try { saved.setProperty(m.getName().substring(m.getName().startsWith("is") ? 2 : 3), String.valueOf(m.invoke(o))); } catch (ReflectiveOperationException ignored) { }
+            var file = persistFile(o.getClass());
+            file.getParentFile().mkdirs();
+            try (var out = new FileWriter(file, java.nio.charset.StandardCharsets.UTF_8)) { saved.store(out, "Faro"); }
+            catch (IOException e) { System.err.println("Faro: couldn't save " + file + ": " + e.getMessage()); }
         }
     }
 

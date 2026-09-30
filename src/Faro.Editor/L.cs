@@ -255,6 +255,7 @@ public static class L
         ["Can't load the font catalog (only the project's fonts are shown): {0}"] = "フォントの一覧を読み込めません(プロジェクト内のフォントだけ表示します): {0}",
         ["{0} has no {1} style."] = "{0} には太さ {1} がありません。", ["The font file is too large."] = "フォントのファイルが大きすぎます。",
         ["The download is not a font file."] = "ダウンロードしたものがフォントのファイルではありません。",
+        ["A list has no events: bind the row's {0}/{1} instead."] = "リスト自体にはイベントがありません。行の {0}/{1} に紐付けてください。",
         ["Start"] = "始める", ["Dark"] = "ダーク", ["Light"] = "ライト", ["System"] = "システムに合わせる",
     };
 }

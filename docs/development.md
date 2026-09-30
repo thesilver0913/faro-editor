@@ -228,7 +228,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - サイジングは軸ごと: `widthSizing` / `heightSizing`(`Fill`/`Hug`/`Fixed`)。`sizing` は両軸共通の省略形、未指定は `Hug`。`Fixed` は `width` / `height` 属性で値を指定
 - `UI/` の各XMLはルートが `<UIGraph>` か `<ComponentDef>` のどちらか1つ
 - インスタンスはマスターのスナップショット(`<Node>`)を内部に保持し、エディターの「Sync components」を押すまで更新されない
-- 生存期間・永続化はC#属性で指定: `[FaroLifetime(Lifetime.Singleton, Persistent = true)]`(未指定はScreenScoped)。永続化データは `ApplicationData/Faro/<アプリ名>/<クラス名>.json`
+- 生存期間・永続化はC#属性で指定: `[FaroLifetime(Lifetime.Singleton, Persistent = true)]`(未指定はScreenScoped)。永続化データは `ApplicationData/Faro/<アプリ名>/<クラス名>.json`(Navigate のたびに Singleton も保存するので、エディターの Stop で強制終了しても直前の画面遷移までは残る。C#・Java とも)
 - `Navigate:Screen.Detail` の `Screen.` は省略可能な接頭辞で、UIGraphの `id="Detail"` を指す
 - `Container.Grid` は行・列のトラックを持つグリッド(CSS grid 相当):`columns="Auto, *, 2*, 120px"`(数だけなら `"3"` で3等分)、`rows` も同様(省略時は必要な数の Auto 行)。子は `row`/`column`(0始まり)と `rowSpan`/`columnSpan` で置き、指定のない子は空いたセルを左上から順に埋める。セル内の揃えは Fill で伸ばすか、`alignment`/`alignSelf`
 - **絶対座標を使わないレイアウトの追加オプション**(Figma の Auto Layout／Constraints、Android の ConstraintLayout・Box、CSS flexbox に相当):

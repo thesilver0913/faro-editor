@@ -132,6 +132,7 @@ public static class FaroApp
             return;
         }
         Release(screenScoped.Values);
+        foreach (var o in singletons.Values) Save(o); // also when the app is killed later (the editor's Stop)
         screenScoped = [];
         Parameter = parameter;
         Show(screenId, graph);

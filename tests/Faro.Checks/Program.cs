@@ -32,6 +32,17 @@ Check(issues.Count == 2, "two broken bindings found");
 project.Binds.First().SetAttributeValue("nodeId", "price");
 Check(BindingCheck.Check(project, registry).Any(i => i.Message.StartsWith("Node 'price' does not exist")), "snapshot-internal ids are not screen nodes");
 
+// A list (repeatable instance) has no events of its own: a tap goes on its row root, and the check says so
+project = FaroProject.Load(root);
+project.Binds.First(b => (string?)b.Attribute("nodeId") == "orderList/root").SetAttributeValue("nodeId", "orderList");
+Check(BindingCheck.Check(project, registry).Any(i => i.NodeId == "orderList" && i.Message.Contains("orderList/root")), "an event on a list points to its row root");
+// The canvas's Script preview with a bin/ folder but no build yet: "not built", not a crash
+var emptyBuild = Directory.CreateTempSubdirectory("faro-nobuild").FullName;
+Directory.CreateDirectory(Path.Combine(emptyBuild, "bin", "Debug"));
+File.WriteAllText(Path.Combine(emptyBuild, "App.csproj"), "<Project />");
+Check(ScriptPreview.LatestBuild(emptyBuild) is null, "Script preview before the first build");
+Directory.Delete(emptyBuild, recursive: true);
+
 // Bindings are per screen (Bindings/<ScreenId>.xml): the same node id on another screen is not affected.
 project = FaroProject.Load(root);
 Check(project.BindsFor("MainScreen").Any(b => (string?)b.Attribute("nodeId") == "btn1") && !project.BindsFor("Detail").Any(b => (string?)b.Attribute("nodeId") == "btn1"), "binds belong to their screen's file");

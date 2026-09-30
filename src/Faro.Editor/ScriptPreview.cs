@@ -22,7 +22,7 @@ public static class ScriptPreview
         var bin = Path.Combine(root, "bin");
         return !Directory.Exists(bin) ? default
             : Directory.EnumerateFiles(root, "*.csproj").SelectMany(p => Directory.EnumerateFiles(bin, Path.GetFileNameWithoutExtension(p) + ".dll", SearchOption.AllDirectories))
-                .Select(dll => (dll, File.GetLastWriteTimeUtc(dll))).MaxBy(d => d.Item2);
+                .Select(dll => (dll, File.GetLastWriteTimeUtc(dll))).DefaultIfEmpty().MaxBy(d => d.Item2); // bin/ without a build yet: none
     }
 
     /// <summary>The newest built project dll (the debugger launches it), or null before the first build.</summary>

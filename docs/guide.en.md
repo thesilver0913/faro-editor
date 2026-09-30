@@ -167,7 +167,7 @@ Put your classes in `Source/`. Write them yourself, or ask the Console's **AI Ch
 
 - C#: inherit from `FaroObject` so changes to values reach the screen
 - Java: inherit from `FaroObject` and call `changed("PropertyName")` after a change
-- An attribute decides how long an object lives (by default `ScreenScoped`, one per screen; one for the whole app is `[FaroLifetime(Lifetime.Singleton)]`; add `Persistent = true` to save it)
+- An attribute decides how long an object lives (by default `ScreenScoped`, one per screen; one for the whole app is `[FaroLifetime(Lifetime.Singleton)]`; add `Persistent = true` to save it, on every screen change and on exit)
 
 ### Add a binding
 
@@ -178,7 +178,7 @@ Select a node and add a binding under **Bindings** at the bottom of the inspecto
 - **Events** (`Click`, `Changed`): call a method when it happens. `Navigate:Screen.Detail` moves to another screen
 - **Properties** (`Text`, `Checked`, `Value`, `Selected`, `Visible`, `Enabled`…): show a value (`OneWay`) or also write input back (`TwoWay`). A `Select`'s choices can also come from a list bound to `Options`
 - **Format**: add a display format like `¥{0:N0}` (`{0:N0}` thousands separators, `{0:F2}` two decimals)
-- **Lists**: bind `Items` on a repeatable instance and it shows one row per item. Nodes inside the row bind to the row's item (for example `Order.Name`)
+- **Lists**: bind `Items` on a repeatable instance and it shows one row per item. Nodes inside the row bind to the row's item (for example `Order.Name`). A tap on a row goes on the row's root (`Click` on `orderList/root`), not on the list itself; the method gets that row's item
 - **Selecting a row**: bind the row container's `Click` to a method with one parameter (`Open(Order order)`) and it gets the clicked row's item
 - **Passing a value to a screen**: call `FaroApp.Navigate("Detail", order)` in code. The target screen's bindings use that value
 

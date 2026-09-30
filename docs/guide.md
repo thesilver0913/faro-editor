@@ -167,7 +167,7 @@ Faro は画面からコードを生成しません。画面の部品を、コー
 
 - C#:`FaroObject` を継承すると、値の変化が画面に伝わります
 - Java:`FaroObject` を継承し、変えたら `changed("プロパティ名")` を呼びます
-- クラスの生き方は属性で決めます(既定は画面ごとに作られる `ScreenScoped`。アプリで 1 つなら `[FaroLifetime(Lifetime.Singleton)]`、保存するなら `Persistent = true`)
+- クラスの生き方は属性で決めます(既定は画面ごとに作られる `ScreenScoped`。アプリで 1 つなら `[FaroLifetime(Lifetime.Singleton)]`、保存するなら `Persistent = true`。画面を移るたびと終了時に保存します)
 
 ### 紐付けを追加する
 
@@ -178,7 +178,7 @@ Node を選び、インスペクター下の「紐付け」で追加します。
 - **イベント**(`Click`、`Changed`):押されたらメソッドを呼ぶ。`Navigate:Screen.Detail` で画面遷移
 - **プロパティ**(`Text`、`Checked`、`Value`、`Selected`、`Visible`、`Enabled`…):値を表示する(`OneWay`)/ 入力を書き戻す(`TwoWay`)。`Select` の選択肢は `Options` に一覧を紐付けても変えられます
 - **書式**:`¥{0:N0}` のように表示形式を付けられます(`{0:N0}` 3 桁区切り、`{0:F2}` 小数 2 桁)
-- **リスト**:繰り返しのインスタンスに `Items` を紐付けると、一覧のデータの数だけ行が並びます。行の中の Node は、行のデータ(例:`Order.Name`)に紐付けます
+- **リスト**:繰り返しのインスタンスに `Items` を紐付けると、一覧のデータの数だけ行が並びます。行の中の Node は、行のデータ(例:`Order.Name`)に紐付けます。行をタップしたときの処理は、リスト自体ではなく行の根元(`orderList/root` の `Click`)に付けます(メソッドの引数にその行のデータが来ます)
 - **行の選択**:行(コンテナ)の `Click` に、引数 1 つのメソッド(`Open(Order order)`)を紐付けると、押した行のデータが渡ります
 - **画面に値を渡す**:コードから `FaroApp.Navigate("Detail", order)`。遷移先の紐付けがその値を使います
 

@@ -214,7 +214,10 @@ public sealed class InspectorView : UserControl
         // An instance also lists the bindings of its inner nodes ("orderList/price").
         foreach (var bind in project.BindsFor(CanvasView.CurrentScreen!).Where(b => (string?)b.Attribute("nodeId") is { } n && (n == id || n.StartsWith(id + "/"))).ToList())
             body.Children.Add(BindRow(bind));
-        body.Children.Add(AddBindRow(id, [id, .. InnerPaths(node, id)], (string?)node.Attribute("repeatable") == "true"));
+        var list = (string?)node.Attribute("repeatable") == "true";
+        // A list's own id is the list (Items); its rows' taps go on the row root, so that path is offered too.
+        var rowRoot = list && node.Element("Node")?.Attribute("id") is { } root ? [$"{id}/{root.Value}"] : Array.Empty<string>();
+        body.Children.Add(AddBindRow(id, [id, .. rowRoot, .. InnerPaths(node, id)], list));
         GroupSections();
     }
 
@@ -448,7 +451,7 @@ public sealed class InspectorView : UserControl
             // Framework-neutral names only (Faro.Runtime.Bindable), so binding files don't depend on Avalonia.
             var bindable = CanvasView.ControlOf((string)at.SelectedItem!) is { } control ? Faro.Runtime.Bindable.For(control) : null;
             var names = (kind.SelectedIndex == 0 ? bindable?.Events.Keys.ToArray() : bindable?.Props.Keys.ToArray()) ?? [];
-            if (list && kind.SelectedIndex == 1 && (string)at.SelectedItem! == id) names = ["Items", .. names]; // a list's rows: one per item
+            if (list && (string)at.SelectedItem! == id) names = kind.SelectedIndex == 1 ? ["Items", .. names] : []; // a list's rows: one per item; taps go on a row
             name.ItemsSource = names;
             name.PlaceholderText = names.FirstOrDefault() ?? "";
         }

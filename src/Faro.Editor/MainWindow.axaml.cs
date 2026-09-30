@@ -87,7 +87,23 @@ public partial class MainWindow : Window
     Dictionary<string, double> Proportions() => Dock.Layout is null ? [] : Dockables(Dock.Layout)
         .Where(d => d.Id is not null && !double.IsNaN(d.Proportion)).GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First().Proportion);
 
-    void ResetLayout(object? sender, RoutedEventArgs e) => ApplyProportions(defaultProportions);
+    Dictionary<string, Dock.Model.Core.IDock> homes = []; // each pane's dock as laid out in MainWindow.axaml
+    Dictionary<Dock.Model.Core.IDock, Dock.Model.Core.IDockable> homeTabs = []; // and each one's first tab (shown again)
+
+    /// <summary>Panes moved or floated go back to their dock, empty floating windows close, then the default sizes.</summary>
+    void ResetLayout(object? sender, RoutedEventArgs e)
+    {
+        if (Dock.Factory is { } factory && Dock.Layout is Dock.Model.Controls.IRootDock root)
+        {
+            var floating = root.Windows?.ToList() ?? [];
+            foreach (var pane in floating.Select(w => w.Layout).OfType<Dock.Model.Core.IDockable>().Prepend(root).SelectMany(Dockables).ToList())
+                if (pane.Id is { } id && homes.TryGetValue(id, out var home) && pane.Owner != home && pane.Owner is Dock.Model.Core.IDock from)
+                    factory.MoveDockable(from, home, pane, null);
+            foreach (var window in floating) factory.CloseWindow(window);
+            foreach (var (dock, active) in homeTabs) factory.SetActiveDockable(active);
+        }
+        ApplyProportions(defaultProportions);
+    }
 
     void RestoreLayout()
     {
@@ -97,6 +113,9 @@ public partial class MainWindow : Window
         Opened += (_, _) =>
         {
             defaultProportions = Proportions(); // as laid out in MainWindow.axaml
+            homes = Dock.Layout is null ? [] : Dockables(Dock.Layout).Where(d => d is Dock.Model.Controls.ITool && d.Id is not null && d.Owner is Dock.Model.Core.IDock)
+                .ToDictionary(d => d.Id!, d => (Dock.Model.Core.IDock)d.Owner!);
+            homeTabs = homes.Values.Distinct().Where(d => d.VisibleDockables is [_, ..]).ToDictionary(d => d, d => d.VisibleDockables![0]);
             ApplyProportions(settings.PaneProportions);
         };
     }
