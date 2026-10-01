@@ -126,7 +126,7 @@ jobs:
           gh release list --repo $env:GITHUB_REPOSITORY --limit 30 --json tagName -q '.[].tagName' | Where-Object { $_ -like 'v*' } | ForEach-Object { $_.Substring(1) } | Set-Content "$list\versions.txt"
           $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '-d', $list -PassThru
           Start-Sleep 2
-          $setup = Start-Process dist\Faro-Setup.exe -ArgumentList '/LANG=ja', '/FAROLIST=http://localhost:8765/versions.txt', "/DIR=$env:RUNNER_TEMP\FaroShots" -PassThru
+          $setup = Start-Process dist\Faro-Setup.exe -ArgumentList '/LANG=ja', '/FAROLIST=http://localhost:8765/versions.txt' -PassThru
           $root = [System.Windows.Automation.AutomationElement]::RootElement
           $all = [System.Windows.Automation.TreeScope]::Descendants
           function Window { for ($i = 0; $i -lt 60; $i++) { Start-Sleep 1; $w = $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ProcessId -ne 0 -and (Get-Process -Id $_.Current.ProcessId -ErrorAction SilentlyContinue).Name -like 'Faro-Setup*' } | Select-Object -First 1; if ($w) { return $w } } }
@@ -143,7 +143,8 @@ jobs:
             if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select() } else { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
           }
           try {
-            Shot 1-privileges; Click '現在のユーザー|自分'
+            Shot 1-privileges; Stop-Process -Name Faro-Setup* # its "install for" choice: a task dialog, which UI Automation can't click
+            $setup = Start-Process dist\Faro-Setup.exe -ArgumentList '/LANG=ja', '/CURRENTUSER', '/FAROLIST=http://localhost:8765/versions.txt', "/DIR=$env:RUNNER_TEMP\FaroShots" -PassThru
             Shot 2-license; Click '^同意する'; Click '^次へ'
             Shot 3-version; Click '^他のバージョン'
             Shot 4-other-versions; Click '^次へ'
