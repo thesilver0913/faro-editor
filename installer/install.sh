@@ -53,6 +53,7 @@ case $(uname -s) in
     [[ $(uname -m) == arm64 ]] && rid=osx-arm64 || rid=osx-x64
     f=$file-$version-$rid.pkg
     get "$f"
+    sudo rm -rf "/Applications/$name.app" # a .pkg "upgrades" over the app, leaving a newer version's files behind when going back
     sudo installer -pkg "$tmp/$f" -target /
     say "Installed: /Applications/$name.app" "インストールしました: /Applications/$name.app" ;;
   Linux)

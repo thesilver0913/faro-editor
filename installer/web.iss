@@ -3,7 +3,8 @@
 ; full Setup (faro.iss) and runs it silently with the choices made here; that Setup then starts Faro.
 ; The version list is versions.txt, which release.yml keeps on the latest release next to this Faro-Setup.exe
 ; (no GitHub API calls, so no rate limit). Built by release.yml:  iscc /DRepo=owner/name installer\web.iss
-; /FAROVERSION=1.0.0 skips the list (the workflow's smoke test); /DIR= is passed on to the full Setup.
+; /FAROVERSION=1.0.0 skips the list (the workflow's smoke test), /FAROLIST=<url> reads it from elsewhere (its screenshots);
+; /DIR= is passed on to the full Setup.
 #ifndef Repo
   #define Repo "thesilver0913/faro-editor"
 #endif
@@ -76,7 +77,7 @@ begin
     Versions.Add(Requested)
   else
     try
-      DownloadTemporaryFile('https://github.com/{#Repo}/releases/latest/download/versions.txt', 'versions.txt', '', nil);
+      DownloadTemporaryFile(ExpandConstant('{param:FAROLIST|https://github.com/{#Repo}/releases/latest/download/versions.txt}'), 'versions.txt', '', nil);
       Versions.LoadFromFile(ExpandConstant('{tmp}\versions.txt'));
     except
       SuppressibleMsgBox(FmtMessage(CustomMessage('NoList'), [GetExceptionMessage]), mbError, MB_OK, IDOK);
