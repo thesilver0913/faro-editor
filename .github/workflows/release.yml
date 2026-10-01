@@ -135,12 +135,13 @@ jobs:
             $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
             [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size); $bmp.Save("$shots\$name.png")
           }
-          function Click($like) {
+          Add-Type -Namespace W -Name M -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y); [DllImport("user32.dll")] public static extern void mouse_event(int f, int x, int y, int d, int e);'
+          function Click($like) { # a real mouse click on the control's middle (Inno's controls don't offer UI Automation's click)
             $es = (Window).FindAll($all, [System.Windows.Automation.Condition]::TrueCondition)
-            $e = $es | Where-Object { $_.Current.Name -match $like -and ($_.GetSupportedPatterns() | Where-Object { $_.ProgrammaticName -match 'Invoke|SelectionItem' }) } | Select-Object -First 1
+            $e = $es | Where-Object { $_.Current.Name -match $like } | Select-Object -Last 1
             if (-not $e) { $es | ForEach-Object { $_.Current.Name }; throw "no '$like'" }
-            $p = $null
-            if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select() } else { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+            $r = $e.Current.BoundingRectangle
+            [W.M]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); [W.M]::mouse_event(2, 0, 0, 0, 0); [W.M]::mouse_event(4, 0, 0, 0, 0)
           }
           try {
             Shot 1-privileges; Stop-Process -Name Faro-Setup* # its "install for" choice: a task dialog, which UI Automation can't click
