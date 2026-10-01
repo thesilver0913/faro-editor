@@ -77,6 +77,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & $iscc "/DRepo=$env:GITHUB_REPOSITORY" installer\web.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Faro Canary's Setup is only made on canary pushes: other runs compile it too (thrown away), so a mistake shows before the merge
+          if (-not $env:EDITION) { & $iscc /DAppVersion=$env:VERSION /DSourceDir=..\publish\win-x64 /DCanary /DBuild=0 "/O$env:RUNNER_TEMP\canary-check" installer\faro.iss; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
       - name: Archive
         if: matrix.rid == 'linux-x64'
         run: |
