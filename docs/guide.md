@@ -15,6 +15,7 @@ Faro は、アプリの画面を Figma のように描き、その部品をコ�
 | OS | ファイル | 補足 |
 |---|---|---|
 | Windows | [`Faro-Setup.exe`](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe) | 小さなインストーラーで、そのとき最新の Faro をダウンロードして入れます。「他のバージョン…」でベータ版や前の版も選べます。.NET 10 SDK がなければ入れます。Program Files に入れるときは、最初の画面で「すべてのユーザー用にインストール」を選びます(版ごとの `Faro-<版>-win-x64-setup.exe` も Releases にあります) |
+| Linux / macOS | 端末で `curl -fsSL https://github.com/thesilver0913/faro-editor/releases/latest/download/install.sh \| bash` | Web インストーラーと同じく最新の正式版を入れます。Enter で開始、`o` で他のバージョン(ベータ版や前の版)を番号で選べます。Linux は apt があれば .deb、なければ(または `--user` で)`~/.local` に入れます。macOS は Mac に合う .pkg を入れます(この方法なら初回の「開く」の確認もいりません)。Faro Canary は `\| bash -s -- --canary` |
 | Linux | `Faro-<版>-linux-x64.deb` / `.tar.gz` | .deb は `sudo apt install ./Faro-….deb`。.NET 10 SDK がなければ入れます |
 | macOS | `Faro-<版>-osx-arm64.pkg`(Apple シリコン)/ `osx-x64.pkg`(Intel) | 公証していないため、初回は右クリック › 開く |
 

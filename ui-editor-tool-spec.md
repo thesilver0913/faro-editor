@@ -331,7 +331,7 @@ Unityのように、パネル(キャンバス・コードエディタ・チャ�
 - **画面の切り替えとアニメーション**:画面遷移に Slide(既定)・Fade・None の動きを付け(紐付けごと・`faro.json` の既定・コードの引数)、`FaroApp.Back()` で来た動きを逆向きに戻る。Node の `animate` で色の変化を滑らかにし、表示でフェードインする。キャンバスのプレビューと画面の流れにも出る
 - **コメント(レビュー)**:Node や画面にコメントを付け、返信・解決できる。`Comments/<画面ID>.xml` に保存して Git で共有する(同時編集はしない)。キャンバスのピンと Console の Comments タブ
 - **素材**:アイコンを Material Symbols(約 4,300)からオンラインで必要な分だけ取り込む(`Assets/Icons/`、フォントと同じ仕組み)。新しい画面をテンプレート(ログイン・一覧・詳細・設定・フォーム・空の状態)から作れる
-- **配布**:Windows は最新版を取ってくる Web インストーラー(「他のバージョン…」で選べる)。開発版は別アプリの Faro Canary として、canary へのマージのたびに公開する
+- **配布**:Windows は最新版を取ってくる Web インストーラー(「他のバージョン…」で選べる)、Linux・macOS は同じ動きのインストールスクリプト(`curl … | bash`)。開発版は別アプリの Faro Canary として、canary へのマージのたびに公開する
 - **オンラインのフォント**:インスペクターのフォント欄から、公開フォント(Fontsource の一覧、Google Fonts など)を検索・見本表示して選ぶと、選んだ太さの TTF をダウンロードしてプロジェクトの `Assets/Fonts/` にライセンスと一緒に置く。エディターには同梱しない。ランタイム(C#・Java)は `Assets/Fonts` のフォントを `fontFamily` の名前で使う
 - **Java(JavaFX)プロジェクト**:新規作成時に C# か Java を選ぶ。Java 版ランタイムバインダー(`src/Faro.Runtime.Java`)をソースのまま `.faro/runtime-java` に同梱し、Maven(`mvn javafx:run`)でアプリと一緒にビルドする。紐付けの `target` は `パッケージ.クラス.メンバー`(メンバーは public メソッドか、getName()/isName() を持つ Bean プロパティ `name`)。Material 3 は JavaFX 用 CSS(`.faro/design.css`)をエディターが生成する
 - **レイヤー・パーツ・プレビュー**:Node の木(選択連動・ドラッグで並べ替え)、パーツのパレット(クリックかドラッグで追加)、選択 Node のサイズ変更ハンドル、キャンバス内プレビュー(入力・クリック・Navigate)

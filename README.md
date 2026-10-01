@@ -11,7 +11,7 @@ Figma のように画面を描き、ボタンや一覧をコードのクラス�
 
 ## はじめる
 
-1. Windows は [Faro-Setup.exe](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe)(最新版を取ってきて入れます)、macOS / Linux は [Releases](https://github.com/thesilver0913/faro-editor/releases) からお使いの OS のインストーラーを入れます
+1. Windows は [Faro-Setup.exe](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe)(最新版を取ってきて入れます)、macOS / Linux は端末で `curl -fsSL https://github.com/thesilver0913/faro-editor/releases/latest/download/install.sh | bash`(同じく最新版。`o` で他のバージョン)
 2. 起動して「新規プロジェクト…」から **Sample** を選ぶと、画面・部品・紐付けの入った見本が開きます
 3. あとは [はじめてガイド](docs/guide.md) に沿って、画面の作り方、コードとの紐付け、実行とデバッグまでを順に試せます
 
@@ -60,7 +60,7 @@ dotnet run --project tests/Faro.Checks                      # セルフチェッ
 
 **A visual UI editor: draw your app's screens and bind them to your C# or Java code.** Lay out screens like in Figma, bind buttons and lists to your classes and methods, and it runs as a real app (Avalonia for C#, JavaFX for Java).
 
-- **Get started**: install Faro ([Faro-Setup.exe](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe) on Windows, which fetches the newest version; macOS and Linux from [Releases](https://github.com/thesilver0913/faro-editor/releases)), create a new project from the **Sample** template, and follow the [Getting Started guide](docs/guide.en.md).
+- **Get started**: install Faro ([Faro-Setup.exe](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe) on Windows, which fetches the newest version; on macOS and Linux `curl -fsSL https://github.com/thesilver0913/faro-editor/releases/latest/download/install.sh | bash`, which does the same), create a new project from the **Sample** template, and follow the [Getting Started guide](docs/guide.en.md).
 - **Features**: layout without absolute positions, components and variants, tokens, Fluent / Material 3; bindings for events, text, lists, row selection and navigation with broken-binding hints; preview with live data, side-by-side sizes and themes, run with hot reload (C#), debugger; AI chat (Claude or OpenAI-compatible); code editor with completion, Git, Android APKs, English / Japanese UI.
 - **Requirements**: .NET 10 SDK for C# projects; JDK 21 and Maven for Java projects (installable from Preferences › Tools); `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` for AI chat. The installers aren't signed yet.
 - **Build from source**: `dotnet run --project src/Faro.Editor`.

@@ -15,6 +15,7 @@ Download the file for your OS from [GitHub Releases](https://github.com/thesilve
 | OS | File | Notes |
 |---|---|---|
 | Windows | [`Faro-Setup.exe`](https://github.com/thesilver0913/faro-editor/releases/latest/download/Faro-Setup.exe) | A small installer that downloads the newest Faro as it installs; "Other versions…" picks a beta or an earlier one. It installs the .NET 10 SDK if missing. To install into Program Files, choose "Install for all users" on the first page (each version's `Faro-<version>-win-x64-setup.exe` is on Releases too) |
+| Linux / macOS | In a terminal: `curl -fsSL https://github.com/thesilver0913/faro-editor/releases/latest/download/install.sh \| bash` | Like the web installer, it installs the newest release: Enter to go on, `o` to pick another version (a beta or an earlier one) by number. On Linux it installs the .deb where there is apt, otherwise (or with `--user`) into `~/.local`; on macOS, the .pkg for your Mac (no "Open anyway" step this way). Faro Canary: `\| bash -s -- --canary` |
 | Linux | `Faro-<version>-linux-x64.deb` / `.tar.gz` | For the .deb: `sudo apt install ./Faro-….deb`. It installs the .NET 10 SDK if missing |
 | macOS | `Faro-<version>-osx-arm64.pkg` (Apple silicon) / `osx-x64.pkg` (Intel) | Not notarized: the first time, right-click › Open |
 
