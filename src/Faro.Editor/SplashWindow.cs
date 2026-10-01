@@ -21,7 +21,7 @@ public sealed class SplashWindow : Window
         CanResize = false;
         WindowDecorations = WindowDecorations.None;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Title = "Faro";
+        Title = App.Name;
         Content = new Grid
         {
             Children =
@@ -30,7 +30,7 @@ public sealed class SplashWindow : Window
                 // The version under the "Faro" wordmark of the artwork, in Inter (OFL, bundled).
                 new TextBlock
                 {
-                    Text = App.Version,
+                    Text = App.IsCanary ? $"Canary · {App.DisplayVersion}" : App.Version,
                     FontFamily = new FontFamily("avares://Faro.Editor/Assets/Fonts#Inter"),
                     FontSize = 22,
                     Foreground = new SolidColorBrush(Color.Parse("#7A7C80")),

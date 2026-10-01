@@ -27,7 +27,7 @@ public sealed class FaroSettings
 
     public string Language { get; set; } = "en"; // "en" or "ja" (L.T)
     public bool SetupDone { get; set; } // the first-run wizard ran
-    public string UpdateChannel { get; set; } = "Stable"; // Stable / Beta / Canary (Updates)
+    public string UpdateChannel { get; set; } = "Stable"; // Stable / Beta (Updates; Faro Canary ignores it)
     public bool CheckUpdatesOnStart { get; set; } = true;
     public DateTime LastUpdateCheck { get; set; }
     public DateTime CrashesSeen { get; set; } // newer crash reports are offered at the next start
@@ -48,7 +48,7 @@ public sealed class FaroSettings
 
     /// <summary>FARO_SETTINGS overrides the location (the self-checks use a scratch file, never the user's settings).</summary>
     public static string FilePath => Environment.GetEnvironmentVariable("FARO_SETTINGS")
-        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Faro", "settings.json");
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), App.Name, "settings.json"); // Faro Canary keeps its own
 
     public static FaroSettings Current { get; } = Load();
 

@@ -1,22 +1,35 @@
 ; Windows installer (Inno Setup 6). Built by .github/workflows/release.yml:
 ;   iscc /DAppVersion=0.2.4 /DSourceDir=<dotnet publish output> installer\faro.iss
-; Updates run the newer Setup with /SILENT; it replaces the files in place and starts Faro again.
+;   Faro Canary (its own app, next to Faro): add /DCanary /DBuild=<run number>
+; Updates run the newer Setup with /SILENT; it replaces the files in place and starts Faro again. The usual download
+; is the small web installer (web.iss), which fetches this Setup for the version chosen.
 #ifndef AppVersion
   #define AppVersion "0.0.0-dev"
+#endif
+#ifdef Canary
+  #define AppName "Faro Canary"
+  #define AppGuid "{{836AAA93-9895-4499-86B0-10F62B841C7F}"
+  #define AppIcon "..\assets\faro-canary.ico"
+  #define SetupName "FaroCanary-" + AppVersion + "-build" + Build
+#else
+  #define AppName "Faro"
+  #define AppGuid "{{6B64228E-85D8-4767-A012-92DAB33F27CC}"
+  #define AppIcon "..\assets\faro.ico"
+  #define SetupName "Faro-" + AppVersion
 #endif
 #ifndef SourceDir
   #define SourceDir "..\publish\win-x64"
 #endif
 
 [Setup]
-AppId={{6B64228E-85D8-4767-A012-92DAB33F27CC}
-AppName=Faro
+AppId={#AppGuid}
+AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=Faro
 AppPublisherURL=https://github.com/thesilver0913/faro-editor
 AppUpdatesURL=https://github.com/thesilver0913/faro-editor/releases
-DefaultDirName={autopf}\Faro
-DefaultGroupName=Faro
+DefaultDirName={autopf}\{#AppName}
+DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 ; Per-user by default (no admin prompt, updates install silently); the dialog offers "all users" too.
 PrivilegesRequired=lowest
@@ -25,11 +38,11 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 LicenseFile=..\LICENSE
 InfoBeforeFile=requirements.txt
-SetupIconFile=..\assets\faro.ico
+SetupIconFile={#AppIcon}
 UninstallDisplayIcon={app}\Faro.Editor.exe
 CloseApplications=yes
 OutputDir=..\dist
-OutputBaseFilename=Faro-{#AppVersion}-win-x64-setup
+OutputBaseFilename={#SetupName}-win-x64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -107,9 +120,9 @@ begin
 end;
 
 [Icons]
-Name: "{group}\Faro"; Filename: "{app}\Faro.Editor.exe"
-Name: "{autodesktop}\Faro"; Filename: "{app}\Faro.Editor.exe"; Tasks: desktopicon
+Name: "{group}\{#AppName}"; Filename: "{app}\Faro.Editor.exe"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Faro.Editor.exe"; Tasks: desktopicon
 
 [Run]
 ; No skipifsilent: after a silent update Faro starts again by itself.
-Filename: "{app}\Faro.Editor.exe"; Description: "{cm:LaunchProgram,Faro}"; Flags: nowait postinstall
+Filename: "{app}\Faro.Editor.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall

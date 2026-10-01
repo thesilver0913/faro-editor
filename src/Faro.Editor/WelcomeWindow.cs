@@ -38,8 +38,8 @@ public sealed class WelcomeWindow : Window
             Children =
             {
                 new Image { Source = new Bitmap(AssetLoader.Open(new Uri("avares://Faro.Editor/Assets/faro-icon.png"))), Width = 88, Height = 88, HorizontalAlignment = HorizontalAlignment.Left },
-                new TextBlock { Text = L.T("Faro"), FontSize = 30, FontWeight = FontWeight.SemiBold },
-                new TextBlock { Text = App.Version, Opacity = 0.6, Margin = new(0, -8, 0, 16) },
+                new TextBlock { Text = App.Name, FontSize = 30, FontWeight = FontWeight.SemiBold },
+                new TextBlock { Text = App.DisplayVersion, Opacity = 0.6, Margin = new(0, -8, 0, 16) },
                 create,
                 open,
             },

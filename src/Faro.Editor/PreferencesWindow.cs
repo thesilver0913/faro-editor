@@ -49,10 +49,10 @@ public sealed class PreferencesWindow : Window
         return box;
     }
 
-    /// <summary>Update channel (Stable = main, Beta, Canary), the startup check, and a manual check.</summary>
+    /// <summary>Update channel (Stable = main, Beta; Faro Canary follows the canary builds), the startup check, and a manual check.</summary>
     Control UpdatesPage()
     {
-        var channel = new ComboBox { ItemsSource = Updates.Channels.Select(L.T).ToArray(), SelectedIndex = Math.Max(Array.IndexOf(Updates.Channels, settings.UpdateChannel), 0), MinWidth = 160 };
+        var channel = new ComboBox { ItemsSource = Updates.Channels.Select(L.T).ToArray(), SelectedIndex = Array.IndexOf(Updates.Channels, Updates.Channel), MinWidth = 160, IsVisible = !App.IsCanary };
         channel.SelectionChanged += (_, _) => { settings.UpdateChannel = Updates.Channels[channel.SelectedIndex]; settings.Save(); };
         var onStart = new CheckBox { Content = L.T("Check for updates at startup (daily)"), IsChecked = settings.CheckUpdatesOnStart };
         onStart.IsCheckedChanged += (_, _) => { settings.CheckUpdatesOnStart = onStart.IsChecked == true; settings.Save(); };
@@ -60,9 +60,10 @@ public sealed class PreferencesWindow : Window
         now.Click += (_, _) => Updates.Offer(this, manual: true);
         return Page(
             new TextBlock { Text = L.T("Update channel"), FontWeight = FontWeight.SemiBold }, channel,
-            new TextBlock { Text = L.T("Stable: releases. Beta: previews of the next release. Canary: the latest development builds."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
+            new TextBlock { Text = App.IsCanary ? L.T("Faro Canary updates to the newest development build (one is made from every change merged into canary). It keeps its own settings, next to Faro.")
+                : L.T("Stable: releases. Beta: previews of the next release. For the latest development builds, install Faro Canary (a separate app) from the releases page."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
             onStart, now,
-            new TextBlock { Text = L.F("Current version: {0}. Releases come from github.com/{1}; the check only reads public release data.", App.Version, Updates.Repository), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
+            new TextBlock { Text = L.F("Current version: {0}. Releases come from github.com/{1}; the check only reads public release data.", App.DisplayVersion, Updates.Repository), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
     }
 
     /// <summary>On-demand tools (JDK, Maven, GraalVM, Android workload): status and an Install button each; the last output line below.</summary>

@@ -583,7 +583,14 @@ var releases = Updates.Parse("""
 """);
 Check(releases.Count == 3 && releases[1] is { Version: "0.2.9-beta.1", WindowsSetup: "https://x/setup.exe", LinuxArchive: "https://x/l.tar.gz" }, "releases parsed, drafts skipped");
 Check(Updates.Newest(releases, "0.2.4", "Stable")?.Version == "0.2.8" && Updates.Newest(releases, "0.2.4", "Beta")?.Version == "0.2.9-beta.1"
-    && Updates.Newest(releases, "0.2.4", "Canary")?.Version == "0.3.0-canary.2" && Updates.Newest(releases, "0.2.8", "Stable") is null, "update channels");
+    && Updates.Newest(releases, "0.2.8", "Stable") is null, "update channels");
+// Faro Canary: a separate app following the "canary-N" builds; Stable and Beta never pick them, and old "Canary" settings read as Beta
+var canaryReleases = Updates.Parse("""[{"tag_name":"canary-57","name":"Faro Canary 1.0.1-beta.12 (build 57)","html_url":"c57","draft":false,"assets":[]},{"tag_name":"canary-56","html_url":"c56","draft":false,"assets":[]},{"tag_name":"v1.0.0","html_url":"s","draft":false,"assets":[]}]""");
+FaroSettings.Current.UpdateChannel = "Canary";
+Check(Updates.Newest(canaryReleases, "1.0.0", "Canary", 56) is { Version: "canary-57", Name: "Faro Canary 1.0.1-beta.12 (build 57)" } && Updates.Newest(canaryReleases, "1.0.0", "Canary", 57) is null
+    && Updates.Newest(canaryReleases, "0.9.0", "Beta")?.Version == "1.0.0" && Updates.Newest(canaryReleases, "1.0.0", "Beta") is null
+    && !App.IsCanary && App.Name == "Faro" && Updates.Channel == "Beta" && !Updates.Channels.Contains("Canary"), "Faro Canary builds are their own update track");
+FaroSettings.Current.UpdateChannel = "Stable";
 // Crash reports land in the (scratch) settings folder's logs and are offered once at the next start.
 var crash = Log.Crash(new InvalidOperationException("boom"));
 Check(crash is not null && File.ReadAllText(crash).Contains("boom") && Log.UnseenCrash() == crash, "crash report saved and offered");
