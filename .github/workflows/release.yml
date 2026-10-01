@@ -136,18 +136,24 @@ jobs:
             [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size); $bmp.Save("$shots\$name.png")
           }
           function Click($like) {
-            $e = (Window).FindAll($all, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -like $like } | Select-Object -First 1
-            if (-not $e) { throw "no '$like'" }
+            $es = (Window).FindAll($all, [System.Windows.Automation.Condition]::TrueCondition)
+            $e = $es | Where-Object { $_.Current.Name -match $like } | Select-Object -First 1
+            if (-not $e) { $es | ForEach-Object { $_.Current.Name }; throw "no '$like'" }
             $p = $null
             if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select() } else { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
           }
-          Shot 1-privileges; Click '*自分だけ*'
-          Shot 2-license; Click '同意する*'; Click '次へ*'
-          Shot 3-version; Click '他のバージョン*'
-          Shot 4-other-versions; Click '次へ*'
-          Shot 5-download
-          $setup.WaitForExit(600000) | Out-Null
-          Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue; Stop-Process $server
+          try {
+            Shot 1-privileges; Click '現在のユーザー|自分'
+            Shot 2-license; Click '^同意する'; Click '^次へ'
+            Shot 3-version; Click '^他のバージョン'
+            Shot 4-other-versions; Click '^次へ'
+            Shot 5-download
+            $setup.WaitForExit(600000) | Out-Null
+          } finally {
+            Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue; Stop-Process $server
+            # artifacts need a sign-in to download; the log carries the pictures too (base64 between the markers)
+            Get-ChildItem $shots | ForEach-Object { "SHOT $($_.BaseName) $([Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName)))" }
+          }
       - uses: actions/upload-artifact@v4
         if: matrix.rid == 'win-x64' && env.EDITION == '' && always()
         with:
