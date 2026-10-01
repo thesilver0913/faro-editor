@@ -137,7 +137,7 @@ jobs:
           }
           function Click($like) {
             $es = (Window).FindAll($all, [System.Windows.Automation.Condition]::TrueCondition)
-            $e = $es | Where-Object { $_.Current.Name -match $like } | Select-Object -First 1
+            $e = $es | Where-Object { $_.Current.Name -match $like -and $_.Current.ControlType.ProgrammaticName -match 'Button' } | Select-Object -First 1
             if (-not $e) { $es | ForEach-Object { $_.Current.Name }; throw "no '$like'" }
             $p = $null
             if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select() } else { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
