@@ -1,25 +1,27 @@
 #!/bin/bash
-# macOS installer package from an osx-* publish (run on macOS): pkg.sh VERSION RID PUBLISH_DIR OUT_DIR → OUT_DIR/Faro-VERSION-RID.pkg
-# Installs Faro.app into /Applications; when no .NET 10 SDK is installed, downloads it into /usr/local/share/dotnet (the
+# macOS installer package from an osx-* publish (run on macOS): pkg.sh VERSION RID PUBLISH_DIR OUT_DIR [Canary] → OUT_DIR/Faro-VERSION-RID.pkg
+# Installs Faro.app (Faro Canary: "Faro Canary.app", its own bundle id, beside it) into /Applications; when no .NET 10 SDK is installed, downloads it into /usr/local/share/dotnet (the
 # standard location, which Faro's launcher searches) with Microsoft's dotnet-install script.
 # Ad-hoc signed only (no Apple Developer ID, not notarized): opening the .pkg and Faro the first time needs
 # System Settings › Privacy & Security › Open Anyway.
 set -euo pipefail
 version=$1 rid=$2 publish=$3 out=$4
+if [[ "${5:-}" == Canary ]]; then name="Faro Canary" id=io.github.thesilver0913.faro.canary icon=faro-canary-icon.png file=FaroCanary
+else name=Faro id=io.github.thesilver0913.faro icon=faro-icon.png file=Faro; fi
 stage=$(mktemp -d)
-app="$stage/root/Applications/Faro.app"
+app="$stage/root/Applications/$name.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$stage/scripts"
 cp -r "$publish"/. "$app/Contents/MacOS/"
-sips -z 512 512 "$(dirname "$0")/../assets/faro-icon.png" --out "$stage/icon.png" > /dev/null
+sips -z 512 512 "$(dirname "$0")/../assets/$icon" --out "$stage/icon.png" > /dev/null
 sips -s format icns "$stage/icon.png" --out "$app/Contents/Resources/faro.icns" > /dev/null
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Faro</string>
-  <key>CFBundleDisplayName</key><string>Faro</string>
-  <key>CFBundleIdentifier</key><string>io.github.thesilver0913.faro</string>
+  <key>CFBundleName</key><string>$name</string>
+  <key>CFBundleDisplayName</key><string>$name</string>
+  <key>CFBundleIdentifier</key><string>$id</string>
   <key>CFBundleExecutable</key><string>Faro.Editor</string>
   <key>CFBundleIconFile</key><string>faro.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -45,6 +47,6 @@ exit 0
 POSTINSTALL
 chmod 755 "$stage/scripts/postinstall"
 mkdir -p "$out"
-pkgbuild --root "$stage/root" --scripts "$stage/scripts" --identifier io.github.thesilver0913.faro --version "${version%%-*}" \
-  --install-location / "$out/Faro-$version-$rid.pkg"
+pkgbuild --root "$stage/root" --scripts "$stage/scripts" --identifier "$id" --version "${version%%-*}" \
+  --install-location / "$out/$file-$version-$rid.pkg"
 rm -rf "$stage"

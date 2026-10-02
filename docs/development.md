@@ -38,7 +38,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - Faro プロジェクトの目印は `faro.json`(名前・言語・Runtime のバージョン・開始画面 `startScreen`)。`faro.json` のないフォルダは確認のうえ初期化(足りないフォルダ・ファイルだけ追加し、既存ファイルは変えない)
 - **Faro.Runtime はプロジェクト内に同梱**:エディターのビルド時に `Faro.Runtime.<版>.nupkg` を作り、新規プロジェクトの `.faro/packages/` にコピーして `nuget.config` から参照する。フォルダごと別の場所・PC に移してもビルドできる(Avalonia 本体は nuget.org から取得)。`.faro/` はプロジェクトと一緒にバージョン管理する
 - 開くときにパッケージ未復元なら `dotnet restore` を自動実行(スプラッシュに表示)
-- **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較し、`-devN`・`-canary.N`・`-beta.N` は同じ番号の正式版より前に並ぶ。版の付け方は `CLAUDE.md`)
+- **Runtime の更新チェック**:プロジェクトが参照している Faro.Runtime より新しい版を Faro が同梱していれば、開くときに更新を確認する。更新すると `.faro/packages` の nupkg、`.csproj` の参照、`faro.json` を新しい版にして restore する(バージョンは数値で比較し、`-devN`・`-canary.N`・`-beta.N` は同じ番号の正式版より前に並ぶ。Faro Canary の Runtime は通常版と同じ版なので、両方で同じプロジェクトを開いても版が食い違わない。版の付け方は `CLAUDE.md`)
 - **初回起動のウィザード**:言語(English / 日本語、選ぶとその場で切り替わる)・テーマ・プラグイン(今後対応の案内)を選ぶ。言語は環境設定の「言語」タブでも変えられる(開いているメニューは再起動で切り替わる)。画面の文言は英語をキーにした表 `src/Faro.Editor/L.cs` で訳す
 - **キャンバスのズーム**:−/+、全体表示(Fit、パネル幅に合わせる)、Ctrl+ホイール、倍率をクリックで 100%
 - **キャンバスの右クリックメニュー**:追加・切り取り(Ctrl+X)・コピー・貼り付け・複製・削除・前後へ移動・親を選択・コンテナで囲む(Stack/Overlay/Grid、ID と紐付けはそのまま)・名前の変更・マスターを編集(インスタンス)
@@ -139,7 +139,7 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
   - 環境変数:`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` の設定有無を表示(末尾4文字のみ)と設定方法。画面から編集はできない(キーはディスクに書かない方針)
   - テーマ:アプリ(System/Dark/Light)＋ユーザーの AXAML ResourceDictionary ファイル／コードエディタ(標準 `.xshd`、TextMate 内蔵テーマ、`.tmTheme` または VS Code の JSON テーマファイル)
   - プラグイン:今後対応(仕様§12 のとおりプロトタイプ範囲外)
-  - 更新:チャンネル(Stable / Beta / Canary)、起動時の確認(1日1回、`-dev` 版では確認しない)、今すぐ確認
+  - 更新:チャンネル(Stable / Beta。Faro Canary では出さない)、起動時の確認(1日1回、`-dev` 版では確認しない)、今すぐ確認
 
 ## デザイン言語
 
@@ -203,8 +203,11 @@ PR と `canary`/`main` への push では、GitHub Actions(`.github/workflows/ch
 - **部品(環境設定 › 部品)**:JDK 21・Maven(Java プロジェクト)、Gluon GraalVM(Java の APK、Linux のみ)、.NET の Android workload(C# の APK)を必要になったときに入れる。Faro の設定フォルダの `tools/` に入り、Faro の中だけで使う(起動時に PATH・`JAVA_HOME`・`GRAALVM_HOME` を設定)
 - **Linux / macOS の PATH**:メニューや Finder から起動したアプリには、シェルの設定ファイル(`.bashrc` など。SDKMAN の Maven など)の PATH が渡らない。Faro は起動時にログインシェルから PATH を読み込む
 - **macOS で初めて開くとき**:Apple の Developer ID 署名・公証はまだないため(簡易署名のみ)、.pkg と Faro の初回は「開けません」と表示される。「システム設定 › プライバシーとセキュリティ」の「このまま開く」を押すと、以降は普通に開ける
-- **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も、Canary は `-canary.N` も対象。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux と macOS はリリースページを開く
-- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)/ `v0.2.4-canary.1`(Canary、`canary` から)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる。`docs/release-notes/<タグ>.md` があれば、その内容を自動生成の PR 一覧の前にリリースノートとして載せる(先にあったリリースにも、まだ載っていなければ本文の前に足す)
+- **更新の確認**:GitHub Releases を読む(送る情報はなし)。Stable は正式版、Beta は `-beta.N` も対象(以前の設定の Canary は Beta として扱う)。Faro Canary は `canary-<番号>` のリリースのうち自分のビルド番号より新しいものだけを見る。Windows では新しいセットアップを取得してサイレント実行し、Faro を閉じて更新後に起動し直す。Linux と macOS はリリースページを開く
+- **Faro Canary**:`canary` への push(PR のマージ)のたびに `release.yml` が別アプリとしてビルドし、プレリリース `canary-<実行番号>` に `FaroCanary-<版>-build<番号>-…` を載せる(新しい 5 つだけ残す)。ビルドは `-p:FaroEdition=Canary -p:FaroBuild=<番号>`(`App.IsCanary`・`App.Name`・`App.Build`)で、名前「Faro Canary」、黄色のアイコン(`assets/faro-canary*`)、設定フォルダ `Faro Canary`、Windows の AppId・macOS のバンドル ID・.deb のパッケージ名(`faro-canary`)を分けて通常版と並べて入れられる。版と Faro.Runtime は通常版と同じ(`canary-` のタグは版として読まれないので Stable / Beta の更新や Web インストーラーには出ない)
+- **Web インストーラー**(Windows の通常の入手先):`installer/web.iss` の `Faro-Setup.exe`。最新リリースに置いた `versions.txt`(Canary 以外の版、新しい順)を `releases/latest/download/` から読み(GitHub API を使わないので回数制限がない)、最新の正式版を既定に、「他のバージョン…」で一覧から選ぶ。選んだ版の `Faro-<版>-win-x64-setup.exe` をダウンロードして、ここで選んだ内容(すべてのユーザー/自分だけ、デスクトップのショートカット、言語)で `/SILENT` 実行する。`versions.txt` と `Faro-Setup.exe` は公開する実行(タグと canary への push)のたびに最新リリースへ載せ直す。`/FAROVERSION=<版>` で一覧を飛ばせる(ワークフローの動作確認)
+- **インストールスクリプト**(Linux / macOS の Web インストーラー):`installer/install.sh`。同じ `versions.txt` から最新の正式版を既定に、端末で `o` を押すと番号で他の版を選べる(`/dev/tty` から読むので `curl … | bash` でも聞ける)。Linux は apt があれば .deb を `apt-get install`、なければ(`--user` でも)tar.gz を `~/.local/share/faro` に展開して `~/.local/bin/faro` とメニュー項目を作る(.NET 10 SDK がなければ同梱の `get-dotnet.sh`)。macOS は `uname -m` に合う .pkg を `installer` で入れる。`--version X`・`--yes`・`--list`・`--canary`(`canary.txt`:Canary のビルド一覧、`refresh()` が作る)。CI は `--version 1.0.0` で Linux(`--user`)と macOS を確かめる
+- **リリースの作り方**:タグを push すると `.github/workflows/release.yml` がビルドして GitHub Release を作る。`v0.2.4`(Stable、`main` から)/ `v0.2.4-beta.1`(Beta)。`-` を含むタグはプレリリースになる。インストーラーやワークフローを変えた PR ではリリースせずにビルドだけ行う。タグを push しなくても、Actions › Release › Run workflow でブランチとタグ名を指定すれば、そのブランチの先頭をそのタグでリリースできる。GitHub のリリース画面でタグごと作ったリリースや、ファイルが欠けたリリースは、同じタグ名で Run workflow するとそのタグをビルドしてファイルを載せる。`docs/release-notes/<タグ>.md` があれば、その内容を自動生成の PR 一覧の前にリリースノートとして載せる(先にあったリリースにも、まだ載っていなければ本文の前に足す)
 - **ログとクラッシュレポート**:設定フォルダの `logs/`(Windows は `%APPDATA%\Faro\logs`)に日ごとのログ `faro-YYYYMMDD.log` と、落ちたときの `crash-*.txt`(版・OS・スタックトレース)を残す(14日で削除)。起動時に Faro 自身を `--watch <PID>` で見張り役として起動し(待つだけで UI は読み込まない)、エディターが正常に終了しなかったとき(.NET の例外に加え、ネイティブのクラッシュや強制終了も)すぐに「予期せず終了しました」ウィンドウを出す。何をしていたかの入力、詳細(レポートとログの末尾)、Issue で報告(詳細を本文に入れ、全文はクリップボードへ)・コピー・再起動。正常終了は `logs/running-<PID>` の削除で見分ける(終了シグナルも正常扱い)。どこにも自動送信はしない
 - **コード署名**:未対応(Windows で SmartScreen の警告が出る)
 

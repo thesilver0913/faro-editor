@@ -1,5 +1,9 @@
-# Builds the Windows installer, the Linux archive and .deb, and the macOS installer packages (arm64, x64; ad-hoc signed). A tag "v0.2.4" (Stable), "v0.2.4-beta.1" (Beta) or
-# "v0.2.4-canary.1" (Canary) publishes them as a GitHub Release, which Faro's update check reads.
+# Builds the Windows installer, the Linux archive and .deb, and the macOS installer packages (arm64, x64; ad-hoc signed). A tag "v0.2.4" (Stable) or
+# "v0.2.4-beta.1" (Beta) publishes them as a GitHub Release, which Faro's update check reads.
+# Every push to canary (each merged PR) builds Faro Canary, a separate app (its own name, icon, settings and installers),
+# and publishes it as the pre-release "canary-<run number>"; only the newest few are kept.
+# Each published run also refreshes, on the latest release, versions.txt (the non-canary versions, newest first) and
+# Faro-Setup.exe, the web installer that releases/latest/download/Faro-Setup.exe always serves.
 # PRs that touch the installer or this workflow build them as a dry run (artifacts only, no release).
 # Run it by hand (Actions › Release › Run workflow) with a tag to release the chosen branch's head under that tag,
 # or, for a tag that already exists (e.g. made on GitHub's release page), to build that tag and attach the files.
@@ -8,6 +12,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+    branches: [canary]
   pull_request:
     paths: ['installer/**', '.github/workflows/release.yml']
   workflow_dispatch:
@@ -15,6 +20,10 @@ on:
       tag:
         description: 'Release tag to create, e.g. v1.0.0-beta.1 (empty: build only)'
         required: false
+
+concurrency: # a newer canary push supersedes a canary build still running; releases and PRs aren't cancelled
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/canary' }}
 
 jobs:
   build:
@@ -50,61 +59,144 @@ jobs:
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"
           else v="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)"; fi # BSD grep (macOS) has no -P
           echo "VERSION=$v" >> "$GITHUB_ENV"
-      - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -o publish/${{ matrix.rid }}
+          # Faro Canary: same version (and Faro.Runtime) as the commit's, told apart by edition and build number
+          if [[ "$GITHUB_REF" == refs/heads/canary ]]; then
+            { echo "EDITION=Canary"; echo "BUILD=$GITHUB_RUN_NUMBER"; echo "LABEL=$v-build$GITHUB_RUN_NUMBER"; echo "APP=Faro Canary"; echo "CMD=faro-canary"; } >> "$GITHUB_ENV"
+          else
+            { echo "LABEL=$v"; echo "APP=Faro"; echo "CMD=faro"; } >> "$GITHUB_ENV"
+          fi
+      - run: dotnet publish src/Faro.Editor -c Release -r ${{ matrix.rid }} --self-contained false -p:Version=${{ env.VERSION }} -p:FaroEdition=${{ env.EDITION }} -p:FaroBuild=${{ env.BUILD }} -o publish/${{ matrix.rid }}
       - name: Installer
         if: matrix.rid == 'win-x64'
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
-          & $iscc /DAppVersion=$env:VERSION /DSourceDir=..\publish\win-x64 installer\faro.iss
+          $canary = if ($env:EDITION) { @('/DCanary', "/DBuild=$env:BUILD") } else { @() }
+          & $iscc /DAppVersion=$env:VERSION /DSourceDir=..\publish\win-x64 @canary installer\faro.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $iscc "/DRepo=$env:GITHUB_REPOSITORY" installer\web.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Faro Canary's Setup is only made on canary pushes: other runs compile it too (thrown away), so a mistake shows before the merge
+          if (-not $env:EDITION) { & $iscc /DAppVersion=$env:VERSION /DSourceDir=..\publish\win-x64 /DCanary /DBuild=0 "/O$env:RUNNER_TEMP\canary-check" installer\faro.iss; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
       - name: Archive
         if: matrix.rid == 'linux-x64'
         run: |
-          mkdir -p dist && tar -czf dist/Faro-$VERSION-linux-x64.tar.gz -C publish/linux-x64 . -C "$PWD/installer" get-dotnet.sh
-          bash installer/deb.sh "$VERSION" publish/linux-x64 dist
+          file=$([[ -n "$EDITION" ]] && echo FaroCanary || echo Faro)
+          cp "assets/$([[ -n "$EDITION" ]] && echo faro-canary-icon.png || echo faro-icon.png)" publish/linux-x64/icon.png # install.sh's menu entry
+          mkdir -p dist && tar -czf "dist/$file-$LABEL-linux-x64.tar.gz" -C publish/linux-x64 . -C "$PWD/installer" get-dotnet.sh
+          bash installer/deb.sh "$LABEL" publish/linux-x64 dist "$EDITION"
       - name: Installer package
         if: startsWith(matrix.rid, 'osx-')
-        run: bash installer/pkg.sh "$VERSION" ${{ matrix.rid }} publish/${{ matrix.rid }} dist
+        run: bash installer/pkg.sh "$LABEL" ${{ matrix.rid }} publish/${{ matrix.rid }} dist "$EDITION"
       # Smoke tests: install the package the way a user does, then start Faro (--version prints the version and exits),
       # which proves the launcher finds .NET. The .deb and .pkg also run their .NET download when the runner's isn't seen.
       - name: Install and start (Windows)
         if: matrix.rid == 'win-x64'
         shell: pwsh
         run: |
-          $setup = (Get-ChildItem dist\*-setup.exe)[0].FullName
+          $setup = (Get-ChildItem dist\*-win-x64-setup.exe)[0].FullName
           # WaitForExit, not -Wait: -Wait also waits for the Faro window the installer starts afterwards.
           (Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$env:RUNNER_TEMP\Faro" -PassThru).WaitForExit()
           Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue
           $faro = Start-Process "$env:RUNNER_TEMP\Faro\Faro.Editor.exe" -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\version.txt"
           Get-Content "$env:RUNNER_TEMP\version.txt"
           if ($faro.ExitCode -ne 0) { exit 1 }
+      # The web installer: here with a fixed version (the version list lives on the latest release, made after a merge),
+      # so this tests the download and the hand-over to the full Setup; Faro must start from the folder it installed into.
+      - name: Web installer (Windows)
+        if: matrix.rid == 'win-x64' && env.EDITION == ''
+        shell: pwsh
+        run: |
+          (Start-Process dist\Faro-Setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/FAROVERSION=1.0.0', "/DIR=$env:RUNNER_TEMP\FaroWeb" -PassThru).WaitForExit()
+          Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue
+          $faro = Start-Process "$env:RUNNER_TEMP\FaroWeb\Faro.Editor.exe" -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\web-version.txt"
+          Get-Content "$env:RUNNER_TEMP\web-version.txt"
+          if ($faro.ExitCode -ne 0) { exit 1 }
+      # Screenshots of the web installer's pages (artifact web-installer-screens), in Japanese, with the real version list
+      # served locally (versions.txt is only on the latest release after a merge); UI Automation clicks through it.
+      - name: Web installer screenshots (Windows)
+        if: matrix.rid == 'win-x64' && env.EDITION == ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
+          $list = New-Item -ItemType Directory "$env:RUNNER_TEMP\list"; $shots = New-Item -ItemType Directory screens
+          gh release list --repo $env:GITHUB_REPOSITORY --limit 30 --json tagName -q '.[].tagName' | Where-Object { $_ -like 'v*' } | ForEach-Object { $_.Substring(1) } | Set-Content "$list\versions.txt"
+          $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '-d', $list -PassThru
+          Start-Sleep 2
+          $setup = Start-Process dist\Faro-Setup.exe -ArgumentList '/LANG=ja', '/FAROLIST=http://localhost:8765/versions.txt' -PassThru
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $all = [System.Windows.Automation.TreeScope]::Descendants
+          function Window { for ($i = 0; $i -lt 60; $i++) { Start-Sleep 1; $w = $root.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ProcessId -ne 0 -and (Get-Process -Id $_.Current.ProcessId -ErrorAction SilentlyContinue).Name -like 'Faro-Setup*' } | Select-Object -First 1; if ($w) { return $w } } }
+          function Shot($name) {
+            Start-Sleep 2; $r = (Window).Current.BoundingRectangle
+            $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size); $bmp.Save("$shots\$name.png")
+          }
+          Add-Type -Namespace W -Name M -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y); [DllImport("user32.dll")] public static extern void mouse_event(int f, int x, int y, int d, int e);'
+          function Click($like) { # a real mouse click on the control's middle (Inno's controls don't offer UI Automation's click)
+            $es = (Window).FindAll($all, [System.Windows.Automation.Condition]::TrueCondition)
+            $e = $es | Where-Object { $_.Current.Name -match $like } | Select-Object -Last 1
+            if (-not $e) { $es | ForEach-Object { $_.Current.Name }; throw "no '$like'" }
+            $r = $e.Current.BoundingRectangle
+            [W.M]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); [W.M]::mouse_event(2, 0, 0, 0, 0); [W.M]::mouse_event(4, 0, 0, 0, 0)
+          }
+          try {
+            Shot 1-privileges; Stop-Process -Name Faro-Setup* # its "install for" choice: a task dialog, which UI Automation can't click
+            $setup = Start-Process dist\Faro-Setup.exe -ArgumentList '/LANG=ja', '/CURRENTUSER', '/FAROLIST=http://localhost:8765/versions.txt', "/DIR=$env:RUNNER_TEMP\FaroShots" -PassThru
+            Shot 2-license; Click '^同意する'; Click '^次へ'
+            Shot 3-version; Click '^他のバージョン'
+            Shot 4-other-versions; Click '^次へ'
+            Shot 5-download
+            $setup.WaitForExit(600000) | Out-Null
+          } finally {
+            Stop-Process -Name Faro.Editor -ErrorAction SilentlyContinue; Stop-Process $server
+            # artifacts need a sign-in to download; the log carries the pictures too (base64 between the markers)
+            Get-ChildItem $shots | ForEach-Object { "SHOT $($_.BaseName) $([Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName)))" }
+          }
+      - uses: actions/upload-artifact@v4
+        if: matrix.rid == 'win-x64' && env.EDITION == '' && always()
+        with:
+          name: web-installer-screens
+          path: screens/*
       - name: Install and start (Linux)
         if: matrix.rid == 'linux-x64'
         run: |
           sudo apt-get install -y ./dist/*.deb
-          faro --version
+          "$CMD" --version
+      # install.sh, with a fixed version as for the web installer above: the user install (tar.gz into ~/.local)
+      - name: Install script (Linux)
+        if: matrix.rid == 'linux-x64' && env.EDITION == ''
+        run: |
+          bash installer/install.sh --version 1.0.0 --user --yes
+          ~/.local/bin/faro --version
       - name: Install and start (macOS)
         if: matrix.rid == 'osx-arm64' # the runner is Apple Silicon
         run: |
           sudo installer -pkg dist/*.pkg -target /
-          /Applications/Faro.app/Contents/MacOS/Faro.Editor --version
+          "/Applications/$APP.app/Contents/MacOS/Faro.Editor" --version
+          # install.sh over it, with a fixed version (as for the web installer above)
+          [[ -n "$EDITION" ]] || { bash installer/install.sh --version 1.0.0 --yes && /Applications/Faro.app/Contents/MacOS/Faro.Editor --version | grep -F 1.0.0; }
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.rid }}
           path: dist/*
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != ''
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag != '' || github.ref == 'refs/heads/canary'
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4 # only for the written release notes (docs/release-notes/<tag>.md)
+      - uses: actions/checkout@v4 # only for the written release notes (docs/release-notes/<tag>.md) and install.sh
         with:
-          sparse-checkout: docs/release-notes
+          sparse-checkout: |
+            docs/release-notes
+            installer/install.sh
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -113,10 +205,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
+          # The web installers (Faro-Setup.exe, install.sh) and the version lists they read go on the latest release
+          # (releases/latest/download/…), refreshed by every published run; a canary run also brings them there the first time after a merge.
+          # canary.txt: Faro Canary's builds ("1.0.1-beta.12-build57", tag canary-57), newest first.
+          refresh() {
+            releases=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --exclude-drafts --json tagName,name -q '.[] | .tagName + " " + .name')
+            grep '^v' <<< "$releases" | cut -d' ' -f1 | sed 's/^v//' > versions.txt || true
+            grep '^canary-' <<< "$releases" | sed -n 's/^canary-\([0-9]*\) Faro Canary \([^ ]*\) .*/\2-build\1/p' > canary.txt || true
+            latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+            gh release upload "$latest" dist/Faro-Setup.exe installer/install.sh versions.txt canary.txt --repo "$GITHUB_REPOSITORY" --clobber
+          }
+          if [[ "$GITHUB_REF" == refs/heads/canary ]]; then
+            # Faro Canary: a pre-release per push, only its own files; the newest five are kept.
+            version=$(ls dist/FaroCanary-*-win-x64-setup.exe | sed 's:.*/FaroCanary-\(.*\)-build.*:\1:')
+            gh release create "canary-$GITHUB_RUN_NUMBER" dist/FaroCanary-* --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "Faro Canary $version (build $GITHUB_RUN_NUMBER)" --notes "Faro Canary, built from ${GITHUB_SHA::7} on canary. It installs next to Faro, with its own settings."
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName -q '.[].tagName' | grep '^canary-' | sort -t- -k2 -rn | tail -n +6 |
+              xargs -r -I{} gh release delete {} --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+            refresh
+            exit
+          fi
+          rm -f dist/FaroCanary-* # (none outside canary runs)
           # A release already made on GitHub's release page (which creates the tag) just gets the files.
           notes="docs/release-notes/$TAG.md"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            refresh
             # Written notes go above what the release already says, once (a re-run doesn't add them again).
             body="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)"
             if [[ -f "$notes" ]] && ! grep -qF -- "$(head -n 1 "$notes")" <<< "$body"; then
@@ -128,3 +242,4 @@ jobs:
           [[ -f "$notes" ]] && flags+=(--notes-file "$notes") # written notes first, then the generated PR list
           [[ "$TAG" == *-* ]] && flags+=(--prerelease)
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+          refresh

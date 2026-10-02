@@ -12,6 +12,17 @@ public partial class App : Application
     /// <summary>"0.1.8" or "0.1.8-dev1" (without the commit hash the SDK appends).</summary>
     public static string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
 
+    static string? Meta(string key) => Assembly.GetEntryAssembly()?.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == key)?.Value;
+
+    /// <summary>
+    /// Faro Canary: a separate app built from every merge into canary (-p:FaroEdition=Canary -p:FaroBuild=N): its own
+    /// name, icon, settings folder and updates (the newest canary build). Its Faro.Runtime keeps the normal version.
+    /// </summary>
+    public static bool IsCanary => Meta("FaroEdition") == "Canary";
+    public static int Build => int.TryParse(Meta("FaroBuild"), out var build) ? build : 0;
+    public static string Name => IsCanary ? "Faro Canary" : "Faro";
+    public static string DisplayVersion => IsCanary ? $"{Version} (build {Build})" : Version;
+
     static string? root, crashReport;
 
     /// <summary>The bundled UI font, the same on every OS.</summary>
@@ -110,7 +121,7 @@ public partial class App : Application
         catch (Exception) { } // the code pane shows why; the editor still opens
         splash.Report("Ready", 100);
 
-        desktop.MainWindow = new MainWindow { Title = $"Faro — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? L.T(" (not saved)") : "")}{(Workspace.Trusted ? "" : L.T(" (Restricted Mode)"))}" };
+        desktop.MainWindow = new MainWindow { Title = $"{Name} — {Path.GetFileName(dir)}{(ProjectSetup.IsUntitled(dir) ? L.T(" (not saved)") : "")}{(Workspace.Trusted ? "" : L.T(" (Restricted Mode)"))}" };
         desktop.MainWindow.Show();
         splash.Close();
         Updates.Offer(desktop.MainWindow, manual: false);
@@ -122,7 +133,7 @@ public partial class App : Application
     {
         if (args is ["--version"]) // the installers' smoke test: the launcher found .NET and Faro starts
         {
-            Console.WriteLine(Version);
+            Console.WriteLine($"{Name} {DisplayVersion}");
             return;
         }
         if (args is ["--watch", var pid] && int.TryParse(pid, out var editor)) // the crash watcher waits, then shows the report if the editor crashed

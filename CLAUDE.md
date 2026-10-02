@@ -60,7 +60,9 @@
 
 - 開発は `canary`、`main` はリリース用(リリースまで空。PR #1 は打ち消し済み)
 - **PR ごとに `Directory.Build.props` の `<Version>` を 0.0.1 上げる**(`samples/HelloFaro/faro.json` の `runtime` も合わせる)。**作業中は `0.1.8-dev1` のように `-devN` を付け、Runtime を変えるたびに N を上げる**(同じ版の古い nupkg を NuGet キャッシュが使い回すため)。PR をマージできる状態になったら `-devN` を外す。末尾は 0〜9 で繰り上がる:0.1.8 → 0.1.9 → **0.2.0**(0.1.10 にはしない)。Faro.Runtime の nupkg はこの版で作られ、既存プロジェクトには開いたときに更新を案内する。**0.2.4 の次は 1.0.0**(最初の公開 `v1.0.0-beta.1`)。以降も PR ごとに 1.0.1 → 1.0.2 … と上げ、公開するときはタグでチャンネルの接尾辞を付ける。1.0.0 の正式版までは PR ごとに `1.0.0-beta.N` の N を上げた(1.0.0-beta.17 まで)。**1.0.0 の正式版(`v1.0.0`)の後は `1.0.1-beta.1` から開発を進め、PR ごとに `1.0.1-beta.N` の N を上げる**(ユーザーの指示)。次の正式版を出すときに `-beta.N` を外して `1.0.1` にし、その後は `1.0.2-beta.1` から同じように進める。公開は同じ版のタグ(`v1.0.1-beta.N`、正式版は `v1.0.1`)。正式版のリリースノートは `docs/release-notes/vX.Y.Z.md` に書く(`release.yml` が自動生成の PR 一覧の前に載せる)
-- **リリースはタグで**:`vX.Y.Z`(Stable、`main`)/ `vX.Y.Z-beta.N` / `vX.Y.Z-canary.N` を push すると `release.yml` がインストーラー等を GitHub Release に載せ、Faro の更新確認が各チャンネルで拾う。版の並びは dev < canary < beta < 正式版
+- **リリースはタグで**:`vX.Y.Z`(Stable、`main`)/ `vX.Y.Z-beta.N` を push すると `release.yml` がインストーラー等を GitHub Release に載せ、Faro の更新確認が各チャンネルで拾う。版の並びは dev < canary < beta < 正式版
+- **Faro Canary** は別アプリ(名前・黄色のアイコン・設定フォルダ・インストール先が別):`canary` への push のたびに `release.yml` が `-p:FaroEdition=Canary` で作り、プレリリース `canary-<番号>` に載せる(新しい 5 つを残す)。Faro の設定画面に Canary のチャンネルはない
+- **Windows の通常の入手先は Web インストーラー** `Faro-Setup.exe`(`installer/web.iss`):最新リリースの `versions.txt` から最新の正式版を取ってきて入れ、「他のバージョン…」で選べる。Linux / macOS は同じ考えの `installer/install.sh`(`curl … | bash`、`o` で他のバージョン、`--canary`)。`versions.txt`・`canary.txt`・`Faro-Setup.exe`・`install.sh` は公開のたびに最新リリースへ載せ直す
 - リリースで `canary` を `main` にマージする前に、`main` の打ち消しコミット(f354289)を打ち消すこと。そのままマージすると、PR #1 の変更が「取り込み済み・打ち消し済み」と扱われて初期プロトタイプ分が入らない
 
 ## コーディング方針

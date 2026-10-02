@@ -1,25 +1,27 @@
 #!/bin/bash
-# Debian package from a linux-x64 publish: deb.sh VERSION PUBLISH_DIR OUT_DIR → OUT_DIR/Faro-VERSION-linux-x64.deb
-# Installs to /usr/lib/faro with a `faro` command and a menu entry. Faro needs the .NET 10 SDK: when none is installed,
+# Debian package from a linux-x64 publish: deb.sh VERSION PUBLISH_DIR OUT_DIR [Canary] → OUT_DIR/Faro-VERSION-linux-x64.deb
+# Installs to /usr/lib/faro with a `faro` command and a menu entry (Faro Canary: faro-canary, its own package, beside it). Faro needs the .NET 10 SDK: when none is installed,
 # the package downloads it into /usr/lib/faro/dotnet (Microsoft's dotnet-install script), where Faro's launcher looks first.
 set -euo pipefail
 version=$1 publish=$2 out=$3
+if [[ "${4:-}" == Canary ]]; then pkg=faro-canary name="Faro Canary" icon=faro-canary-icon.png file=FaroCanary
+else pkg=faro name=Faro icon=faro-icon.png file=Faro; fi
 root=$(mktemp -d)
-mkdir -p "$root/DEBIAN" "$root/usr/lib/faro" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/pixmaps"
-cp -r "$publish"/. "$root/usr/lib/faro/"
-ln -s ../lib/faro/Faro.Editor "$root/usr/bin/faro"
-cp "$(dirname "$0")/../assets/faro-icon.png" "$root/usr/share/pixmaps/faro.png"
-cat > "$root/usr/share/applications/faro.desktop" <<DESKTOP
+mkdir -p "$root/DEBIAN" "$root/usr/lib/$pkg" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/pixmaps"
+cp -r "$publish"/. "$root/usr/lib/$pkg/"
+ln -s "../lib/$pkg/Faro.Editor" "$root/usr/bin/$pkg"
+cp "$(dirname "$0")/../assets/$icon" "$root/usr/share/pixmaps/$pkg.png"
+cat > "$root/usr/share/applications/$pkg.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Faro
+Name=$name
 Comment=UI/UX visual editor
-Exec=faro %f
-Icon=faro
+Exec=$pkg %f
+Icon=$pkg
 Categories=Development;IDE;
 DESKTOP
 cat > "$root/DEBIAN/control" <<CONTROL
-Package: faro
+Package: $pkg
 Version: ${version/-/\~}
 Architecture: amd64
 Maintainer: Faro <https://github.com/thesilver0913/faro-editor>
@@ -48,7 +50,8 @@ cat > "$root/DEBIAN/postrm" <<'POSTRM'
 [ "$1" = remove ] || [ "$1" = purge ] && rm -rf /usr/lib/faro/dotnet
 exit 0
 POSTRM
+sed -i "s#/usr/lib/faro#/usr/lib/$pkg#g" "$root/DEBIAN/postinst" "$root/DEBIAN/postrm" # .NET next to this package's Faro
 chmod 755 "$root/DEBIAN/postinst" "$root/DEBIAN/postrm"
 mkdir -p "$out"
-dpkg-deb --root-owner-group --build "$root" "$out/Faro-$version-linux-x64.deb"
+dpkg-deb --root-owner-group --build "$root" "$out/$file-$version-linux-x64.deb"
 rm -rf "$root"

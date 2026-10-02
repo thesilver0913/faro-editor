@@ -3,6 +3,8 @@
     <OutputType>WinExe</OutputType>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>../../assets/faro.ico</ApplicationIcon>
+    <!-- Faro Canary (release.yml on every merge into canary): -p:FaroEdition=Canary -p:FaroBuild=<run number> -->
+    <ApplicationIcon Condition="'$(FaroEdition)' == 'Canary'">../../assets/faro-canary.ico</ApplicationIcon>
     <!-- The launcher first looks for .NET in dotnet/ next to Faro, where the Windows installer and the .deb put the
          .NET 10 SDK when none is installed; then DOTNET_ROOT and the usual system-wide install. -->
     <AppHostDotNetSearch>AppRelative;EnvironmentVariable;Global</AppHostDotNetSearch>
@@ -19,7 +21,10 @@
     <PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
-    <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" />
+    <AvaloniaResource Include="../../assets/faro-icon.png" Link="Assets/faro-icon.png" Condition="'$(FaroEdition)' != 'Canary'" />
+    <AvaloniaResource Include="../../assets/faro-canary-icon.png" Link="Assets/faro-icon.png" Condition="'$(FaroEdition)' == 'Canary'" />
+    <AssemblyMetadata Include="FaroEdition" Value="$(FaroEdition)" Condition="'$(FaroEdition)' != ''" />
+    <AssemblyMetadata Include="FaroBuild" Value="$(FaroBuild)" Condition="'$(FaroEdition)' != ''" />
     <AvaloniaResource Include="../../assets/faro-splash.png" Link="Assets/faro-splash.png" />
     <AvaloniaResource Include="../../assets/fonts/Inter-Regular.ttf" Link="Assets/Fonts/Inter-Regular.ttf" />
     <!-- The editor's UI font: Noto Sans JP (Latin and Japanese in one family, so weights match). -->
